@@ -53,21 +53,19 @@ export default function Login() {
         title: "Welcome Back!",
         description: "Login successful.",
       });
-const res = await fetch("/api/auth/current-user", {
-  credentials: "include",
-});
+      const res = await fetch("/api/auth/current-user", {
+        credentials: "include",
+      });
 
-if (!res.ok) {
-  throw new Error("Session not created");
-}
+      const me = await res.json();
 
-const me = await res.json();
-
-if (me.userType === "vendor") {
-  setLocation("/vendor-dashboard");
-} else {
-  setLocation("/dashboard");
-}
+      if (me.userType === "vendor") {
+        setLocation("/vendor-dashboard");
+      } else if (me.userType === "contractor") {
+        setLocation("/dashboard");
+      } else if (me.userType === "admin") {
+        setLocation("/admin-dashboard");
+      }
 
     } catch (error: any) {
       console.error("Login error:", error);

@@ -25,7 +25,6 @@ type SignupFormData = z.infer<typeof signupSchema>;
 
 export default function Signup() {
 const intent = new URLSearchParams(window.location.search).get("intent");
-console.log("intent:", intent);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -46,7 +45,6 @@ console.log("intent:", intent);
   const onSubmit = async (data: SignupFormData) => {
     
     const finalUserType = intent === "vendor" ? "vendor" : "contractor";
-    console.log("Submitting signup for userType:", finalUserType);
     setIsLoading(true);
     setSuccessMessage(null);
 
@@ -66,12 +64,6 @@ console.log("intent:", intent);
         title: "Account Created!",
         description: "Please check your email to verify your account.",
       });
-      if (intent == "vendor") {
-        console.log("Redirecting to vendor application", intent, response.userType);
-        setLocation("/vendor-signup");
-      } else {
-        setLocation("/assessment");
-      }
     } catch (error: any) {
       console.error("Signup error:", error);
       toast({

@@ -14,7 +14,7 @@ import { useLocation } from "wouter";
 export default function VendorDashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const { user } = useAuth();
-const [, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   // Fetch vendor profile
   const { data: vendorProfile, isLoading: profileLoading } = useQuery({
     queryKey: ["/api/vendor-profile"],
