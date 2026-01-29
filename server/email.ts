@@ -1,77 +1,132 @@
-import sgMail from '@sendgrid/mail';
+// import sgMail from '@sendgrid/mail';
+import nodemailer from "nodemailer";
 
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-}
+// if (process.env.SENDGRID_API_KEY) {
+//   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// }
 
 export class EmailService {
-  private static readonly FROM_EMAIL = 'noreply@tullisstrategic.com';
+  // private static readonly FROM_EMAIL = 'noreply@tullisstrategic.com';
   private static readonly COMPANY_NAME = 'GovScale Alliance';
-
-  static async sendVerificationEmail(
+private static transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
+    secure: false, // true for 465, false for 587
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+static async sendVerificationEmail(
     to: string,
     token: string,
     firstName?: string | null
   ): Promise<void> {
-    if (!process.env.SENDGRID_API_KEY) {
-      console.warn('[EMAIL] SendGrid API key not configured, skipping email send');
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.warn("[EMAIL] SMTP not configured, skipping email send");
       console.log(`[EMAIL] Verification link: ${this.getVerificationUrl(token)}`);
       return;
     }
 
+    const name = firstName || "there";
     const verificationUrl = this.getVerificationUrl(token);
-    const name = firstName || 'there';
 
-    const msg = {
+    await this.transporter.sendMail({
+      from: `"${this.COMPANY_NAME}" <${process.env.FROM_EMAIL}>`,
       to,
-      from: this.FROM_EMAIL,
       subject: `Verify your ${this.COMPANY_NAME} account`,
       text: this.getTextContent(name, verificationUrl),
       html: this.getHtmlContent(name, verificationUrl),
-    };
+    });
 
-    try {
-      await sgMail.send(msg);
-      console.log(`[EMAIL] Verification email sent to ${to}`);
-    } catch (error) {
-      console.error('[EMAIL] Error sending verification email:', error);
-      throw new Error('Failed to send verification email');
-    }
+    console.log(`[EMAIL] Verification email sent to ${to}`);
   }
-
   static async sendWelcomeEmail(
     to: string,
     firstName?: string | null
   ): Promise<void> {
-    if (!process.env.SENDGRID_API_KEY) {
-      console.warn('[EMAIL] SendGrid API key not configured, skipping email send');
-      return;
-    }
+    const name = firstName || "there";
 
-    const name = firstName || 'there';
-
-    const msg = {
+    await this.transporter.sendMail({
+      from: `"${this.COMPANY_NAME}" <${process.env.FROM_EMAIL}>`,
       to,
-      from: this.FROM_EMAIL,
       subject: `Welcome to ${this.COMPANY_NAME}!`,
       text: this.getWelcomeTextContent(name),
       html: this.getWelcomeHtmlContent(name),
-    };
+    });
 
-    try {
-      await sgMail.send(msg);
-      console.log(`[EMAIL] Welcome email sent to ${to}`);
-    } catch (error) {
-      console.error('[EMAIL] Error sending welcome email:', error);
-    }
+    console.log(`[EMAIL] Welcome email sent to ${to}`);
   }
-
   private static getVerificationUrl(token: string): string {
     const baseUrl = process.env.REPLIT_DEV_DOMAIN
       ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : 'http://localhost:5000';
+      : "http://localhost:5000";
     return `${baseUrl}/verify-email?token=${token}`;
   }
+  // static async sendVerificationEmail(
+  //   to: string,
+  //   token: string,
+  //   firstName?: string | null
+  // ): Promise<void> {
+  //   if (!process.env.SENDGRID_API_KEY) {
+  //     console.warn('[EMAIL] SendGrid API key not configured, skipping email send');
+  //     console.log(`[EMAIL] Verification link: ${this.getVerificationUrl(token)}`);
+  //     return;
+  //   }
+
+  //   const verificationUrl = this.getVerificationUrl(token);
+  //   const name = firstName || 'there';
+
+  //   const msg = {
+  //     to,
+  //     from: this.FROM_EMAIL,
+  //     subject: `Verify your ${this.COMPANY_NAME} account`,
+  //     text: this.getTextContent(name, verificationUrl),
+  //     html: this.getHtmlContent(name, verificationUrl),
+  //   };
+
+  //   try {
+  //     await sgMail.send(msg);
+  //     console.log(`[EMAIL] Verification email sent to ${to}`);
+  //   } catch (error) {
+  //     console.error('[EMAIL] Error sending verification email:', error);
+  //     throw new Error('Failed to send verification email');
+  //   }
+  // }
+
+  // static async sendWelcomeEmail(
+  //   to: string,
+  //   firstName?: string | null
+  // ): Promise<void> {
+  //   if (!process.env.SENDGRID_API_KEY) {
+  //     console.warn('[EMAIL] SendGrid API key not configured, skipping email send');
+  //     return;
+  //   }
+
+  //   const name = firstName || 'there';
+
+  //   const msg = {
+  //     to,
+  //     from: this.FROM_EMAIL,
+  //     subject: `Welcome to ${this.COMPANY_NAME}!`,
+  //     text: this.getWelcomeTextContent(name),
+  //     html: this.getWelcomeHtmlContent(name),
+  //   };
+
+  //   try {
+  //     await sgMail.send(msg);
+  //     console.log(`[EMAIL] Welcome email sent to ${to}`);
+  //   } catch (error) {
+  //     console.error('[EMAIL] Error sending welcome email:', error);
+  //   }
+  // }
+
+  // private static getVerificationUrl(token: string): string {
+  //   const baseUrl = process.env.REPLIT_DEV_DOMAIN
+  //     ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+  //     : 'http://localhost:5000';
+  //   return `${baseUrl}/verify-email?token=${token}`;
+  // }
 
   private static getTextContent(name: string, verificationUrl: string): string {
     return `

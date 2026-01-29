@@ -63,7 +63,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Signup with email/password
   app.post('/api/auth/signup', async (req, res) => {
     try {
-      const validatedData = insertUserSchema.parse(req.body);
+      const intent = req.query.intent === 'vendor' ? 'vendor' : 'contractor';
+      const validatedData = insertUserSchema.parse({
+        ...req.body,
+        userType: intent,
+      });
       
       // Check if user already exists
       const existingUser = await storage.getUserByEmail(validatedData.email);
@@ -73,12 +77,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Hash password
       const hashedPassword = await AuthService.hashPassword(validatedData.password);
-
-      const userType: "contractor" | "vendor" =
-      validatedData.userType === "vendor" ? "vendor" : "contractor";
       // Generate verification token
-      // const verificationToken = AuthService.generateVerificationToken();
-      // const verificationExpiry = AuthService.generateTokenExpiry();
+      const verificationToken = AuthService.generateVerificationToken();
+      const verificationExpiry = AuthService.generateTokenExpiry();
       
       // Create user (using upsertUser which accepts all fields)
       const user = await storage.createUser({
@@ -88,16 +89,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: validatedData.lastName,
         username: validatedData.username,
         profileImageUrl: validatedData.profileImageUrl,
-        userType,
-        isEmailVerified: true,
+        emailVerificationToken: verificationToken,
+        emailVerificationExpiry: verificationExpiry,
+        userType: intent,
+        isEmailVerified: false,
       });
       
       // Send verification email
-      // await EmailService.sendVerificationEmail(
-      //   user.email,
-      //   verificationToken,
-      //   user.firstName
-      // );
+      await EmailService.sendVerificationEmail(
+        user.email,
+        verificationToken,
+        user.firstName
+      );
       
       console.log(`[AUTH] New user registered: ${user.email}`);
       
@@ -297,13 +300,20 @@ app.post('/api/skip-assessment', isAuthenticated, async (req: any, res) => {
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-
-    await storage.updateUserFields(userId, {
+    await storage.upsertUserMaturityProfile({
+      userId,
+      maturityStage: 'startup',
+      readinessScore: 0,
+      currentFocus: 'business_structure',
+      businessStructureProgress: 0,
+      businessStrategyProgress: 0,
+      executionProgress: 0,
+      subscriptionTier: 'freemium',
+      assessmentData: null,
+    });
+    await storage.updateUser(userId, {
       skipAssessment: true,
     });
-
-
-    console.log(`[ASSESSMENT] User ${userId} skipped assessment`);
 
     res.json({ success: true });
   } catch (error) {
@@ -541,7 +551,15 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
             userId,
             maturityStage: assessmentResult.maturityStage,
             readinessScore: assessmentResult.readinessScore,
-            assessmentData: { conversationHistory: messages },
+            // assessmentData: { conversationHistory: messages },
+            assessmentData: {
+              conversationHistory: messages,
+              recommendations: {
+                readinessScore: assessmentResult.readinessScore,
+                stage: assessmentResult.maturityStage,
+                focusAreas: assessmentResult.focusAreas
+              }
+            },
             currentFocus: existingProfile?.currentFocus || 'business_structure',
             subscriptionTier: existingProfile?.subscriptionTier || 'freemium',
           });
@@ -572,7 +590,6 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
       res.status(500).json({ message: "Failed to process assessment" });
     }
   });
-  
 
   // Vendor routes
   app.get('/api/vendors', async (req, res) => {
@@ -659,7 +676,7 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
         return res.status(401).json({ message: "Not authenticated" });
       }
       const profileId = req.params.id;
-      
+
       // Ensure user owns this profile
       const existingProfile = await storage.getVendorProfile(userId);
       if (!existingProfile || existingProfile.id !== profileId) {

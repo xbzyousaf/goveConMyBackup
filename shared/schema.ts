@@ -15,7 +15,7 @@ export const sessions = pgTable(
 );
 
 // Enums
-export const userTypeEnum = pgEnum("user_type", ["contractor", "vendor"]);
+export const userTypeEnum = pgEnum("user_type", ["contractor", "vendor", 'admin']);
 export const serviceRequestStatusEnum = pgEnum("service_request_status", ["pending", "matched", "in_progress", "completed", "cancelled"]);
 export const serviceCategoryEnum = pgEnum("service_category", ["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools"]);
 export const maturityStageEnum = pgEnum("maturity_stage", ["startup", "growth", "scale"]);
@@ -302,7 +302,7 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
-  // isEmailVerified: true,
+  isEmailVerified: true,
   emailVerificationToken: true,
   emailVerificationExpiry: true,
   passwordResetToken: true,
@@ -312,6 +312,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   updatedAt: true,
 }).extend({
   email: z.string().email(),
+  userType: z.enum(["contractor", "vendor"]),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 

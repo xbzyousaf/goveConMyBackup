@@ -9,7 +9,6 @@ import { Link, useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
-
 import {
   Target,
   TrendingUp,
@@ -80,24 +79,6 @@ const PROCESS_INFO = {
 };
 
 export default function Dashboard() {
-  const handleSkipAssessment = async () => {
-  try {
-    const res = await fetch("/api/skip-assessment", {
-      method: "POST",
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      throw new Error("Failed to skip assessment");
-    }
-
-    // Redirect after skipping
-    window.location.href = "/dashboard";
-  } catch (error) {
-    console.error("Skip assessment failed:", error);
-  }
-};
-
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isResetting, setIsResetting] = useState(false);
@@ -151,10 +132,12 @@ export default function Dashboard() {
 
   // Check if error is a 404 (no profile) vs actual error
   const is404 = isError && error && (error as any).message?.includes("404");
-  
+
   // Show error state for non-404 errors
   if (isError && !is404) {
     return (
+      <div>
+        <Header />
       <div className="flex flex-col items-center justify-center h-full p-8">
         <div className="max-w-md text-center space-y-4">
           <AlertTriangle className="w-16 h-16 mx-auto text-destructive" data-testid="icon-error" />
@@ -167,16 +150,19 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+      </div>
     );
   }
   
   // Show empty state only if no profile exists AND it's a 404
   if (!profile && is404) {
     return (
+      <div>
+        <Header />
       <div className="flex flex-col items-center justify-center h-full p-8">
         <div className="max-w-md text-center space-y-4">
           <Award className="w-16 h-16 mx-auto text-muted-foreground" data-testid="icon-welcome" />
-          <h2 className="text-2xl font-bold">Welcome to <span className="gradient-text">GovScale Alliance</span></h2>
+          <h2 className="text-2xl font-bold">Welcome to1 <span className="gradient-text">GovScale Alliance</span></h2>
           <p className="text-muted-foreground">
             Take our proven assessment to receive a data-driven maturity analysis and customized growth roadmap with measurable milestones.
           </p>
@@ -186,17 +172,15 @@ export default function Dashboard() {
               Start Your Assessment <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
-          <Button
-            variant="outline"
-            size="lg"
-            className="border-muted text-muted-foreground"
-            onClick={handleSkipAssessment}
-          >
-            Skip Your Assessment
-          </Button>
+          <Link href="/skip-assessment">
+            <Button variant="outline" size="lg">
+              Skip Your Assessment
+            </Button>
+          </Link>
 
           </div>
         </div>
+      </div>
       </div>
     );
   }

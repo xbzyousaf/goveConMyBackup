@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -26,10 +26,12 @@ const formSchema = insertVendorProfileSchema
     skills: z.array(z.string()).min(1, "Add at least one skill"),
   });
 
-
 type FormData = z.infer<typeof formSchema>;
 
 interface VendorProfileFormProps {
+  defaultValues?: Partial<FormData>;
+  profileId?: number; 
+  mode?: "create" | "edit";
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -43,7 +45,7 @@ const serviceCategories = [
   { id: "business_tools", label: "Business Tools", description: "CRM, ERP, operational software" },
 ];
 
-export function VendorProfileForm({ onSuccess, onCancel }: VendorProfileFormProps) {
+export function VendorProfileForm({defaultValues,profileId, mode = "create", onSuccess, onCancel }: VendorProfileFormProps) {
   const [skillInput, setSkillInput] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -60,12 +62,29 @@ export function VendorProfileForm({ onSuccess, onCancel }: VendorProfileFormProp
       skills: [],
       categories: [],
       avatar: "",
+      ...defaultValues,
     },
   });
-
+useEffect(() => {
+  if (defaultValues) {
+    form.reset({
+      companyName: defaultValues.companyName ?? "",
+      title: defaultValues.title ?? "",
+      description: defaultValues.description ?? "",
+      location: defaultValues.location ?? "",
+      hourlyRate: defaultValues.hourlyRate ?? "",
+      responseTime: defaultValues.responseTime ?? "2-4 hours",
+      skills: defaultValues.skills ?? [],
+      categories: defaultValues.categories ?? [],
+      avatar: defaultValues.avatar ?? "",
+    });
+  }
+}, [defaultValues, form]);
   const createProfileMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      return await apiRequest('POST', '/api/vendor-profile', data);
+      return mode === "edit"
+      ? apiRequest("PUT", `/api/vendor-profile/${profileId}`, data)
+      : apiRequest("POST", "/api/vendor-profile", data);
     },
     onSuccess: () => {
       toast({
@@ -123,17 +142,20 @@ export function VendorProfileForm({ onSuccess, onCancel }: VendorProfileFormProp
       
       <CardContent>
         <Form {...form}>
-          <form
-  onSubmit={form.handleSubmit(
-    (data) => {
-      console.log("FORM SUBMITTED", data);
-      onSubmit(data);
-    },
-    (errors) => {
-      console.log("FORM ERRORS", errors);
-    }
-  )}
->
+          <form onSubmit={form.handleSubmit(
+              (data) => {
+                onSubmit(data);
+              },
+              (errors) => {
+                console.log("FORM ERRORS", errors);
+                toast({
+                  title: "Submit Failed",
+                  description: "Failed to submit form. Please try again.",
+                  variant: "destructive",
+                });
+              }
+            )}
+          >
             {/* Company Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-section-company">
@@ -402,12 +424,10 @@ export function VendorProfileForm({ onSuccess, onCancel }: VendorProfileFormProp
                   Cancel
                 </Button>
               )}
-              <Button 
-                type="submit" 
-                disabled={createProfileMutation.isPending}
-                data-testid="button-submit"
-              >
-                {createProfileMutation.isPending ? "Creating Profile..." : "Create Profile"}
+              <Button type="submit" disabled={createProfileMutation.isPending}>
+                {createProfileMutation.isPending
+                  ? mode === "edit" ? "Updating..." : "Creating..."
+                  : mode === "edit" ? "Update Profile" : "Create Profile"}
               </Button>
             </div>
           </form>
