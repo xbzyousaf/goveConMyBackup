@@ -36,7 +36,7 @@ import {
   type InsertUserContentActivity
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
@@ -159,6 +159,20 @@ export class DatabaseStorage implements IStorage {
     const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, userId));
     return profile || undefined;
   }
+  async getVendorCounts() {
+    const rows = await db
+      .select({
+        isApproved: vendorProfiles.isApproved,
+        count: sql<number>`count(*)`,
+      })
+      .from(vendorProfiles)
+      .groupBy(vendorProfiles.isApproved);
+
+    return {
+      approved: Number(rows.find(r => r.isApproved)?.count || 0),
+      pending: Number(rows.find(r => !r.isApproved)?.count || 0),
+    };
+  }
 
   async getVendorProfileById(id: string): Promise<VendorProfile | undefined> {
     const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.id, id));
@@ -223,6 +237,11 @@ export class DatabaseStorage implements IStorage {
       console.error('[getVendors] ERROR:', error);
       throw error;
     }
+  }
+  async updateVendorApproval(vendorId: string, approve: boolean) {
+    await db.update(vendorProfiles)
+            .set({ isApproved: approve })
+            .where(eq(vendorProfiles.id, vendorId));
   }
 
   // Service request management
