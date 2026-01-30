@@ -22,6 +22,7 @@ import VerifyEmail from "@/pages/VerifyEmail";
 import NotFound from "@/pages/not-found";
 import SkipAssessment from "@/pages/SkipAssessment";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminVendors from "./pages/admin/AdminVendors";
 import VendorProfileEditPage from "./pages/vendor/VendorProfileEditPage";
 import Onboarding from "./pages/Onboarding";
 
@@ -66,6 +67,8 @@ function Router() {
           <Route path="/vendor/:id" component={VendorDetail} />
           <Route path="/skip-assessment" component={SkipAssessment} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
+          <Route path="/admin/vendors" component={AdminVendors} />
+          <Route path="/admin/escrow" component={AdminVendors} />
           <Route path="/vendor-profile/edit" component={VendorProfileEditPage} />
           <Route path="/onboarding" component={Onboarding} />
           <Route component={NotFound} />
