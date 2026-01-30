@@ -9,6 +9,10 @@ import { z } from "zod";
 import { insertUserSchema } from "@shared/schema";
 import { pool } from "./db";
 
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error("OPENAI_API_KEY is missing");
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
@@ -243,10 +247,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastName: user.lastName,
         userType: user.userType,
         isEmailVerified: user.isEmailVerified,
+        hasCompletedOnboarding: user.hasCompletedOnboarding,
       });
     } catch (error) {
       console.error('[AUTH] Error fetching current user:', error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+  // Onboarding completion
+  app.post('/api/onboarding/complete', isAuthenticated, async (req: any, res) => {
+  try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      await storage.updateUser(userId, {
+        hasCompletedOnboarding: true,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[ONBOARDING] Error completing onboarding:', error);
+      res.status(500).json({ message: "Failed to complete onboarding" });
     }
   });
 
@@ -551,15 +574,7 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
             userId,
             maturityStage: assessmentResult.maturityStage,
             readinessScore: assessmentResult.readinessScore,
-            // assessmentData: { conversationHistory: messages },
-            assessmentData: {
-              conversationHistory: messages,
-              recommendations: {
-                readinessScore: assessmentResult.readinessScore,
-                stage: assessmentResult.maturityStage,
-                focusAreas: assessmentResult.focusAreas
-              }
-            },
+            assessmentData: { conversationHistory: messages },
             currentFocus: existingProfile?.currentFocus || 'business_structure',
             subscriptionTier: existingProfile?.subscriptionTier || 'freemium',
           });

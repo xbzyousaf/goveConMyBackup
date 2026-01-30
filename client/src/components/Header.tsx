@@ -52,7 +52,7 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
               <span className="font-semibold text-lg gradient-text">GovScale Alliance</span>
             </div>
           </Link>
-          
+          {user?.userType !== "admin" && (
           <nav className="hidden md:flex items-center gap-6">
             <Link href="/marketplace">
               <Button variant="ghost" data-testid="link-marketplace" className="text-sm">
@@ -70,9 +70,11 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
               </Button>
             </Link>
           </nav>
+        )}
         </div>
 
         <div className="flex items-center gap-4">
+          {user?.userType !== "admin" && (
           <form onSubmit={handleSearch} className="relative hidden sm:flex">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -84,6 +86,7 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
               data-testid="input-search"
             />
           </form>
+          )}
 
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" data-testid="button-notifications" className="relative">

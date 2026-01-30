@@ -23,6 +23,7 @@ import NotFound from "@/pages/not-found";
 import SkipAssessment from "@/pages/SkipAssessment";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import VendorProfileEditPage from "./pages/vendor/VendorProfileEditPage";
+import Onboarding from "./pages/Onboarding";
 
 function LoadingSpinner() {
   return (
@@ -66,6 +67,7 @@ function Router() {
           <Route path="/skip-assessment" component={SkipAssessment} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/vendor-profile/edit" component={VendorProfileEditPage} />
+          <Route path="/onboarding" component={Onboarding} />
           <Route component={NotFound} />
         </>
       ) : (

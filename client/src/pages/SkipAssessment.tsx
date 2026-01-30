@@ -9,7 +9,7 @@ export default function SkipAssessment() {
     const skip = async () => {
       try {
         await apiRequest("POST", "/api/skip-assessment", {});
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        queryClient.invalidateQueries({ queryKey: ['/api/auth/current-user'] });
         queryClient.invalidateQueries({ queryKey: ["/api/maturity-profile"] });
       } finally {
         setLocation("/dashboard");
