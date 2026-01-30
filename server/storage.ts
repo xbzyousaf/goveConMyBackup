@@ -175,7 +175,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getVendorProfileById(id: string): Promise<VendorProfile | undefined> {
-    const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.id, id));
+    const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, id));
     return profile || undefined;
   }
 
@@ -280,23 +280,63 @@ export class DatabaseStorage implements IStorage {
     return request;
   }
 
-  async getServiceRequestsByContractor(contractorId: string): Promise<ServiceRequest[]> {
+  async getServiceRequestsByContractor(contractorId: string): Promise<any[]> {
     const requests = await db
-      .select()
+      .select({
+        id: serviceRequests.id,
+        title: serviceRequests.title,
+        description: serviceRequests.description,
+        status: serviceRequests.status,
+        budget: serviceRequests.budget,
+        contractorId: serviceRequests.contractorId,
+        vendorId: serviceRequests.vendorId,
+        createdAt: serviceRequests.createdAt,
+        updatedAt: serviceRequests.updatedAt,
+        vendor: {
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          userType: users.userType,
+        },
+      })
       .from(serviceRequests)
+      .leftJoin(users, eq(users.id, serviceRequests.vendorId))
       .where(eq(serviceRequests.contractorId, contractorId))
       .orderBy(desc(serviceRequests.createdAt));
+
     return requests;
   }
 
-  async getServiceRequestsByVendor(vendorId: string): Promise<ServiceRequest[]> {
+
+  async getServiceRequestsByVendor(vendorId: string): Promise<any[]> {
     const requests = await db
-      .select()
+      .select({
+        id: serviceRequests.id,
+        title: serviceRequests.title,
+        description: serviceRequests.description,
+        status: serviceRequests.status,
+        budget: serviceRequests.budget,
+        contractorId: serviceRequests.contractorId,
+        vendorId: serviceRequests.vendorId,
+        createdAt: serviceRequests.createdAt,
+        updatedAt: serviceRequests.updatedAt,
+        contractor: {
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          userType: users.userType,
+        },
+      })
       .from(serviceRequests)
+      .leftJoin(users, eq(users.id, serviceRequests.contractorId))
       .where(eq(serviceRequests.vendorId, vendorId))
       .orderBy(desc(serviceRequests.createdAt));
+
     return requests;
   }
+
 
   async getPendingServiceRequests(): Promise<ServiceRequest[]> {
     const requests = await db
@@ -355,12 +395,25 @@ export class DatabaseStorage implements IStorage {
     return newReview;
   }
 
-  async getReviewsByVendor(vendorId: string): Promise<Review[]> {
+  async getReviewsByVendor(vendorId: string) {
     const reviewList = await db
-      .select()
+      .select({
+        id: reviews.id,
+        serviceRequestId: reviews.serviceRequestId,
+        reviewerId: reviews.reviewerId,
+        revieweeId: reviews.revieweeId,
+        rating: reviews.rating,
+        comment: reviews.comment,
+        createdAt: reviews.createdAt,
+        contractorName: users.firstName, 
+        contractorUserType: users.userType, 
+        contractorEmail: users.email,    
+      })
       .from(reviews)
+      .leftJoin(users, eq(users.id, reviews.reviewerId)) // join contractor info
       .where(eq(reviews.revieweeId, vendorId))
       .orderBy(desc(reviews.createdAt));
+
     return reviewList;
   }
 
