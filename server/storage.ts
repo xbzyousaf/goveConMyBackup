@@ -36,7 +36,7 @@ import {
   type InsertUserContentActivity
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { eq, and, desc, asc } from "drizzle-orm";
 
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
@@ -159,20 +159,6 @@ export class DatabaseStorage implements IStorage {
     const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, userId));
     return profile || undefined;
   }
-  async getVendorCounts() {
-    const rows = await db
-      .select({
-        isApproved: vendorProfiles.isApproved,
-        count: sql<number>`count(*)`,
-      })
-      .from(vendorProfiles)
-      .groupBy(vendorProfiles.isApproved);
-
-    return {
-      approved: Number(rows.find(r => r.isApproved)?.count || 0),
-      pending: Number(rows.find(r => !r.isApproved)?.count || 0),
-    };
-  }
 
   async getVendorProfileById(id: string): Promise<VendorProfile | undefined> {
     const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, id));
@@ -238,11 +224,6 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-  async updateVendorApproval(vendorId: string, approve: boolean) {
-    await db.update(vendorProfiles)
-            .set({ isApproved: approve })
-            .where(eq(vendorProfiles.id, vendorId));
-  }
 
   // Service request management
   async getServiceRequest(id: string): Promise<ServiceRequest | undefined> {
@@ -280,63 +261,23 @@ export class DatabaseStorage implements IStorage {
     return request;
   }
 
-  async getServiceRequestsByContractor(contractorId: string): Promise<any[]> {
+  async getServiceRequestsByContractor(contractorId: string): Promise<ServiceRequest[]> {
     const requests = await db
-      .select({
-        id: serviceRequests.id,
-        title: serviceRequests.title,
-        description: serviceRequests.description,
-        status: serviceRequests.status,
-        budget: serviceRequests.budget,
-        contractorId: serviceRequests.contractorId,
-        vendorId: serviceRequests.vendorId,
-        createdAt: serviceRequests.createdAt,
-        updatedAt: serviceRequests.updatedAt,
-        vendor: {
-          id: users.id,
-          email: users.email,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          userType: users.userType,
-        },
-      })
+      .select()
       .from(serviceRequests)
-      .leftJoin(users, eq(users.id, serviceRequests.vendorId))
       .where(eq(serviceRequests.contractorId, contractorId))
       .orderBy(desc(serviceRequests.createdAt));
-
     return requests;
   }
 
-
-  async getServiceRequestsByVendor(vendorId: string): Promise<any[]> {
+  async getServiceRequestsByVendor(vendorId: string): Promise<ServiceRequest[]> {
     const requests = await db
-      .select({
-        id: serviceRequests.id,
-        title: serviceRequests.title,
-        description: serviceRequests.description,
-        status: serviceRequests.status,
-        budget: serviceRequests.budget,
-        contractorId: serviceRequests.contractorId,
-        vendorId: serviceRequests.vendorId,
-        createdAt: serviceRequests.createdAt,
-        updatedAt: serviceRequests.updatedAt,
-        contractor: {
-          id: users.id,
-          email: users.email,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          userType: users.userType,
-        },
-      })
+      .select()
       .from(serviceRequests)
-      .leftJoin(users, eq(users.id, serviceRequests.contractorId))
       .where(eq(serviceRequests.vendorId, vendorId))
       .orderBy(desc(serviceRequests.createdAt));
-
     return requests;
   }
-
 
   async getPendingServiceRequests(): Promise<ServiceRequest[]> {
     const requests = await db
@@ -410,10 +351,9 @@ export class DatabaseStorage implements IStorage {
         contractorEmail: users.email,    
       })
       .from(reviews)
-      .leftJoin(users, eq(users.id, reviews.reviewerId)) // join contractor info
+      .leftJoin(users, eq(users.id, reviews.reviewerId))
       .where(eq(reviews.revieweeId, vendorId))
       .orderBy(desc(reviews.createdAt));
-
     return reviewList;
   }
 

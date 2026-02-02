@@ -91,13 +91,13 @@ export default function Dashboard() {
   const { data: user } = useQuery<any>({
     queryKey: ['/api/auth/current-user'],
   });
-    // ⛔ AUTH + ONBOARDING GUARD
+    // AUTH + ONBOARDING GUARD
   if (!user) {
     setLocation("/login");
     return null;
   }
 
-  // Only contractors must complete onboarding
+  // contractors must complete onboarding
   if (user.userType === "contractor" && !user.hasCompletedOnboarding) {
     setLocation("/onboarding");
     return null;

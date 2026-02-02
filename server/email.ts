@@ -61,9 +61,9 @@ static async sendVerificationEmail(
     console.log(`[EMAIL] Welcome email sent to ${to}`);
   }
   private static getVerificationUrl(token: string): string {
-    const baseUrl = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : "http://localhost:5000";
+    const baseUrl = process.env.APP_URL
+      ? `${process.env.APP_URL}`
+      : "https://govscalealliance-app-sikmy.ondigitalocean.app";
     return `${baseUrl}/verify-email?token=${token}`;
   }
   // static async sendVerificationEmail(

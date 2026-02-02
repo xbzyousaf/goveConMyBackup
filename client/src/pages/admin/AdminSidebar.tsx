@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 const nav = [
-  { label: "Dashboard", href: "/admin-dashboard", icon: LayoutDashboard },
+  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { label: "Vendors", href: "/admin/vendors", icon: Users },
   { label: "Matches", href: "/admin/matches", icon: GitMerge },
   { label: "Escrow", href: "/admin/escrow", icon: DollarSign },
