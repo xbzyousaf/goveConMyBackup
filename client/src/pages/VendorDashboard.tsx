@@ -439,16 +439,71 @@ export default function VendorDashboard() {
             {/* Requests Tab */}
             <TabsContent value="requests" className="space-y-6">
               <Card data-testid="card-service-requests">
-                <CardHeader>
-                  <CardTitle>Service Requests</CardTitle>
-                  <CardDescription>Manage your active and completed service requests</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Service request management coming soon...</p>
-                  </div>
-                </CardContent>
+                {/* Requests Tab */}
+                <TabsContent value="requests" className="space-y-6">
+                  <Card data-testid="card-service-requests">
+                    <CardHeader>
+                      <CardTitle>Service Requests</CardTitle>
+                      <CardDescription>
+                        Manage your active and completed service requests
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent>
+                      <div className="space-y-4">
+                        {serviceRequests.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center">
+                            No service requests found
+                          </p>
+                        )}
+
+                        {serviceRequests.map(request => (
+                          <div
+                            key={request.id}
+                            className="flex items-center justify-between p-4 border rounded-lg"
+                          >
+                            <div className="space-y-1">
+                              <h4 className="font-medium">
+                                {request.title ?? "Service Request"}
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                Contractor: {request.contractorId ?? "N/A"}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Cost: $
+                                {Number(request.actualCost ?? 0).toLocaleString()}
+                              </p>
+                            </div>
+
+                            <div className="text-right space-y-1">
+                              <Badge
+                                className={cn(
+                                  "capitalize",
+                                  request.status === "completed" &&
+                                    "bg-green-100 text-green-700 border-green-200",
+                                  request.status === "in_progress" &&
+                                    "bg-primary text-primary-foreground",
+                                  request.status === "pending" &&
+                                    "bg-red-100 text-red-700 border-red-200"
+                                )}
+                              >
+                                {request.status?.replace("_", " ") ?? "unknown"}
+                              </Badge>
+
+                              {request.createdAt && (
+                                <p className="text-sm text-muted-foreground">
+                                  Created:{" "}
+                                  {new Date(request.createdAt).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
               </Card>
             </TabsContent>
 
@@ -459,14 +514,55 @@ export default function VendorDashboard() {
                   <CardTitle>Reviews & Ratings</CardTitle>
                   <CardDescription>Feedback from your clients</CardDescription>
                 </CardHeader>
+
                 <CardContent>
-                  <div className="text-center py-12 text-muted-foreground">
-                    <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Reviews and ratings system coming soon...</p>
+                  <div className="space-y-4">
+                    {reviews.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center">
+                        No reviews yet
+                      </p>
+                    )}
+
+                    {reviews.map((review, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
+                      <div className="space-y-1">
+                        <p className="font-medium">
+                          {review.contractorName ?? "Contractor"}
+                        </p>
+
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {review.contractorUserType}
+                        </p>
+
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star
+                              key={i}
+                              className={cn(
+                                "w-4 h-4",
+                                i < review.rating
+                                  ? "text-yellow-400 fill-current"
+                                  : "text-muted-foreground"
+                              )}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <Badge variant="outline">
+                        {review.rating} / 5
+                      </Badge>
+                    </div>
+                  ))}
+
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
+
           </Tabs>
         )}
       </main>
