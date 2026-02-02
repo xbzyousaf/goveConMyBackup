@@ -10,6 +10,10 @@ export function getSession() {
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  if (!process.env.SESSION_SECRET) {
+    throw new Error("SESSION_SECRET is required");
+  }
+
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,

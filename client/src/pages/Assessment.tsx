@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Send, Sparkles, TrendingUp, CheckCircle2, ArrowRight } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Message {
   role: "assistant" | "user";
@@ -22,6 +23,7 @@ interface AssessmentResult {
 }
 
 export default function Assessment() {
+  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([
@@ -80,7 +82,10 @@ export default function Assessment() {
     sendMessageMutation.mutate(userMessage);
   };
 
-  const handleContinueToDashboard = () => {
+  const handleContinueToDashboard = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: ["/api/maturity-profile"],
+    });
     setLocation("/dashboard");
   };
 

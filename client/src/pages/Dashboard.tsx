@@ -89,8 +89,20 @@ export default function Dashboard() {
   });
 
   const { data: user } = useQuery<any>({
-    queryKey: ['/api/auth/user'],
+    queryKey: ['/api/auth/current-user'],
   });
+    // AUTH + ONBOARDING GUARD
+  if (!user) {
+    setLocation("/login");
+    return null;
+  }
+
+  // contractors must complete onboarding
+  if (user.userType === "contractor" && !user.hasCompletedOnboarding) {
+    setLocation("/onboarding");
+    return null;
+  }
+
 
   const handleResetAssessment = async () => {
     setIsResetting(true);
@@ -162,7 +174,7 @@ export default function Dashboard() {
       <div className="flex flex-col items-center justify-center h-full p-8">
         <div className="max-w-md text-center space-y-4">
           <Award className="w-16 h-16 mx-auto text-muted-foreground" data-testid="icon-welcome" />
-          <h2 className="text-2xl font-bold">Welcome to1 <span className="gradient-text">GovScale Alliance</span></h2>
+          <h2 className="text-2xl font-bold">Welcome to <span className="gradient-text">GovScale Alliance</span></h2>
           <p className="text-muted-foreground">
             Take our proven assessment to receive a data-driven maturity analysis and customized growth roadmap with measurable milestones.
           </p>
@@ -304,7 +316,7 @@ export default function Dashboard() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2">
+                    <div className="space-y-2 mb-2">
                       <div className="flex justify-between text-sm">
                         <span>Progress</span>
                         <span data-testid={`text-progress-${key}`}>{progress || 0}%</span>
@@ -368,7 +380,7 @@ export default function Dashboard() {
                 <CardContent>
                   <p className="text-sm text-muted-foreground">
                     Update your maturity profile
-                  </p>
+                  </p><br />
                 </CardContent>
               </Card>
             </Link>

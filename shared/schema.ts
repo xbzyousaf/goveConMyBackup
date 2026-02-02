@@ -34,6 +34,7 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   username: text("username").unique(),
   userType: userTypeEnum("user_type").notNull().default("contractor"),
+  hasCompletedOnboarding: boolean("has_completed_onboarding").default(false),
   // Email verification
   isEmailVerified: boolean("is_email_verified").default(false),
   emailVerificationToken: text("email_verification_token"),

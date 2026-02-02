@@ -10,6 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { Building, MapPin, DollarSign, Clock, Star, Edit, Plus, CheckCircle, AlertCircle, Users, TrendingUp } from "lucide-react";
 import { useLocation } from "wouter";
+import { calculateMonthlyMetric } from "@/services/servicesStats.service";
+import { cn } from "@/lib/utils";
+import { isCurrentMonth } from "@/helpers/dateHelper";
 
 export default function VendorDashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -20,33 +23,73 @@ export default function VendorDashboard() {
     queryKey: ["/api/vendor-profile"],
     retry: false,
   });
+  const { data: reviews = [] } = useQuery<{
+    rating: number;
+  }[]>({
+    queryKey: ["/api/vendors", user?.id, "reviews"],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const res = await fetch(`/api/vendors/${user!.id}/reviews`);
+      if (!res.ok) throw new Error("Failed to fetch reviews");
+      return res.json();
+    },
+  });
+  const averageRating =
+  reviews.length === 0
+    ? 0
+    : Number(
+        (
+          reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+        ).toFixed(1)
+      );
+
+    // AUTH + ONBOARDING GUARD
+  if (!user) {
+    setLocation("/login");
+    return null;
+  }
+  // vendor must complete onboarding
+  if (user.userType === "vendor" && !user.hasCompletedOnboarding) {
+    setLocation("/vendor-onboarding");
+    return null;
+  }
+  const { data: serviceRequests = [] } = useQuery<ServiceRequest[]>({
+    queryKey: ["/api/service-requests"],
+  });
+  const earningsChange = calculateMonthlyMetric(serviceRequests, {
+    dateKey: "createdAt",
+    valueFn: r =>
+      r.status === "completed" ? Number(r.actualCost ?? 0) : 0,
+  });
+  const totalRequestsChange = calculateMonthlyMetric(serviceRequests, {
+    dateKey: "createdAt",
+    valueFn: () => 1, // 👈 count each request as 1
+  });
+  const recentRequests = serviceRequests.filter(
+    r => r.createdAt && isCurrentMonth(r.createdAt)
+  ).sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  ).slice(0, 5);
+
 
   // Mock data for service requests and stats
-  const mockStats = {
-    totalRequests: 24,
-    completedRequests: 18,
-    averageRating: 4.8,
-    monthlyEarnings: 8500,
+  type ServiceRequest = {
+    id: string;
+    createdAt: string;
+    status?: string;
+    vendorId?: string;
+    contractorId?: string;
+    actualCost?: number | null;
   };
 
-  const mockRequests = [
-    {
-      id: "1",
-      title: "Federal Contract Compliance Review",
-      status: "in_progress",
-      contractor: "DefenseTech Solutions",
-      budget: "$2,500",
-      deadline: "2024-01-15",
-    },
-    {
-      id: "2", 
-      title: "FISMA Security Assessment",
-      status: "pending",
-      contractor: "GovTech Innovations",
-      budget: "$3,200",
-      deadline: "2024-01-20",
-    },
-  ];
+  const mockStats = {
+    totalRequests: serviceRequests.filter(r => r.createdAt && isCurrentMonth(r.createdAt)).length,
+    completedRequests: serviceRequests.filter(r => r.status === 'completed' && r.createdAt && isCurrentMonth(r.createdAt)).length,
+    averageRating: averageRating,
+    monthlyEarnings: serviceRequests.filter(r =>r.status === "completed" && r.createdAt && isCurrentMonth(r.createdAt))
+    .reduce((sum, r) => sum + Number(r.actualCost ?? 0), 0),
+  };
 
   if (showCreateForm) {
     return (
@@ -139,7 +182,16 @@ export default function VendorDashboard() {
                     <div className="text-2xl font-bold" data-testid="stat-total-requests">
                       {mockStats.totalRequests}
                     </div>
-                    <p className="text-xs text-muted-foreground">+12% from last month</p>
+                    <p className={cn(
+                      "text-xs",
+                      totalRequestsChange.percentChange > 0 && "text-green-600",
+                      totalRequestsChange.percentChange < 0 && "text-red-600",
+                      totalRequestsChange.percentChange === 0 && "text-muted-foreground"
+                    )}>
+                      {totalRequestsChange.label === "new this month"
+                        ? "New this month"
+                        : `${totalRequestsChange.percentChange >= 0 ? "+" : ""}${totalRequestsChange.percentChange}% from last month`}
+                    </p>
                   </CardContent>
                 </Card>
                 
@@ -187,7 +239,18 @@ export default function VendorDashboard() {
                     <div className="text-2xl font-bold" data-testid="stat-monthly-earnings">
                       ${mockStats.monthlyEarnings.toLocaleString()}
                     </div>
-                    <p className="text-xs text-muted-foreground">+8% from last month</p>
+                    <p className={cn(
+                      "text-xs",
+                      earningsChange.percentChange > 0 && "text-green-600",
+                      earningsChange.percentChange < 0 && "text-red-600",
+                      earningsChange.percentChange === 0 && "text-muted-foreground"
+                    )}>
+                      {earningsChange.label === "new this month"
+                        ? "New this month"
+                        : `${earningsChange.percentChange >= 0 ? "+" : ""}${earningsChange.percentChange}% from last month`}
+                    </p>
+
+
                   </CardContent>
                 </Card>
               </div>
@@ -200,23 +263,41 @@ export default function VendorDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {mockRequests.map((request, index) => (
-                      <div key={request.id} className="flex items-center justify-between p-4 border rounded-lg" data-testid={`request-item-${index}`}>
+                    {recentRequests.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center">
+                        No recent service requests
+                      </p>
+                    )}
+
+                    {recentRequests.map((request, index) => (
+                      <div
+                        key={request.id}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
                         <div className="space-y-1">
-                          <h4 className="font-medium" data-testid={`request-title-${index}`}>{request.title}</h4>
-                          <p className="text-sm text-muted-foreground" data-testid={`request-contractor-${index}`}>
-                            {request.contractor} • Budget: {request.budget}
+                          <h4 className="font-medium">{request.title}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {request.contractorId ?? "Contractor"} • Budget: $
+                            {Number(request.actualCost ?? 0).toLocaleString()}
                           </p>
                         </div>
+
                         <div className="text-right space-y-1">
-                          <Badge 
-                            variant={request.status === 'in_progress' ? 'default' : 'secondary'}
-                            data-testid={`request-status-${index}`}
+                          <Badge
+                            className={cn(
+                              "capitalize",
+                              request.status === "completed" &&
+                                "bg-green-100 text-green-700 border-green-200",
+                              request.status === "in_progress" &&
+                                "bg-primary text-primary-foreground",
+                              request.status === "pending" &&
+                                "bg-red-100 text-red-700 border-red-200"
+                            )}
                           >
-                            {request.status.replace('_', ' ')}
+                            {request.status?.replace("_", " ")}
                           </Badge>
-                          <p className="text-sm text-muted-foreground" data-testid={`request-deadline-${index}`}>
-                            Due: {request.deadline}
+                          <p className="text-sm text-muted-foreground">
+                            Due: {new Date(request.createdAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
@@ -224,6 +305,7 @@ export default function VendorDashboard() {
                   </div>
                 </CardContent>
               </Card>
+
             </TabsContent>
 
             {/* Profile Tab */}

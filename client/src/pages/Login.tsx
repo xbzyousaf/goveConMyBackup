@@ -44,28 +44,26 @@ export default function Login() {
         email: data.email,
         password: data.password,
       });
-
+      const json = await response.json();
+      const user = json.user;
       // Invalidate and refetch auth state
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/current-user"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/auth/current-user"] });
+      // await queryClient.refetchQueries({ queryKey: ["/api/auth/current-user"] });
       
       toast({
         title: "Welcome Back!",
         description: "Login successful.",
       });
-      const res = await fetch("/api/auth/current-user", {
-        credentials: "include",
-      });
-
-      const me = await res.json();
-
-      if (me.userType === "vendor") {
-        setLocation("/vendor-dashboard");
-      } else if (me.userType === "contractor") {
-        setLocation("/dashboard");
-      } else if (me.userType === "admin") {
+      switch (user.userType) {
+      case "admin":
         setLocation("/admin-dashboard");
-      }
+        break;
+      case "vendor":
+        setLocation("/vendor-dashboard");
+        break;
+      default:
+        setLocation("/dashboard");
+    }
 
     } catch (error: any) {
       console.error("Login error:", error);
