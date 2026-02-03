@@ -203,7 +203,8 @@ export class DatabaseStorage implements IStorage {
   const baseQuery = db
     .select({
       vendor: vendorProfiles,
-      reviewCount: sql<number>`COUNT(${reviews.id})`
+      reviewCount: sql<number>`COUNT(${reviews.id})`,
+      rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`
     })
     .from(vendorProfiles)
     .leftJoin(
@@ -225,6 +226,7 @@ export class DatabaseStorage implements IStorage {
 
   return rows.map(row => ({
     ...row.vendor,
+    rating: Number(row.rating) || 0,
     reviewCount: Number(row.reviewCount) || 0,
   }));
 }
