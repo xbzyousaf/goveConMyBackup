@@ -13,7 +13,7 @@ import type { VendorProfile, Review } from "@shared/schema";
 export default function VendorDetail() {
   const [, params] = useRoute("/vendor/:id");
   const vendorId = params?.id;
-
+console.log("Vendor ID from URL:", vendorId);
   const { data: vendor, isLoading } = useQuery<VendorProfile>({
     queryKey: vendorId ? [`/api/vendors/${vendorId}`] : ["disabled"],
     enabled: !!vendorId,
