@@ -33,7 +33,8 @@ import {
   type UserJourney,
   type InsertUserJourney,
   type UserContentActivity,
-  type InsertUserContentActivity
+  type InsertUserContentActivity,
+  services
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, asc } from "drizzle-orm";
@@ -517,6 +518,44 @@ export class DatabaseStorage implements IStorage {
   async deleteUserJourneys(userId: string): Promise<void> {
     await db.delete(userJourneys).where(eq(userJourneys.userId, userId));
   }
+
+  async createService(data: any, vendorId: string) {
+    const [service] = await db
+      .insert(services)
+      .values({
+        vendorId,
+
+        name: data.name,
+        description: data.description,
+        category: data.category,
+
+        turnaround: data.turnaround ?? null,
+        pricingModel: data.pricingModel ?? null,
+
+        // IMPORTANT: decimals must be strings
+        priceMin: data.priceMin ? String(data.priceMin) : null,
+        priceMax: data.priceMax ? String(data.priceMax) : null,
+
+        // arrays must be explicitly cast
+        outcomes: Array.isArray(data.outcomes) ? data.outcomes : [],
+
+        tier: data.tier ?? "free",
+        isActive: true,
+      })
+      .returning();
+
+    return service;
+  }
+  async getAllServices() {
+    const allServices = await db
+      .select()
+      .from(services)
+      .orderBy(desc(services.createdAt));
+
+    return allServices;
+  }
+
+
 }
 
 export const storage = new DatabaseStorage();

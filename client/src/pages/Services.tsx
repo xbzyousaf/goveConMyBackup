@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
@@ -31,7 +32,9 @@ export default function Services() {
       setLocation(`/services?category=${category}`);
     }
   };
-
+  const { data: user } = useQuery<any>({
+    queryKey: ['/api/auth/current-user'],
+  });
   const serviceCategories = [
     { id: "all", label: "All Services", icon: TrendingUp },
     { id: "legal", label: "Legal & Compliance", icon: Scale },
@@ -41,129 +44,10 @@ export default function Services() {
     { id: "marketing", label: "Proposal Support", icon: Megaphone },
     { id: "business_tools", label: "Business Tools", icon: Settings }
   ];
-
-  const allServices = [
-    {
-      id: "sam-registration",
-      category: "legal",
-      name: "SAM.gov Registration",
-      description: "Complete entity registration in the System for Award Management with expert guidance",
-      turnaround: "5-7 business days",
-      pricingModel: "Fixed: $1,500",
-      outcomes: ["Active SAM registration", "Unique Entity ID (UEI)", "CAGE code assignment", "Marketing partnerships activated"],
-      tier: "free" // Available to all tiers
-    },
-    {
-      id: "contract-review",
-      category: "legal",
-      name: "Federal Contract Review",
-      description: "Expert legal review of federal contracts and agreements for compliance and risk",
-      turnaround: "3-5 business days",
-      pricingModel: "Hourly: $150-250/hr",
-      outcomes: ["Compliance verification", "Risk assessment report", "Negotiation recommendations", "FAR/DFARS compliance check"],
-      tier: "premium"
-    },
-    {
-      id: "gsa-schedule",
-      category: "legal",
-      name: "GSA Schedule Application",
-      description: "Full support for GSA Schedule application and contract award process",
-      turnaround: "60-90 days",
-      pricingModel: "Fixed: $15,000-25,000",
-      outcomes: ["GSA Schedule contract", "Pricing strategy", "SIN selection guidance", "Contract maintenance support"],
-      tier: "premium"
-    },
-    {
-      id: "cmmc-assessment",
-      category: "cybersecurity",
-      name: "CMMC Compliance Assessment",
-      description: "Comprehensive Cybersecurity Maturity Model Certification readiness evaluation",
-      turnaround: "10-15 business days",
-      pricingModel: "Fixed: $3,500-7,500",
-      outcomes: ["Gap analysis report", "Remediation roadmap", "CMMC Level 1-3 preparation", "Documentation templates"],
-      tier: "discounted"
-    },
-    {
-      id: "nist-audit",
-      category: "cybersecurity",
-      name: "NIST 800-171 Audit",
-      description: "Full audit and implementation support for NIST 800-171 compliance requirements",
-      turnaround: "15-20 business days",
-      pricingModel: "Fixed: $5,000-10,000",
-      outcomes: ["Compliance audit report", "System Security Plan (SSP)", "Plan of Action & Milestones", "Continuous monitoring setup"],
-      tier: "free"
-    },
-    {
-      id: "proposal-writing",
-      category: "marketing",
-      name: "Federal Proposal Writing",
-      description: "Professional proposal development for federal opportunities and RFPs",
-      turnaround: "10-30 days (varies)",
-      pricingModel: "Project-based: $5,000-50,000",
-      outcomes: ["Complete proposal package", "Technical/management volumes", "Past performance narratives", "Compliance matrix"],
-      tier: "premium"
-    },
-    {
-      id: "capability-statement",
-      category: "marketing",
-      name: "Capability Statement Design",
-      description: "Professional capability statement creation highlighting your federal contracting capabilities",
-      turnaround: "5-7 business days",
-      pricingModel: "Fixed: $500-1,500",
-      outcomes: ["Professional capability statement", "Multiple formats (PDF, print)", "NAICS/PSC codes highlighted", "Past performance showcase"],
-      tier: "free"
-    },
-    {
-      id: "hr-compliance",
-      category: "hr",
-      name: "HR Compliance Package",
-      description: "Complete HR compliance setup for government contractors including OFCCP and EEO requirements",
-      turnaround: "10-15 business days",
-      pricingModel: "Fixed: $2,500-5,000",
-      outcomes: ["OFCCP compliance program", "EEO-1 reporting setup", "AAP development", "Employee handbook"],
-      tier: "discounted"
-    },
-    {
-      id: "payroll-setup",
-      category: "hr",
-      name: "Federal Payroll Setup",
-      description: "Payroll system configuration with SCA/Davis-Bacon wage determination compliance",
-      turnaround: "7-10 business days",
-      pricingModel: "Monthly: $500-1,500/mo",
-      outcomes: ["Compliant payroll system", "Wage determination integration", "Fringe benefit tracking", "Certified payroll reports"],
-      tier: "premium"
-    },
-    {
-      id: "dcaa-accounting",
-      category: "finance",
-      name: "DCAA-Compliant Accounting",
-      description: "Accounting system setup and audit preparation for DCAA compliance",
-      turnaround: "15-30 business days",
-      pricingModel: "Fixed: $8,000-15,000",
-      outcomes: ["DCAA-compliant system", "Chart of accounts", "Timekeeping system", "Indirect rate structure"],
-      tier: "premium"
-    },
-    {
-      id: "cost-proposal",
-      category: "finance",
-      name: "Cost Proposal Development",
-      description: "Detailed cost proposal preparation for federal contracts and task orders",
-      turnaround: "5-10 business days",
-      pricingModel: "Hourly: $125-200/hr",
-      outcomes: ["Detailed cost proposal", "Rate justification", "Basis of estimate", "Price-to-win analysis"],
-      tier: "discounted"
-    },
-    {
-      id: "erp-implementation",
-      category: "business_tools",
-      name: "ERP System Implementation",
-      description: "Enterprise resource planning system selection and implementation for contractors",
-      turnaround: "30-90 days",
-      pricingModel: "Project-based: $10,000-50,000",
-      outcomes: ["ERP system deployed", "Process automation", "Reporting dashboards", "Staff training"],
-      tier: "premium"
-    }
-  ];
+  
+  const { data: allServices } = useQuery<any>({
+    queryKey: ['/api/services'],
+  });
 
   const processSteps = [
     {
@@ -239,7 +123,7 @@ export default function Services() {
     }
   ];
 
-  const filteredServices = allServices.filter(service => {
+  const filteredServices = (allServices ?? []).filter((service: any) => {
     // Category filter
     if (selectedCategory !== "all" && service.category !== selectedCategory) {
       return false;
@@ -248,18 +132,34 @@ export default function Services() {
     // Search query filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      const matchesName = service.name.toLowerCase().includes(query);
-      const matchesDescription = service.description.toLowerCase().includes(query);
-      const matchesCategory = service.category.toLowerCase().includes(query);
-      const matchesOutcomes = service.outcomes?.some(outcome => 
-        outcome.toLowerCase().includes(query)
+
+      const matchesName =
+        service.name?.toLowerCase().includes(query);
+
+      const matchesDescription =
+        service.description?.toLowerCase().includes(query);
+
+      const matchesCategory =
+        service.category?.toLowerCase().includes(query);
+
+      const matchesOutcomes =
+        Array.isArray(service.outcomes) &&
+        service.outcomes.some((outcome: string) =>
+          outcome.toLowerCase().includes(query)
+        );
+
+      return (
+        matchesName ||
+        matchesDescription ||
+        matchesCategory ||
+        matchesOutcomes
       );
-      
-      return matchesName || matchesDescription || matchesCategory || matchesOutcomes;
     }
 
     return true;
   });
+
+
 
   const getCategoryDescription = (categoryId: string) => {
     const descriptions: Record<string, string> = {
@@ -297,13 +197,21 @@ export default function Services() {
       
       <main className="container mx-auto px-4 py-8">
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2" data-testid="text-services-title">
-            Browse Services
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Pre-scoped services with clear pricing, turnaround times, and guaranteed outcomes
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2" data-testid="text-page-title">
+              Browse Services
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Discover vetted service providers for your government contracting needs
+            </p>
+          </div>
+    
+            <Link href="/service/create">
+              <Button data-testid="button-add-service">
+                + Add New Service
+              </Button>
+            </Link>
         </div>
 
         {/* Search and Filters */}
@@ -342,69 +250,97 @@ export default function Services() {
         </Card>
 
         {/* Results Count */}
-        <div className="mb-6">
-          <p className="text-sm text-muted-foreground" data-testid="text-results-count">
-            Showing {filteredServices.length} {filteredServices.length === 1 ? 'service' : 'services'}
-          </p>
-        </div>
+<div className="mb-6">
+  <p className="text-sm text-muted-foreground" data-testid="text-results-count">
+    Showing {filteredServices.length}{" "}
+    {filteredServices.length === 1 ? "service" : "services"}
+  </p>
+</div>
 
-        {/* Service Cards */}
-        {filteredServices.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-16">
-            {filteredServices.map((service) => (
-              <Card key={service.id} className="hover-elevate active-elevate-2 transition-all flex flex-col" data-testid={`card-service-${service.id}`}>
-                <CardHeader>
-                  <div className="flex items-start justify-between mb-2">
-                    <CardTitle className="text-lg">{service.name}</CardTitle>
-                    {getTierBadge(service.tier)}
-                  </div>
-                  <CardDescription>{service.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col">
-                  <div className="space-y-3 mb-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Clock className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Turnaround:</span>
-                      <span className="font-medium">{service.turnaround}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <DollarSign className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Pricing:</span>
-                      <span className="font-medium">{service.pricingModel}</span>
-                    </div>
-                  </div>
-
-                  <div className="mb-4">
-                    <p className="text-sm font-medium mb-2">Outcomes:</p>
-                    <ul className="space-y-1">
-                      {service.outcomes.map((outcome, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm">
-                          <CheckCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                          <span className="text-muted-foreground">{outcome}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="mt-auto pt-4 border-t">
-                    <Link href={`/vendors?category=${service.category}`}>
-                      <Button className="w-full" data-testid={`button-find-vendors-${service.id}`}>
-                        Find Vendors
-                        <ArrowRight className="ml-2 w-4 h-4" />
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+{/* Service Cards */}
+{filteredServices.length > 0 ? (
+  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-16">
+    {filteredServices.map((service: any) => (
+      <Card
+        key={service.id}
+        className="hover-elevate active-elevate-2 transition-all flex flex-col"
+        data-testid={`card-service-${service.id}`}
+      >
+        <CardHeader>
+          <div className="flex items-start justify-between mb-2">
+            <CardTitle className="text-lg">
+              {service.name ?? "Untitled Service"}
+            </CardTitle>
+            {service.tier && getTierBadge(service.tier)}
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-lg text-muted-foreground mb-4">
-              No services found matching your search
-            </p>
+          <CardDescription>
+            {service.description ?? "No description available"}
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="flex-1 flex flex-col">
+          <div className="space-y-3 mb-4">
+            <div className="flex items-center gap-2 text-sm">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Turnaround:</span>
+              <span className="font-medium">
+                {service.turnaround ?? "N/A"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm">
+              <DollarSign className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Pricing:</span>
+              <span className="font-medium">
+                {service.priceMax ?? "Contact vendor"}
+              </span>
+            </div>
           </div>
-        )}
+
+          <div className="mb-4">
+            <p className="text-sm font-medium mb-2">Outcomes:</p>
+
+            {Array.isArray(service.outcomes) && service.outcomes.length > 0 ? (
+              <ul className="space-y-1">
+                {service.outcomes.map((outcome: string, idx: number) => (
+                  <li key={idx} className="flex items-start gap-2 text-sm">
+                    <CheckCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-muted-foreground">
+                      {outcome}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No outcomes listed
+              </p>
+            )}
+          </div>
+
+          <div className="mt-auto pt-4 border-t">
+            <Link href={`/vendors?category=${service.category ?? "all"}`}>
+              <Button
+                className="w-full"
+                data-testid={`button-find-vendors-${service.id}`}
+              >
+                Find Vendors
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+) : (
+  <div className="text-center py-12">
+    <p className="text-lg text-muted-foreground mb-4">
+      No services found matching your search
+    </p>
+  </div>
+)}
+
 
         {/* Process Flow */}
         <div className="mb-16">

@@ -1009,6 +1009,32 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to process AI matching" });
     }
   });
+  app.post("/api/services", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const service = await storage.createService(req.body, userId);
+
+      res.json(service);
+    } catch (error) {
+      console.error("Error creating service:", error);
+      res.status(500).json({ message: "Failed to create service" });
+    }
+  });
+  app.get("/api/services", async (req: any, res) => {
+    try {
+      const services = await storage.getAllServices();
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching services:", error);
+      res.status(500).json({ message: "Failed to fetch services" });
+    }
+  });
+
 
   const httpServer = createServer(app);
   return httpServer;

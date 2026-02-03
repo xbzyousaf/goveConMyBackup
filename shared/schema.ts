@@ -83,24 +83,67 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Service requests
-export const serviceRequests = pgTable("service_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  contractorId: varchar("contractor_id").references(() => users.id).notNull(),
-  vendorId: varchar("vendor_id").references(() => users.id),
-  title: text("title").notNull(),
+// Services (what vendor offers)
+export const services = pgTable("services", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+
+  vendorId: varchar("vendor_id")
+    .references(() => users.id)
+    .notNull(),
+
+  name: text("title").notNull(),
   description: text("description").notNull(),
   category: serviceCategoryEnum("category").notNull(),
-  priority: text("priority").notNull(),
-  budget: text("budget"),
-  status: serviceRequestStatusEnum("status").default("pending"),
-  aiAnalysis: text("ai_analysis"),
-  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
-  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
-  estimatedDuration: text("estimated_duration"),
+
+  turnaround: text("turnaround"),
+
+  pricingModel: text("pricing_model"),
+
+  priceMin: decimal("price_min", { precision: 10, scale: 2 }),
+  priceMax: decimal("price_max", { precision: 10, scale: 2 }),
+
+  outcomes: text("outcomes").array(),
+
+  tier: text("tier").default("free"),
+
+  isActive: boolean("is_active").default(true),
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Service Requests (contractor requesting a service)
+export const serviceRequests = pgTable("service_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  contractorId: varchar("contractor_id")
+    .references(() => users.id)
+    .notNull(),
+
+  vendorId: varchar("vendor_id")
+    .references(() => users.id)
+    .notNull(),
+
+  serviceId: varchar("service_id")
+    .references(() => services.id)
+    .notNull(),
+
+  priority: text("priority").notNull(),
+  budget: decimal("budget", { precision: 10, scale: 2 }),
+
+  status: serviceRequestStatusEnum("status").default("pending"),
+
+  aiAnalysis: text("ai_analysis"),
+
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 
 // Messages for contractor-vendor communication
 export const messages = pgTable("messages", {
