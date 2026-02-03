@@ -316,7 +316,7 @@ export default function Dashboard() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2 mb-2">
+                    <div className="space-y-2 mb-4">
                       <div className="flex justify-between text-sm">
                         <span>Progress</span>
                         <span data-testid={`text-progress-${key}`}>{progress || 0}%</span>

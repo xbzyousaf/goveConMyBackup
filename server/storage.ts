@@ -36,7 +36,7 @@ import {
   type InsertUserContentActivity
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc } from "drizzle-orm";
+import { sql, eq, and, desc, asc } from "drizzle-orm";
 
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
@@ -156,12 +156,12 @@ export class DatabaseStorage implements IStorage {
 
   // Vendor management
   async getVendorProfile(userId: string): Promise<VendorProfile | undefined> {
-    const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, userId));
+    const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, userId)).limit(1);
     return profile || undefined;
   }
 
   async getVendorProfileById(id: string): Promise<VendorProfile | undefined> {
-    const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, id));
+    const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.id, id));
     return profile || undefined;
   }
 
@@ -186,44 +186,49 @@ export class DatabaseStorage implements IStorage {
     return profile;
   }
 
-  async getVendors(filters?: { category?: string; location?: string; verified?: boolean }): Promise<VendorProfile[]> {
-    console.log('[getVendors] Starting query with filters:', filters);
-    const whereConditions = [];
-    
-    if (filters?.verified !== undefined) {
-      whereConditions.push(eq(vendorProfiles.isApproved, filters.verified));
-    }
-    
-    if (filters?.location) {
-      whereConditions.push(eq(vendorProfiles.location, filters.location));
-    }
-    
-    if (filters?.category) {
-      // Note: categories is an array, so we'd need array contains logic
-      // For now, this would need additional SQL array operations
-    }
-    
-    try {
-      console.log('[getVendors] Query created');
-      
-      if (whereConditions.length > 0) {
-        console.log('[getVendors] Where conditions applied:', whereConditions.length);
-        const results = await db.select().from(vendorProfiles)
-          .where(whereConditions.length === 1 ? whereConditions[0] : and(...whereConditions as [any, ...any[]]))
-          .orderBy(desc(vendorProfiles.rating));
-        console.log(`[getVendors] Query complete. Got ${results.length} vendors:`, results.map(v => ({ id: v.id, title: v.title })));
-        return results;
-      }
-      
-      console.log('[getVendors] Executing query...');
-      const results = await db.select().from(vendorProfiles).orderBy(desc(vendorProfiles.rating));
-      console.log(`[getVendors] Query complete. Got ${results.length} vendors:`, results.map(v => ({ id: v.id, title: v.title })));
-      return results;
-    } catch (error) {
-      console.error('[getVendors] ERROR:', error);
-      throw error;
-    }
+  async getVendors(
+  filters?: { category?: string; location?: string; verified?: boolean }
+): Promise<(VendorProfile & { reviewCount: number })[]> {
+
+  const whereConditions = [];
+
+  if (filters?.verified !== undefined) {
+    whereConditions.push(eq(vendorProfiles.isApproved, filters.verified));
   }
+
+  if (filters?.location) {
+    whereConditions.push(eq(vendorProfiles.location, filters.location));
+  }
+
+  const baseQuery = db
+    .select({
+      vendor: vendorProfiles,
+      reviewCount: sql<number>`COUNT(${reviews.id})`
+    })
+    .from(vendorProfiles)
+    .leftJoin(
+      reviews,
+      // 🔥 THIS WAS THE BUG
+      eq(reviews.revieweeId, vendorProfiles.id)
+    )
+    .groupBy(vendorProfiles.id)
+    .orderBy(desc(vendorProfiles.rating));
+
+  const rows =
+    whereConditions.length > 0
+      ? await baseQuery.where(
+          whereConditions.length === 1
+            ? whereConditions[0]
+            : and(...whereConditions as [any, ...any[]])
+        )
+      : await baseQuery;
+
+  return rows.map(row => ({
+    ...row.vendor,
+    reviewCount: Number(row.reviewCount) || 0,
+  }));
+}
+
 
   // Service request management
   async getServiceRequest(id: string): Promise<ServiceRequest | undefined> {
