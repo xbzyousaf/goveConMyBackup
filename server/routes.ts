@@ -1075,15 +1075,23 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to create service" });
     }
   });
-  app.get("/api/services", async (req: any, res) => {
+  app.get("/api/services", isAuthenticated, async (req: any, res) => {
     try {
-      const services = await storage.getAllServices();
+      const vendorId = getUserId(req);
+
+      if (!vendorId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const services = await storage.getVendorServices(vendorId);
+
       res.json(services);
     } catch (error) {
       console.error("Error fetching services:", error);
       res.status(500).json({ message: "Failed to fetch services" });
     }
   });
+
 
 
   const httpServer = createServer(app);
