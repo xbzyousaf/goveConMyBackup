@@ -572,14 +572,13 @@ export class DatabaseStorage implements IStorage {
       pending: Number(rows.find(r => !r.isApproved)?.count || 0),
     };
   }
-  async getAllServices() {
-    const allServices = await db
+  async getVendorServices(vendorId: string) {
+    return await db
       .select()
       .from(services)
-      .orderBy(desc(services.createdAt));
-
-    return allServices;
+      .where(eq(services.vendorId, vendorId));
   }
+
 
 
 }
