@@ -182,8 +182,8 @@ export default function Services() {
     switch(tier) {
       case "free":
         return <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" data-testid="badge-tier-free">Free Tier</Badge>;
-      case "discounted":
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" data-testid="badge-tier-discounted">Pro Discount</Badge>;
+      case "standard":
+        return <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" data-testid="badge-tier-standard">Standard Tier</Badge>;
       case "premium":
         return <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100" data-testid="badge-tier-premium">Premium</Badge>;
       default:
@@ -290,9 +290,15 @@ export default function Services() {
 
             <div className="flex items-center gap-2 text-sm">
               <DollarSign className="w-4 h-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Pricing:</span>
+              <span className="text-muted-foreground">
+                {service.pricingModel ?? "Pricing"}:
+              </span>
+
               <span className="font-medium">
-                {service.priceMax ?? "Contact vendor"}
+                ${service.priceMin && service.priceMax
+                  ? `${service.priceMin}-${service.priceMax}`
+                  : "Contact vendor"}
+
               </span>
             </div>
           </div>
