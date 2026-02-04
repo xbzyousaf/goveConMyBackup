@@ -37,7 +37,7 @@ import {
   services
 } from "@shared/schema";
 import { db } from "./db";
-import { sql, eq, and, desc, asc } from "drizzle-orm";
+import { eq, and, desc, asc ,sql} from "drizzle-orm";
 
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
@@ -552,6 +552,25 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return service;
+  }
+  async updateVendorApproval(vendorId: string, approve: boolean) {
+    await db.update(vendorProfiles)
+            .set({ isApproved: approve })
+            .where(eq(vendorProfiles.id, vendorId));
+  }
+  async getVendorCounts() {
+    const rows = await db
+      .select({
+        isApproved: vendorProfiles.isApproved,
+        count: sql<number>`count(*)`,
+      })
+      .from(vendorProfiles)
+      .groupBy(vendorProfiles.isApproved);
+
+    return {
+      approved: Number(rows.find(r => r.isApproved)?.count || 0),
+      pending: Number(rows.find(r => !r.isApproved)?.count || 0),
+    };
   }
   async getAllServices() {
     const allServices = await db

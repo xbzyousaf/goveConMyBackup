@@ -26,6 +26,7 @@ import VendorProfileEditPage from "./pages/vendor/VendorProfileEditPage";
 import Onboarding from "./pages/Onboarding";
 import VendorOnboarding from "./pages/VendorOnboarding";
 import CreateService from "./pages/services/create";
+import AdminVendors from "./pages/admin/AdminVendors";
 
 function LoadingSpinner() {
   return (
@@ -71,6 +72,8 @@ function Router() {
           <Route path="/service/create" component={CreateService} />
           <Route path="/vendor-profile/edit" component={VendorProfileEditPage} />
           <Route path="/onboarding" component={Onboarding} />
+          <Route path="/admin/vendors" component={AdminVendors} />
+          <Route path="/admin/escrow" component={AdminVendors} />
           <Route path="/vendor-onboarding" component={VendorOnboarding} />
           <Route component={NotFound} />
         </>

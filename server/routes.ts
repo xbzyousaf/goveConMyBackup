@@ -32,6 +32,38 @@ const isAuthenticated: RequestHandler = async (req, res, next) => {
 const getUserId = (req: any): string | null => {
   return (req.session as any)?.userId || null;
 };
+const isAdmin: RequestHandler = async (req: any, res, next) => {
+  const userId = getUserId(req);
+  if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+  const user = await storage.getUser(userId);
+  if (user?.userType !== 'admin') {
+    return res.status(403).json({ message: "Admin access only" });
+  }
+
+  next();
+};
+
+const getVendorsHandler = async (req: any, res: any) => {
+  const userId = getUserId(req);
+  if (!userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+  try {
+    const { category, location, verified } = req.query;
+    const filters: any = {};
+
+    if (category) filters.category = category as string;
+    if (location) filters.location = location as string;
+    if (verified !== undefined) filters.verified = verified === 'true';
+
+    const vendors = await storage.getVendors(filters);
+    res.json(vendors);
+  } catch (error) {
+    console.error("Error fetching vendors:", error);
+    res.status(500).json({ message: "Failed to fetch vendors" });
+  }
+};
 
 // Helper function to get milestone count for a process/stage combination
 function getMilestoneCountForProcess(process: string, stage: string): number {
@@ -605,7 +637,25 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
       res.status(500).json({ message: "Failed to process assessment" });
     }
   });
+  app.get('/api/admin/vendors', isAuthenticated, isAdmin, getVendorsHandler);
+  app.get('/api/admin/vendor-stats',isAuthenticated,isAdmin,
+    async (req, res) => {
+      const stats = await storage.getVendorCounts();
+      res.json(stats);
+    }
+  );
+  app.patch('/api/admin/vendors/:id/approve', isAuthenticated, isAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { approve } = req.body;
 
+    try {
+      await storage.updateVendorApproval(id, approve); // Implement this in storage
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to update vendor status" });
+    }
+  });
   // Vendor routes
   app.get('/api/vendors', async (req, res) => {
     try {
