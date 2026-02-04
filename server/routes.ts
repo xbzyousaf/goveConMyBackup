@@ -694,8 +694,7 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
       if (!vendor) {
         return res.status(404).json({ message: "Vendor not found" });
       }
-      
-      const reviews = await storage.getReviewsByVendor(vendor.userId);
+      const reviews = await storage.getReviewsByVendor(vendorId);
       res.json(reviews);
     } catch (error) {
       console.error("Error fetching vendor reviews:", error);
