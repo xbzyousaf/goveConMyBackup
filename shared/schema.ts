@@ -115,27 +115,23 @@ export const services = pgTable("services", {
 });
 
   export const serviceRequests = pgTable("service_requests", {
-    id: uuid("id").defaultRandom().primaryKey(),
-
-    description: text("description").notNull(),
-    priority: text("priority").notNull(),
-
-    budgetMin: integer("budget_min").notNull(),
-    budgetMax: integer("budget_max").notNull(),
-
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    contractorId: varchar("contractor_id").references(() => users.id).notNull(),
+    vendorId: varchar("vendor_id").references(() => users.id),
+    title: text("title").notNull(),
     serviceId: uuid("service_id").notNull(),
-    vendorId: uuid("vendor_id").notNull(),
-    contractorId: uuid("contractor_id").notNull(),
-
-    status: text("status").default("pending"),
-
+    description: text("description").notNull(),
+    category: serviceCategoryEnum("category").notNull(),
+    priority: text("priority").notNull(),
+    budget: text("budget"),
+    status: serviceRequestStatusEnum("status").default("pending"),
+    aiAnalysis: text("ai_analysis"),
+    estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
+    actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+    estimatedDuration: text("estimated_duration"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
-  },(table) => ({
-    uniqContractorVendorService: uniqueIndex(
-      "uniq_service_request"
-    ).on(table.contractorId, table.vendorId, table.serviceId ),
-  }));
+  });
 
 // Messages for contractor-vendor communication
 export const messages = pgTable("messages", {

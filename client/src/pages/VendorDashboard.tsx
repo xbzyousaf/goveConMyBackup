@@ -278,7 +278,7 @@ export default function VendorDashboard() {
                           <h4 className="font-medium">{request.title}</h4>
                           <p className="text-sm text-muted-foreground">
                             {request.contractorId ?? "Contractor"} • Budget: $
-                            {Number(request.actualCost ?? 0).toLocaleString()}
+                            {(request.budget ?? 0).toLocaleString()}
                           </p>
                         </div>
 
@@ -468,6 +468,14 @@ export default function VendorDashboard() {
                               </h4>
                               <p className="text-sm text-muted-foreground">
                                 Contractor: {request.contractorId ?? "N/A"}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Budget: $
+                                {(request.budget ?? 0).toLocaleString()}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Estimated Cost: $
+                                {Number(request.estimated_cost ?? 0).toLocaleString()}
                               </p>
                               <p className="text-sm text-muted-foreground">
                                 Cost: $

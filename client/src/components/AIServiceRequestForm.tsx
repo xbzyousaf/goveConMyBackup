@@ -12,10 +12,11 @@ import { apiRequest } from "@/lib/queryClient";
 import type { VendorProfile } from "@shared/schema";
 import { Header } from "./Header";
 type ServiceRequestPayload = {
+  title: string;
+  category: string;
   description: string;
   priority: string;
-  budgetMin: number;
-  budgetMax: number;
+  budget: string;
   vendorId?: string;
   serviceId?: string;
 };
@@ -29,6 +30,7 @@ interface AIServiceRequestFormProps {
 export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServiceRequestFormProps) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const [requesttitle, setTitle] = useState("");
   const [request, setRequest] = useState("");
   const [priority, setPriority] = useState("");
   const [budget, setBudget] = useState("");
@@ -77,12 +79,12 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
       });
       return;
     }
-    const [budgetMin, budgetMax] = budget.split("-").map(Number);
         aiMatchMutation.mutate({
+          title: requesttitle,
+          category: selectedCategory,
           description: request,
           priority,
-          budgetMin,
-          budgetMax,
+          budget,
           serviceId: serviceId || undefined,
           vendorId: vendorId || undefined,
         });
@@ -97,7 +99,20 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
   const handleViewVendor = (vendorId: string) => {
     navigate(`/vendor/${vendorId}`);
   };
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+  };
+
+  const serviceCategories = [
+    { id: "legal", label: "Legal & Compliance" },
+    { id: "hr", label: "HR & Talent" },
+    { id: "finance", label: "Finance & Accounting" },
+    { id: "cybersecurity", label: "IT & Cybersecurity" },
+    { id: "marketing", label: "Proposal Support" },
+    { id: "business_tools", label: "Business Tools" },
+  ];
   return (
     <div className="min-h-screen bg-background">
     <Header />
@@ -109,6 +124,38 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Title Input */}
+        <div>
+          <label className="text-sm font-medium mb-2 block">Request Title</label>
+          <input
+            type="text"
+            placeholder="Example: Website Redesign, IT Security Audit, Cloud Migration"
+            value={requesttitle}
+            onChange={(a) => setTitle(a.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+            data-testid="input-request-title"
+          />
+        </div>
+
+        {/* Category Dropdown */}
+        <div>
+          <label className="text-sm font-medium mb-2 block">Category</label>
+          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+            <SelectTrigger data-testid="select-category" className="w-full">
+              <SelectValue placeholder="Select a category" />
+            </SelectTrigger>
+            <SelectContent>
+              {serviceCategories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
         <div>
           <label className="text-sm font-medium mb-2 block">
             Describe what you need help with
