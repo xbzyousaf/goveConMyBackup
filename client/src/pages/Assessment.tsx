@@ -26,12 +26,8 @@ export default function Assessment() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "Welcome to GovScale Alliance! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey. This assessment will take about 5-10 minutes and help us personalize your experience.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [hasStarted, setHasStarted] = useState(false);
   const [input, setInput] = useState("");
   const [isComplete, setIsComplete] = useState(false);
   const [result, setResult] = useState<AssessmentResult | null>(null);
@@ -40,18 +36,111 @@ export default function Assessment() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+  useEffect(() => {
+    const loadDraft = async () => {
+      try {
+        const res = await fetch("/api/maturity-profile", {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          throw new Error("Failed to load assessment draft");
+        }
+
+        const profile = await res.json();
+        const assessmentStatus = profile?.assessmentData?.status;
+        const loadDraft = async () => {
+  try {
+    const res = await fetch("/api/maturity-profile", {
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to load assessment draft");
+    }
+
+    const profile = await res.json();
+    const status = profile?.assessmentData?.status;
+    const history = profile?.assessmentData?.conversationHistory;
+
+    // ✅ CASE 1: Never started
+    if (status === "not_started") {
+      setMessages([
+        {
+          role: "assistant",
+          content:
+            "Welcome to GovScale Alliance! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
+        },
+      ]);
+      return;
+    }
+
+    // ✅ CASE 2: In progress or skipped → resume
+    if (Array.isArray(history) && history.length > 0) {
+      setMessages(history);
+      return;
+    }
+
+    // ✅ FALLBACK (safety)
+    setMessages([
+      {
+        role: "assistant",
+        content:
+          "Welcome back! Let's continue your assessment.",
+      },
+    ]);
+  } catch (err) {
+    console.error("Load draft failed:", err);
+  }
+};
+
+        if (profile?.assessmentData?.status === "not_started") {
+  setMessages([
+    {
+      role: "assistant",
+      content:
+        "Welcome to GovScale Alliance! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
+    },
+  ]);
+  return;
+}
+
+        if (
+            profile?.assessmentData?.conversationHistory &&
+            profile.assessmentData.conversationHistory.length > 0
+          ) {
+            // RESUME assessment
+            setMessages(profile.assessmentData.conversationHistory);
+          } else {
+            // FIRST TIME assessment
+            setMessages([
+              {
+                role: "assistant",
+                content:
+                  "Welcome to GovScale Alliance! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
+              },
+            ]);
+          }
+
+
+      } catch (err) {
+        console.error("Load draft failed:", err);
+      }
+    };
+
+    loadDraft();
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (userMessage: string) => {
-      const response = await apiRequest("POST", "/api/assessment/chat", {
-        messages: [...messages, { role: "user", content: userMessage }],
-      });
-      return await response.json();
-    },
+    mutationFn: async (messagesToSend: Message[]) => {
+    const response = await apiRequest("POST", "/api/assessment/chat", {
+      messages: messagesToSend,
+    });
+    return await response.json();
+  },
     onSuccess: (data) => {
       if (data.isComplete) {
         setIsComplete(true);
@@ -77,9 +166,13 @@ export default function Assessment() {
     if (!input.trim() || sendMessageMutation.isPending) return;
 
     const userMessage = input.trim();
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    const updatedMessages: Message[] = [
+  ...messages,
+  { role: "user" as const, content: userMessage },
+];
+    setMessages(updatedMessages);
+    sendMessageMutation.mutate(updatedMessages);
     setInput("");
-    sendMessageMutation.mutate(userMessage);
   };
 
   const handleContinueToDashboard = async () => {
@@ -270,9 +363,24 @@ export default function Assessment() {
                 </Button>
               </div>
             </form>
+            <Button
+              variant="ghost"
+              onClick={async () => {
+                await apiRequest("POST", "/api/skip-assessment");
+
+                // 🔥 IMPORTANT: clear stale cache
+                await queryClient.invalidateQueries({
+                  queryKey: ["/api/maturity-profile"],
+                });
+
+                setLocation("/dashboard");
+              }}
+            >
+              Skip Assessment
+            </Button>
+
           </CardContent>
         </Card>
-
         <p className="text-xs text-center text-muted-foreground mt-4">
           Your responses are analyzed by AI to provide personalized recommendations. This typically takes 5-10 minutes.
         </p>
