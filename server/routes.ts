@@ -64,7 +64,6 @@ const getVendorsHandler = async (req: any, res: any) => {
     res.status(500).json({ message: "Failed to fetch vendors" });
   }
 };
-
 // Helper function to get milestone count for a process/stage combination
 function getMilestoneCountForProcess(process: string, stage: string): number {
   // Milestone counts per process and stage
@@ -637,25 +636,7 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
       res.status(500).json({ message: "Failed to process assessment" });
     }
   });
-  app.get('/api/admin/vendors', isAuthenticated, isAdmin, getVendorsHandler);
-  app.get('/api/admin/vendor-stats',isAuthenticated,isAdmin,
-    async (req, res) => {
-      const stats = await storage.getVendorCounts();
-      res.json(stats);
-    }
-  );
-  app.patch('/api/admin/vendors/:id/approve', isAuthenticated, isAdmin, async (req, res) => {
-    const { id } = req.params;
-    const { approve } = req.body;
 
-    try {
-      await storage.updateVendorApproval(id, approve); // Implement this in storage
-      res.json({ success: true });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ message: "Failed to update vendor status" });
-    }
-  });
   // Vendor routes
   app.get('/api/vendors', async (req, res) => {
     try {
@@ -864,15 +845,41 @@ Respond in JSON format:
       if (!contractorId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
+      const { vendorId, serviceId } = req.body;
+      const existing =
+        await storage.findServiceRequestByContractorVendorService({
+          contractorId,
+          vendorId,
+          serviceId,
+        });
+
+      if (existing) {
+        return res.status(409).json({
+          message: "You have already requested this service from this vendor",
+          requestId: existing.id,
+        });
+      }
       const serviceRequest = await storage.createServiceRequest({
         ...req.body,
-        contractorId
+        contractorId,
+        status: "pending",
       });
       res.json(serviceRequest);
-    } catch (error) {
-      console.error("Error creating service request:", error);
-      res.status(500).json({ message: "Failed to create service request" });
+    }catch (error) {
+      console.error("❌ CREATE SERVICE REQUEST FAILED");
+
+      if (error instanceof Error) {
+        console.error(error.message);
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        message: "Internal server error"
+      });
     }
+
   });
 
   app.get('/api/service-requests', isAuthenticated, async (req: any, res) => {
@@ -984,8 +991,20 @@ Respond in JSON format:
 
   app.post('/api/ai-match', isAuthenticated, async (req: any, res) => {
     try {
-      const { description, priority, budget } = req.body;
-      
+      const { description, priority, budget, vendorId } = req.body;
+      if (vendorId) {
+  const vendors = await storage.getVendors();
+  const vendor = vendors.find(v => v.id === vendorId);
+
+  if (!vendor) {
+    return res.json({ matches: [] });
+  }
+
+  // Return single vendor as "matched"
+  return res.json({
+    matches: [vendor]
+  });
+}
       // Get all approved vendors
       const vendors = await storage.getVendors();
       const approvedVendors = vendors.filter(v => v.isApproved);
@@ -1058,7 +1077,7 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to process AI matching" });
     }
   });
-  app.post("/api/services", isAuthenticated, async (req: any, res) => {
+ app.post("/api/services", isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
 
@@ -1072,6 +1091,15 @@ Respond in JSON format:
     } catch (error) {
       console.error("Error creating service:", error);
       res.status(500).json({ message: "Failed to create service" });
+    }
+  });
+  app.get("/api/all-services", async (req: any, res) => {
+    try {
+      const services = await storage.getAllServices();
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching services:", error);
+      res.status(500).json({ message: "Failed to fetch services" });
     }
   });
   app.get("/api/services", isAuthenticated, async (req: any, res) => {
@@ -1090,8 +1118,37 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to fetch services" });
     }
   });
+  app.get("/api/vendors/:vendorId/services", async (req, res) => {
+    try {
+      const { vendorId } = req.params;
 
+      const vendorServices = await storage.getServicesByVendorId(vendorId);
 
+      res.json(vendorServices);
+    } catch (error) {
+      console.error("Error fetching vendor services:", error);
+      res.status(500).json({ message: "Failed to fetch vendor services" });
+    }
+  });
+  app.get('/api/admin/vendors', isAuthenticated, isAdmin, getVendorsHandler);
+  app.get('/api/admin/vendor-stats',isAuthenticated,isAdmin,
+    async (req, res) => {
+      const stats = await storage.getVendorCounts();
+      res.json(stats);
+    }
+  );
+  app.patch('/api/admin/vendors/:id/approve', isAuthenticated, isAdmin, async (req, res) => {
+    const { id } = req.params;
+    const { approve } = req.body;
+
+    try {
+      await storage.updateVendorApproval(id, approve); // Implement this in storage
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to update vendor status" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

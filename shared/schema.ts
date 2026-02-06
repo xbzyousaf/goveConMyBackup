@@ -1,8 +1,8 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, decimal, pgEnum, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, decimal, pgEnum, jsonb, index, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-
+import { uniqueIndex } from "drizzle-orm/pg-core";
 // Session storage table for Replit Auth
 export const sessions = pgTable(
   "sessions",
@@ -114,36 +114,28 @@ export const services = pgTable("services", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Service Requests (contractor requesting a service)
-export const serviceRequests = pgTable("service_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  export const serviceRequests = pgTable("service_requests", {
+    id: uuid("id").defaultRandom().primaryKey(),
 
-  contractorId: varchar("contractor_id")
-    .references(() => users.id)
-    .notNull(),
+    description: text("description").notNull(),
+    priority: text("priority").notNull(),
 
-  vendorId: varchar("vendor_id")
-    .references(() => users.id)
-    .notNull(),
+    budgetMin: integer("budget_min").notNull(),
+    budgetMax: integer("budget_max").notNull(),
 
-  serviceId: varchar("service_id")
-    .references(() => services.id)
-    .notNull(),
+    serviceId: uuid("service_id").notNull(),
+    vendorId: uuid("vendor_id").notNull(),
+    contractorId: uuid("contractor_id").notNull(),
 
-  priority: text("priority").notNull(),
-  budget: decimal("budget", { precision: 10, scale: 2 }),
+    status: text("status").default("pending"),
 
-  status: serviceRequestStatusEnum("status").default("pending"),
-
-  aiAnalysis: text("ai_analysis"),
-
-  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
-  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
-
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },(table) => ({
+    uniqContractorVendorService: uniqueIndex(
+      "uniq_service_request"
+    ).on(table.contractorId, table.vendorId, table.serviceId ),
+  }));
 
 // Messages for contractor-vendor communication
 export const messages = pgTable("messages", {
@@ -240,6 +232,10 @@ export const userJourneys = pgTable("user_journeys", {
   currentStage: text("current_stage").notNull(),
   completedMilestones: text("completed_milestones").array().default(sql`ARRAY[]::text[]`),
   progressPercentage: integer("progress_percentage").default(0),
+  milestoneName: text("milestone_name"),
+  isCompleted: boolean("is_completed"),
+  completedAt: timestamp("completed_at"),
+  notes: text("notes"),
   updatedAt: timestamp("updated_at").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -376,11 +372,11 @@ export const insertVendorProfileSchema = createInsertSchema(vendorProfiles).omit
 
 export const insertServiceRequestSchema = createInsertSchema(serviceRequests).omit({
   id: true,
-  vendorId: true,
+  // vendorId: true,
   status: true,
-  aiAnalysis: true,
-  estimatedCost: true,
-  actualCost: true,
+  // aiAnalysis: true,
+  // estimatedCost: true,
+  // actualCost: true,
   createdAt: true,
   updatedAt: true,
 });

@@ -35,6 +35,7 @@ export default function Services() {
   const { data: user } = useQuery<any>({
     queryKey: ['/api/auth/current-user'],
   });
+  const isContractor = user?.userType === 'contractor';
   const serviceCategories = [
     { id: "all", label: "All Services", icon: TrendingUp },
     { id: "legal", label: "Legal & Compliance", icon: Scale },
@@ -46,7 +47,7 @@ export default function Services() {
   ];
   
   const { data: allServices } = useQuery<any>({
-    queryKey: ['/api/services'],
+    queryKey: isContractor ? ['/api/all-services'] : ['/api/services'],
   });
 
   const processSteps = [

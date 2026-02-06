@@ -10,12 +10,23 @@ import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Send, DollarSign, Star, MapPin } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import type { VendorProfile } from "@shared/schema";
+import { Header } from "./Header";
+type ServiceRequestPayload = {
+  description: string;
+  priority: string;
+  budgetMin: number;
+  budgetMax: number;
+  vendorId?: string;
+  serviceId?: string;
+};
 
 interface AIServiceRequestFormProps {
   onSubmit?: (request: string) => void;
+  vendorId?: string;
+  serviceId?: string;
 }
 
-export function AIServiceRequestForm({ onSubmit }: AIServiceRequestFormProps) {
+export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServiceRequestFormProps) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [request, setRequest] = useState("");
@@ -24,39 +35,62 @@ export function AIServiceRequestForm({ onSubmit }: AIServiceRequestFormProps) {
   const [matches, setMatches] = useState<VendorProfile[]>([]);
 
   const aiMatchMutation = useMutation({
-    mutationFn: async (data: { description: string; priority: string; budget: string }) => {
-      const response = await apiRequest("POST", "/api/ai-match", data);
-      return response.json();
-    },
-    onSuccess: (data) => {
-      setMatches(data.matches || []);
-      if (data.matches?.length === 0) {
-        toast({
-          title: "No matches found",
-          description: "Try adjusting your requirements or check back later for new vendors.",
-        });
-      }
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to process AI matching. Please try again.",
-        variant: "destructive"
+    mutationFn: async (payload: ServiceRequestPayload) => {
+      const res = await fetch("/api/service-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
-      console.error("AI matching error:", error);
-    }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Request failed");
+      }
+      return data;
+    },
+     onSuccess: (data) => {
+      setMatches(data.matchedVendors || []);
+      toast({
+        title: "Request submitted successfully",
+        description: "Request submitted successfully",
+      });
+      onSubmit?.(data.description);
+      navigate(`/`);
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Request failed",
+        description: error.message,
+      });
+    },
   });
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!request.trim()) return;
-
-    aiMatchMutation.mutate({
-      description: request,
-      priority,
-      budget
+    if (vendorId && !serviceId) {
+    toast({
+        variant: "destructive",
+        title: "Missing service",
+        description: "Please select a service before requesting a vendor.",
+      });
+      return;
+    }
+    const [budgetMin, budgetMax] = budget.split("-").map(Number);
+        aiMatchMutation.mutate({
+          description: request,
+          priority,
+          budgetMin,
+          budgetMax,
+          serviceId: serviceId || undefined,
+          vendorId: vendorId || undefined,
+        });
+    setMatches(aiMatchMutation.data?.matchedVendors || []);
+    toast({
+      title: "AI is processing your request",
+      description: "We are finding the best vendor matches for you.",
     });
-    
     onSubmit?.(request);
   };
 
@@ -65,6 +99,9 @@ export function AIServiceRequestForm({ onSubmit }: AIServiceRequestFormProps) {
   };
 
   return (
+    <div className="min-h-screen bg-background">
+    <Header />
+    <main className="container mx-auto px-4 py-8">
     <Card className="p-6">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="h-5 w-5 text-primary" />
@@ -108,11 +145,11 @@ export function AIServiceRequestForm({ onSubmit }: AIServiceRequestFormProps) {
                 <SelectValue placeholder="Select budget" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="under-1k">Under $1,000</SelectItem>
-                <SelectItem value="1k-5k">$1,000 - $5,000</SelectItem>
-                <SelectItem value="5k-10k">$5,000 - $10,000</SelectItem>
-                <SelectItem value="10k-25k">$10,000 - $25,000</SelectItem>
-                <SelectItem value="25k-plus">$25,000+</SelectItem>
+                <SelectItem value="0-1000">Under $1,000</SelectItem>
+                <SelectItem value="1000-5000">$1,000 - $5,000</SelectItem>
+                <SelectItem value="5000-10000">$5,000 - $10,000</SelectItem>
+                <SelectItem value="10000-25000">$10,000 - $25,000</SelectItem>
+                <SelectItem value="25000-50000">$25,000+</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -201,5 +238,7 @@ export function AIServiceRequestForm({ onSubmit }: AIServiceRequestFormProps) {
         </div>
       )}
     </Card>
+    </main>
+    </div>
   );
 }

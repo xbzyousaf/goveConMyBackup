@@ -37,7 +37,7 @@ import {
   services
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, asc ,sql} from "drizzle-orm";
+import { sql, eq, and, desc, asc } from "drizzle-orm";
 
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
@@ -157,14 +157,56 @@ export class DatabaseStorage implements IStorage {
 
   // Vendor management
   async getVendorProfile(userId: string): Promise<VendorProfile | undefined> {
-    const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, userId)).limit(1);
+    const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, userId));
     return profile || undefined;
   }
 
-  async getVendorProfileById(id: string): Promise<VendorProfile | undefined> {
-    const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.id, id));
-    return profile || undefined;
-  }
+  async getVendorProfileById(
+  id: string
+): Promise<(VendorProfile & { rating: number; reviewCount: number }) | undefined> {
+
+  const result = await db
+    .select({
+      // ✅ vendor profile fields
+      id: vendorProfiles.id,
+      userId: vendorProfiles.userId,
+      title: vendorProfiles.title,
+      companyName: vendorProfiles.companyName,
+      description: vendorProfiles.description,
+      categories: vendorProfiles.categories,
+      skills: vendorProfiles.skills,
+      location: vendorProfiles.location,
+      hourlyRate: vendorProfiles.hourlyRate,
+      responseTime: vendorProfiles.responseTime,
+      availability: vendorProfiles.availability,
+      certifications: vendorProfiles.certifications,
+      isApproved: vendorProfiles.isApproved,
+      isFeatured: vendorProfiles.isFeatured,
+      createdAt: vendorProfiles.createdAt,
+      updatedAt: vendorProfiles.updatedAt,
+
+      // ✅ computed values (simple)
+      rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`.as("rating"),
+      reviewCount: sql<number>`COUNT(${reviews.id})`.as("reviewCount"),
+    })
+    .from(vendorProfiles)
+    .leftJoin(
+      reviews,
+      eq(reviews.revieweeId, vendorProfiles.userId)
+    )
+    .where(eq(vendorProfiles.userId, id))
+    .groupBy(vendorProfiles.id)
+    .limit(1);
+
+  if (!result.length) return undefined;
+
+  return {
+    ...result[0],
+    rating: Number(result[0].rating),
+    reviewCount: Number(result[0].reviewCount),
+  };
+}
+
 
   async createVendorProfile(profile: InsertVendorProfile, userId: string): Promise<VendorProfile> {
     const [vendorProfile] = await db
@@ -210,8 +252,7 @@ export class DatabaseStorage implements IStorage {
     .from(vendorProfiles)
     .leftJoin(
       reviews,
-      // 🔥 THIS WAS THE BUG
-      eq(reviews.revieweeId, vendorProfiles.id)
+      eq(reviews.revieweeId, vendorProfiles.userId)
     )
     .groupBy(vendorProfiles.id)
     .orderBy(desc(vendorProfiles.rating));
@@ -242,11 +283,11 @@ export class DatabaseStorage implements IStorage {
   async createServiceRequest(request: InsertServiceRequest): Promise<ServiceRequest> {
     const [serviceRequest] = await db
       .insert(serviceRequests)
-      .values({
-        ...request,
-        updatedAt: new Date()
-      })
+      .values(request)
       .returning();
+      if (!serviceRequest) {
+        throw new Error("Insert failed");
+      }
     return serviceRequest;
   }
 
@@ -525,13 +566,11 @@ export class DatabaseStorage implements IStorage {
   async deleteUserJourneys(userId: string): Promise<void> {
     await db.delete(userJourneys).where(eq(userJourneys.userId, userId));
   }
-
   async createService(data: any, vendorId: string) {
     const [service] = await db
       .insert(services)
       .values({
         vendorId,
-
         name: data.name,
         description: data.description,
         category: data.category,
@@ -553,12 +592,36 @@ export class DatabaseStorage implements IStorage {
 
     return service;
   }
-  async updateVendorApproval(vendorId: string, approve: boolean) {
-    await db.update(vendorProfiles)
-            .set({ isApproved: approve })
-            .where(eq(vendorProfiles.id, vendorId));
+  async getAllServices() {
+    const allServices = await db
+      .select()
+      .from(services)
+      .orderBy(desc(services.createdAt));
+
+    return allServices;
   }
-  async getVendorCounts() {
+  async getServicesByVendorId(vendorId: string) {
+    return await db
+      .select()
+      .from(services)
+      .where(eq(services.vendorId, vendorId))
+      .orderBy(desc(services.createdAt));
+  }
+  async findServiceRequestByContractorVendorService({contractorId, vendorId, serviceId, }: {
+    contractorId: string;
+    vendorId: string;
+    serviceId: string;
+  }) {
+    return db.query.serviceRequests.findFirst({
+      where: (sr, { and, eq }) =>
+        and(
+          eq(sr.contractorId, contractorId),
+          eq(sr.vendorId, vendorId),
+          eq(sr.serviceId, serviceId)
+        ),
+    });
+  }
+   async getVendorCounts() {
     const rows = await db
       .select({
         isApproved: vendorProfiles.isApproved,
@@ -578,9 +641,11 @@ export class DatabaseStorage implements IStorage {
       .from(services)
       .where(eq(services.vendorId, vendorId));
   }
-
-
-
+  async updateVendorApproval(vendorId: string, approve: boolean) {
+    await db.update(vendorProfiles)
+            .set({ isApproved: approve })
+            .where(eq(vendorProfiles.id, vendorId));
+  }
 }
 
 export const storage = new DatabaseStorage();
