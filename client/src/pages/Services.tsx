@@ -208,11 +208,13 @@ export default function Services() {
             </p>
           </div>
     
+          {user?.userType === "vendor" && (
             <Link href="/service/create">
               <Button data-testid="button-add-service">
                 + Add New Service
               </Button>
             </Link>
+          )}
         </div>
 
         {/* Search and Filters */}
