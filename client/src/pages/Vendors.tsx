@@ -221,7 +221,7 @@ export default function Vendors() {
             {filteredVendors.length > 0 ? (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredVendors.map((vendor) => (
-                  <Link key={vendor.id} href={`/vendor/${vendor.id}`}>
+                  <Link key={vendor.userId} href={`/vendor/${vendor.userId}`}>
                     <div className="cursor-pointer">
                       <VendorCard
                         name={vendor.title}

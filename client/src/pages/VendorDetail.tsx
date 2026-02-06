@@ -7,20 +7,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, DollarSign, Clock, Star, CheckCircle, ArrowLeft, MessageSquare, Award, Shield, TrendingUp, Calendar, FileText } from "lucide-react";
+import { MapPin, DollarSign, Clock, Star, CheckCircle, ArrowLeft, ArrowRight,MessageSquare, Award, Shield, TrendingUp, Calendar, FileText } from "lucide-react";
 import type { VendorProfile, Review } from "@shared/schema";
+import { useLocation } from "wouter";
+import type { Service } from "@shared/schema";
+import { useState } from "react";
 
 export default function VendorDetail() {
   const [, params] = useRoute("/vendor/:id");
   const vendorId = params?.id;
-
+  const [, setLocation] = useLocation();
   const { data: vendor, isLoading } = useQuery<VendorProfile>({
     queryKey: vendorId ? [`/api/vendors/${vendorId}`] : ["disabled"],
     enabled: !!vendorId,
   });
+  const [activeTab, setActiveTab] = useState("about");
 
   const { data: reviews = [] } = useQuery<Review[]>({
     queryKey: vendorId ? [`/api/vendors/${vendorId}/reviews`] : ["disabled"],
+    enabled: !!vendorId,
+  });
+
+  const { data: services = [], isLoading: servicesLoading } = useQuery<Service[]>({
+    queryKey: vendorId ? [`/api/vendors/${vendorId}/services`] : ["disabled"],
     enabled: !!vendorId,
   });
 
@@ -169,13 +178,12 @@ export default function VendorDetail() {
             )}
 
             {/* Tabs for About, Past Performance, Reviews */}
-            <Tabs defaultValue="about" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="about" data-testid="tab-about">About</TabsTrigger>
+                <TabsTrigger value="services">Services</TabsTrigger>
                 <TabsTrigger value="performance" data-testid="tab-performance">Past Performance</TabsTrigger>
-                <TabsTrigger value="reviews" data-testid="tab-reviews">
-                  Reviews ({reviews.length})
-                </TabsTrigger>
+                <TabsTrigger value="reviews" data-testid="tab-reviews">Reviews ({reviews.length})</TabsTrigger>
               </TabsList>
 
               <TabsContent value="about" className="mt-6">
@@ -229,6 +237,104 @@ export default function VendorDetail() {
                   </Card>
                 )}
               </TabsContent>
+              <TabsContent value="services" className="mt-6">
+                  {servicesLoading ? (
+                    <div className="text-center py-6">Loading services...</div>
+                  ) : services.length > 0 ? (
+                    <div className="grid gap-6 md:grid-cols-2">
+                      {services.map((service) => (
+                        <Card
+                          key={service.id}
+                          className="hover-elevate transition-all flex flex-col"
+                        >
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <CardTitle className="text-lg">
+                                {service.title ?? "Untitled Service"}
+                              </CardTitle>
+
+                              {service.category && (
+                                <Badge variant="secondary">
+                                  {service.category}
+                                </Badge>
+                              )}
+                            </div>
+
+                            <CardDescription>
+                              {service.description ?? "No description available"}
+                            </CardDescription>
+                          </CardHeader>
+
+                          <CardContent className="flex-1 flex flex-col">
+                            {/* Meta Info */}
+                            <div className="space-y-3 mb-4">
+                              {service.turnaround && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Clock className="w-4 h-4 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Turnaround:</span>
+                                  <span className="font-medium">
+                                    {service.turnaround}
+                                  </span>
+                                </div>
+                              )}
+
+                              {(service.priceMin || service.priceMax) && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <DollarSign className="w-4 h-4 text-muted-foreground" />
+                                  <span className="text-muted-foreground">Pricing:</span>
+                                  <span className="font-medium">
+                                    {service.priceMin && service.priceMax
+                                      ? `$${service.priceMin} – $${service.priceMax}`
+                                      : "Contact vendor"}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Outcomes */}
+                            {Array.isArray(service.outcomes) && service.outcomes.length > 0 && (
+                              <div className="mb-4">
+                                <p className="text-sm font-medium mb-2">Outcomes:</p>
+                                <ul className="space-y-1">
+                                  {service.outcomes.map((outcome: string, idx: number) => (
+                                    <li key={idx} className="flex items-start gap-2 text-sm">
+                                      <CheckCircle className="w-4 h-4 text-primary mt-0.5" />
+                                      <span className="text-muted-foreground">
+                                        {outcome}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* CTA */}
+                            <div className="mt-auto pt-4 border-t">
+                              <Button
+                                className="w-full"
+                                onClick={() =>
+                                  setLocation(
+                                    `/request?vendorId=${vendor.id}&serviceId=${service.id}`
+                                  )
+                                }
+                              >
+                                Request This Service
+                                <ArrowRight className="ml-2 w-4 h-4" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <Card>
+                      <CardContent className="p-8 text-center text-muted-foreground">
+                        This vendor has not added any services yet.
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+
 
               <TabsContent value="performance" className="mt-6">
                 {pastPerformance.length > 0 ? (
@@ -358,16 +464,24 @@ export default function VendorDetail() {
 
                 <Separator />
 
-                <Button className="w-full" size="lg" data-testid="button-contact">
+                <Button className="w-full" size="lg"
+                  onClick={() =>
+                    setLocation(`/?section=request&vendorId=${vendor.id}`)
+                  }
+                >
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Contact Vendor
                 </Button>
                 
-                <Link href="/?section=request">
-                  <Button variant="outline" className="w-full" size="lg" data-testid="button-request-service">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                    data-testid="button-request-service"
+                    onClick={() => setActiveTab("services")}
+                  >
                     Request Service
                   </Button>
-                </Link>
               </CardContent>
             </Card>
 
