@@ -23,6 +23,8 @@ export const coreProcessEnum = pgEnum("core_process", ["business_structure", "bu
 export const contentTypeEnum = pgEnum("content_type", ["playbook", "template", "guide", "webinar", "faq", "checklist"]);
 export const subscriptionTierEnum = pgEnum("subscription_tier", ["freemium", "startup", "growth", "scale"]);
 export const vendorJourneyStageEnum = pgEnum("vendor_journey_stage", ["awareness", "application", "vetting", "onboarding", "active", "inactive"]);
+export const serviceTierEnum = pgEnum("service_tier", ["free","standard","premium"]);
+
 
 // Users table - custom email/password authentication
 export const users = pgTable("users", {
@@ -83,7 +85,7 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Services (what vendor offers)
+// Services (what vendor offers parent)
 export const services = pgTable("services", {
   id: varchar("id")
     .primaryKey()
@@ -97,22 +99,36 @@ export const services = pgTable("services", {
   description: text("description").notNull(),
   category: serviceCategoryEnum("category").notNull(),
 
-  turnaround: text("turnaround"),
-
   pricingModel: text("pricing_model"),
+
+  isActive: boolean("is_active").default(false),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+
+export const serviceTiers = pgTable("service_tiers", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+
+  serviceId: varchar("service_id")
+    .references(() => services.id, { onDelete: "cascade" })
+    .notNull(),
+
+  tier: serviceTierEnum("tier").notNull().default("free"),
+
+  turnaround: text("turnaround"),
 
   priceMin: decimal("price_min", { precision: 10, scale: 2 }),
   priceMax: decimal("price_max", { precision: 10, scale: 2 }),
 
   outcomes: text("outcomes").array(),
 
-  tier: text("tier").default("free"),
-
-  isActive: boolean("is_active").default(true),
-
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
 });
+
 
   export const serviceRequests = pgTable("service_requests", {
     id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -425,7 +441,15 @@ export const insertUserContentActivitySchema = createInsertSchema(userContentAct
   viewCount: true,
   createdAt: true,
 });
-
+export const servicesRelations = relations(services, ({ many }) => ({
+  tiers: many(serviceTiers),
+}));
+export const serviceTiersRelations = relations(serviceTiers, ({ one }) => ({
+  service: one(services, {
+    fields: [serviceTiers.serviceId],
+    references: [services.id],
+  }),
+}));
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
