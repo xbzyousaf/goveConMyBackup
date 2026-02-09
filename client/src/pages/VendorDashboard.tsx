@@ -80,6 +80,7 @@ export default function VendorDashboard() {
     status?: string;
     vendorId?: string;
     contractorId?: string;
+    contractorName?: string;
     actualCost?: number | null;
   };
 
@@ -277,7 +278,7 @@ export default function VendorDashboard() {
                         <div className="space-y-1">
                           <h4 className="font-medium">{request.title}</h4>
                           <p className="text-sm text-muted-foreground">
-                            {request.contractorId ?? "Contractor"} • Budget: $
+                            Contractor: {request.contractorName ?? "Contractor"} • Budget: $
                             {(request.budget ?? 0).toLocaleString()}
                           </p>
                         </div>
