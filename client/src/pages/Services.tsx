@@ -263,84 +263,88 @@ export default function Services() {
 {/* Service Cards */}
 {filteredServices.length > 0 ? (
   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-16">
-    {filteredServices.map((service: any) => (
-      <Card
-        key={service.id}
-        className="hover-elevate active-elevate-2 transition-all flex flex-col"
-        data-testid={`card-service-${service.id}`}
-      >
-        <CardHeader>
-          <div className="flex items-start justify-between mb-2">
-            <CardTitle className="text-lg">
-              {service.name ?? "Untitled Service"}
-            </CardTitle>
-            {service.tier && getTierBadge(service.tier)}
-          </div>
-          <CardDescription>
-            {service.description ?? "No description available"}
-          </CardDescription>
-        </CardHeader>
+    {filteredServices.flatMap((service: any) =>
+      service.tiers?.length
+        ? service.tiers.map((tier: any) => (
+            <Card
+              key={tier.id}
+              className="hover-elevate active-elevate-2 transition-all flex flex-col"
+              data-testid={`card-service-${service.id}-tier-${tier.id}`}
+            >
+              <CardHeader>
+                <div className="flex items-start justify-between mb-2">
+                  <CardTitle className="text-lg">
+                    {service.name ?? "Untitled Service"}
+                  </CardTitle>
+                  {getTierBadge(tier.tier)}
+                </div>
 
-        <CardContent className="flex-1 flex flex-col">
-          <div className="space-y-3 mb-4">
-            <div className="flex items-center gap-2 text-sm">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Turnaround:</span>
-              <span className="font-medium">
-                {service.turnaround ?? "N/A"}
-              </span>
-            </div>
+                <CardDescription>
+                  {service.description ?? "No description available"}
+                </CardDescription>
+              </CardHeader>
 
-            <div className="flex items-center gap-2 text-sm">
-              <DollarSign className="w-4 h-4 text-muted-foreground" />
-              <span className="text-muted-foreground">
-                {service.pricingModel ?? "Pricing"}:
-              </span>
-
-              <span className="font-medium">
-                ${service.priceMin && service.priceMax
-                  ? `${service.priceMin}-${service.priceMax}`
-                  : "Contact vendor"}
-
-              </span>
-            </div>
-          </div>
-
-          <div className="mb-4">
-            <p className="text-sm font-medium mb-2">Outcomes:</p>
-
-            {Array.isArray(service.outcomes) && service.outcomes.length > 0 ? (
-              <ul className="space-y-1">
-                {service.outcomes.map((outcome: string, idx: number) => (
-                  <li key={idx} className="flex items-start gap-2 text-sm">
-                    <CheckCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-muted-foreground">
-                      {outcome}
+              <CardContent className="flex-1 flex flex-col">
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Turnaround:</span>
+                    <span className="font-medium">
+                      {tier.turnaround ?? "N/A"}
                     </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No outcomes listed
-              </p>
-            )}
-          </div>
+                  </div>
 
-          <div className="mt-auto pt-4 border-t">
-            <Link href={`/vendors?category=${service.category ?? "all"}`}>
-              <Button
-                className="w-full"
-                data-testid={`button-find-vendors-${service.id}`}
-              >
-                Find Vendors
-                <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    ))}
+                  <div className="flex items-center gap-2 text-sm">
+                    <DollarSign className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-medium">
+                      {tier.priceMin && tier.priceMax
+                        ? `$${tier.priceMin}-${tier.priceMax}`
+                        : "Contact vendor"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <p className="text-sm font-medium mb-2">Outcomes:</p>
+
+                  {tier.outcomes?.length ? (
+                    <ul className="space-y-1">
+                      {tier.outcomes.map(
+                        (outcome: string, idx: number) => (
+                          <li
+                            key={idx}
+                            className="flex items-start gap-2 text-sm"
+                          >
+                            <CheckCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                            <span className="text-muted-foreground">
+                              {outcome}
+                            </span>
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No outcomes listed
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-auto pt-4 border-t">
+                  <Link
+                    href={`/vendors?category=${service.category ?? "all"}`}
+                  >
+                    <Button className="w-full">
+                      Find Vendors
+                      <ArrowRight className="ml-2 w-4 h-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        : []
+    )}
   </div>
 ) : (
   <div className="text-center py-12">

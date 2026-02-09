@@ -34,7 +34,8 @@ import {
   type InsertUserJourney,
   type UserContentActivity,
   type InsertUserContentActivity,
-  services
+  services,
+  serviceTiers
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, and, desc, asc, inArray } from "drizzle-orm";
@@ -570,39 +571,54 @@ export class DatabaseStorage implements IStorage {
     await db.delete(userJourneys).where(eq(userJourneys.userId, userId));
   }
   async createService(data: any, vendorId: string) {
-    const [service] = await db
-      .insert(services)
-      .values({
-        vendorId,
-        name: data.name,
-        description: data.description,
-        category: data.category,
+    return await db.transaction(async tx => {
+      // 1️⃣ Create parent service
+      const [service] = await tx
+        .insert(services)
+        .values({
+          vendorId,
+          name: data.name,
+          description: data.description,
+          category: data.category,
+          pricingModel: data.pricingModel ?? null,
+          isActive: true,
+        })
+        .returning();
 
-        turnaround: data.turnaround ?? null,
-        pricingModel: data.pricingModel ?? null,
+      // 2️⃣ Create tiers (children)
+      const tiersData = Object.entries(data.tiers || {}).map(
+        ([tierKey, tier]: [string, any]) => ({
+          serviceId: service.id,
+          tier: tierKey, // "free" | "standard" | "premium"
+          turnaround: tier.turnaround ?? null,
+          priceMin: tier.priceMin != null ? String(tier.priceMin) : null,
+          priceMax: tier.priceMax != null ? String(tier.priceMax) : null,
+          outcomes: Array.isArray(tier.outcomes) ? tier.outcomes : [],
+        })
+      );
 
-        // IMPORTANT: decimals must be strings
-        priceMin: data.priceMin ? String(data.priceMin) : null,
-        priceMax: data.priceMax ? String(data.priceMax) : null,
+      if (tiersData.length > 0) {
+        await tx.insert(serviceTiers).values(tiersData);
+      }
 
-        // arrays must be explicitly cast
-        outcomes: Array.isArray(data.outcomes) ? data.outcomes : [],
-
-        tier: data.tier ?? "free",
-        isActive: true,
-      })
-      .returning();
-
-    return service;
+      // 3️⃣ Return service with tiers
+      return {
+        ...service,
+        tiers: tiersData,
+      };
+    });
   }
+
   async getAllServices() {
-    const allServices = await db
+    const allServicesWithTiers = await db
       .select()
       .from(services)
-      .orderBy(desc(services.createdAt));
+      .leftJoin(serviceTiers, serviceTiers.serviceId.equals(services.id))
+      .orderBy(services.createdAt, "desc");
 
-    return allServices;
+    return allServicesWithTiers;
   }
+
   async getServicesByVendorId(vendorId: string) {
     return await db
       .select()
@@ -639,10 +655,12 @@ export class DatabaseStorage implements IStorage {
     };
   }
   async getVendorServices(vendorId: string) {
-    return await db
-      .select()
-      .from(services)
-      .where(eq(services.vendorId, vendorId));
+    return await db.query.services.findMany({
+      where: eq(services.vendorId, vendorId),
+      with: {
+        tiers: true, // 🔥 loads all related service_tiers
+      },
+    });
   }
   async updateVendorApproval(vendorId: string, approve: boolean) {
     await db.update(vendorProfiles)

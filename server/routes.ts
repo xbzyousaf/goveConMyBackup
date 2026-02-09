@@ -1123,7 +1123,7 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to process AI matching" });
     }
   });
- app.post("/api/services", isAuthenticated, async (req: any, res) => {
+  app.post("/api/services", isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
 

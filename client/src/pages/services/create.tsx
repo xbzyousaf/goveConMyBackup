@@ -1,39 +1,93 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Header } from "@/components/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+type TierKey = "free" | "standard" | "premium";
+
 export default function CreateService() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const [outcomeInput, setOutcomeInput] = useState("");
+  const [outcomeInput, setOutcomeInput] = useState<Record<TierKey, string>>({
+    free: "",
+    standard: "",
+    premium: "",
+  });
 
   const [form, setForm] = useState({
     name: "",
     category: "",
     description: "",
-    turnaround: "",
     pricingModel: "Fixed",
-    priceMin: "",
-    priceMax: "",
-    outcomes: [] as string[],
-    tier: "free",
+    tiers: {
+      free: {
+        turnaround: "",
+        priceMin: "",
+        priceMax: "",
+        outcomes: [] as string[],
+      },
+      standard: {
+        turnaround: "",
+        priceMin: "",
+        priceMax: "",
+        outcomes: [] as string[],
+      },
+      premium: {
+        turnaround: "",
+        priceMin: "",
+        priceMax: "",
+        outcomes: [] as string[],
+      },
+    },
   });
+
+  // Validation for required fields
+  const isValid =
+    form.name.trim() &&
+    form.category.trim() &&
+    form.description.trim();
+
+  const updateTier = (tier: TierKey, key: string, value: any) => {
+    setForm(prev => ({
+      ...prev,
+      tiers: {
+        ...prev.tiers,
+        [tier]: {
+          ...prev.tiers[tier],
+          [key]: value,
+        },
+      },
+    }));
+  };
+
+  const addOutcome = (tier: TierKey) => {
+    if (!outcomeInput[tier].trim()) return;
+
+    updateTier(tier, "outcomes", [
+      ...form.tiers[tier].outcomes,
+      outcomeInput[tier].trim(),
+    ]);
+
+    setOutcomeInput(prev => ({ ...prev, [tier]: "" }));
+  };
+
+  const removeOutcome = (tier: TierKey, i: number) => {
+    updateTier(
+      tier,
+      "outcomes",
+      form.tiers[tier].outcomes.filter((_, idx) => idx !== i)
+    );
+  };
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -41,58 +95,64 @@ export default function CreateService() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
-          priceMin: form.priceMin ? Number(form.priceMin) : null,
-          priceMax: form.priceMax ? Number(form.priceMax) : null,
+          name: form.name,
+          category: form.category,
+          description: form.description,
+          pricingModel: form.pricingModel,
+          tiers: Object.fromEntries(
+            Object.entries(form.tiers).map(([k, v]) => [
+              k,
+              {
+                ...v,
+                priceMin: v.priceMin ? Number(v.priceMin) : null,
+                priceMax: v.priceMax ? Number(v.priceMax) : null,
+              },
+            ])
+          ),
         }),
       });
 
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to create service");
+      }
 
       return res.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries(["services"]);
       toast({ title: "Service created successfully" });
-      setLocation("/vendors");
-    },
+      setLocation("/services");
+    }
+
   });
-
-  const update = (k: string, v: any) =>
-    setForm(prev => ({ ...prev, [k]: v }));
-
-  const addOutcome = () => {
-    if (!outcomeInput.trim()) return;
-    update("outcomes", [...form.outcomes, outcomeInput.trim()]);
-    setOutcomeInput("");
-  };
-
-  const removeOutcome = (i: number) => {
-    update(
-      "outcomes",
-      form.outcomes.filter((_, idx) => idx !== i)
-    );
-  };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container mx-auto max-w-3xl px-4 py-10">
+      <main className="container mx-auto max-w-4xl px-4 py-10 space-y-6">
+        {/* Service Info */}
         <Card>
-          <CardContent className="p-6 space-y-5">
+          <CardContent className="p-6 space-y-4">
             <h2 className="text-2xl font-bold">Create Service</h2>
 
-            {/* Name */}
             <Input
-              placeholder="Service name"
+              placeholder="Service name *"
               value={form.name}
-              onChange={e => update("name", e.target.value)}
+              className={!form.name ? "border-red-500" : ""}
+              onChange={e => setForm({ ...form, name: e.target.value })}
             />
 
             {/* Category */}
-            <Select value={form.category} onValueChange={v => update("category", v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
+            <Select
+              value={form.category}
+              onValueChange={v => setForm(prev => ({ ...prev, category: v }))}
+            >
+              <SelectTrigger
+                className={!form.category ? "border-red-500" : ""}
+              >
+                <SelectValue placeholder="Select category *" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="legal">Legal</SelectItem>
@@ -104,98 +164,110 @@ export default function CreateService() {
               </SelectContent>
             </Select>
 
-            {/* Description */}
             <Textarea
-              placeholder="Describe your service"
+              placeholder="Service description *"
               value={form.description}
-              onChange={e => update("description", e.target.value)}
+              className={!form.description ? "border-red-500" : ""}
+              onChange={e => setForm({ ...form, description: e.target.value })}
             />
 
-            {/* Turnaround */}
-            <Input
-              placeholder="Turnaround time (eg: 15–20 business days)"
-              value={form.turnaround}
-              onChange={e => update("turnaround", e.target.value)}
-            />
-
-            {/* Pricing */}
-            <div className="grid grid-cols-3 gap-3">
-              <Select
-                value={form.pricingModel}
-                onValueChange={v => update("pricingModel", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Fixed">Fixed</SelectItem>
-                  <SelectItem value="Hourly">Hourly</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Input
-                type="number"
-                placeholder="Min price"
-                value={form.priceMin}
-                onChange={e => update("priceMin", e.target.value)}
-              />
-
-              <Input
-                type="number"
-                placeholder="Max price"
-                value={form.priceMax}
-                onChange={e => update("priceMax", e.target.value)}
-              />
-            </div>
-
-            {/* Outcomes */}
-            <div>
-              <div className="flex gap-2 mb-2">
-                <Input
-                  placeholder="Add outcome"
-                  value={outcomeInput}
-                  onChange={e => setOutcomeInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && addOutcome()}
-                />
-                <Button type="button" onClick={addOutcome}>
-                  Add
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {form.outcomes.map((o, i) => (
-                  <Badge key={i} variant="secondary">
-                    {o}
-                    <X
-                      className="w-3 h-3 ml-2 cursor-pointer"
-                      onClick={() => removeOutcome(i)}
-                    />
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* Tier */}
-            <Select value={form.tier} onValueChange={v => update("tier", v)}>
+            {/* Pricing Model */}
+            <Select
+              value={form.pricingModel}
+              onValueChange={v => setForm(prev => ({ ...prev, pricingModel: v }))}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="Tier" />
+                <SelectValue placeholder="Select pricing model" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="free">Free</SelectItem>
-                <SelectItem value="standard">Standard</SelectItem>
-                <SelectItem value="premium">Premium</SelectItem>
+                <SelectItem value="Fixed">Fixed</SelectItem>
+                <SelectItem value="Hourly">Hourly</SelectItem>
               </SelectContent>
             </Select>
-
-            <Button
-              className="w-full"
-              disabled={mutation.isPending}
-              onClick={() => mutation.mutate()}
-            >
-              {mutation.isPending ? "Creating..." : "Create Service"}
-            </Button>
           </CardContent>
         </Card>
+
+        {/* Tier Cards */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {(["free", "standard", "premium"] as TierKey[]).map(tier => (
+            <Card key={tier}>
+              <CardContent className="p-5 space-y-4">
+                <h3 className="text-lg font-bold capitalize">{tier} Tier</h3>
+
+                {/* Turnaround */}
+                <Input
+                  placeholder="Turnaround time"
+                  value={form.tiers[tier].turnaround}
+                  onChange={e => updateTier(tier, "turnaround", e.target.value)}
+                />
+
+                {/* Prices */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Min price"
+                    value={form.tiers[tier].priceMin}
+                    onChange={e => updateTier(tier, "priceMin", e.target.value)}
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max price"
+                    value={form.tiers[tier].priceMax}
+                    onChange={e => updateTier(tier, "priceMax", e.target.value)}
+                  />
+                </div>
+
+                {/* Outcomes */}
+                <div>
+                  <div className="flex gap-2 mb-2">
+                    <Input
+                      placeholder="Add outcome"
+                      value={outcomeInput[tier]}
+                      onChange={e =>
+                        setOutcomeInput(prev => ({ ...prev, [tier]: e.target.value }))
+                      }
+                      onKeyDown={e => e.key === "Enter" && addOutcome(tier)}
+                    />
+                    <Button type="button" onClick={() => addOutcome(tier)}>
+                      Add
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {form.tiers[tier].outcomes.map((o, i) => (
+                      <Badge key={i} variant="secondary">
+                        {o}
+                        <X
+                          className="w-3 h-3 ml-2 cursor-pointer"
+                          onClick={() => removeOutcome(tier, i)}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Submit */}
+        <Button
+          className="w-full"
+          disabled={!isValid || mutation.isPending}
+          onClick={() => {
+            if (!isValid) {
+              toast({
+                title: "Missing required fields",
+                description: "Service name, category, and description are required",
+                variant: "destructive",
+              });
+              return;
+            }
+            mutation.mutate();
+          }}
+        >
+          {mutation.isPending ? "Creating..." : "Create Service"}
+        </Button>
       </main>
     </div>
   );
