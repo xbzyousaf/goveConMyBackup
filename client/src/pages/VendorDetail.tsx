@@ -250,7 +250,7 @@ export default function VendorDetail() {
                           <CardHeader>
                             <div className="flex items-start justify-between">
                               <CardTitle className="text-lg">
-                                {service.title ?? "Untitled Service"}
+                                {service.name ?? "Untitled Service"}
                               </CardTitle>
 
                               {service.category && (

@@ -367,6 +367,11 @@ app.post('/api/skip-assessment', isAuthenticated, async (req: any, res) => {
       return res.status(401).json({ message: "Not authenticated" });
     }
     const existingProfile = await storage.getUserMaturityProfile(userId);
+    if (existingProfile?.assessmentData?.status === 'completed') {
+      return res.status(409).json({
+        message: "Assessment already completed",
+      });
+    }
     await storage.upsertUserMaturityProfile({
       userId,
       maturityStage: 'startup',
@@ -1190,6 +1195,29 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to update vendor status" });
     }
   });
+  app.get("/api/marketplace/services", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      let profile = await storage.getUserMaturityProfile(userId);
+      
+      const stage = profile?.maturityStage ?? '';
+
+      if (!stage) {
+        return res.status(400).json({ message: "Stage is required" });
+      }
+
+      const services = await storage.getMarketplaceServicesByStage(stage);
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching marketplace services:", error);
+      res.status(500).json({ message: "Failed to fetch services" });
+    }
+  });
+
 
   const httpServer = createServer(app);
   return httpServer;

@@ -37,7 +37,7 @@ import {
   services
 } from "@shared/schema";
 import { db } from "./db";
-import { sql, eq, and, desc, asc } from "drizzle-orm";
+import { sql, eq, and, desc, asc, inArray } from "drizzle-orm";
 
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
@@ -319,13 +319,16 @@ export class DatabaseStorage implements IStorage {
     return requests;
   }
 
-  async getServiceRequestsByVendor(vendorId: string): Promise<ServiceRequest[]> {
-    const requests = await db
-      .select()
+  async getServiceRequestsByVendor(vendorId: string): Promise<ServiceRequestWithContractor[]> {
+    return await db
+      .select({
+        ...serviceRequests, // ✅ KEEP FULL SHAPE
+        contractorName: users.firstName, // ✅ ADD EXTRA FIELD
+      })
       .from(serviceRequests)
+      .leftJoin(users, eq(users.id, serviceRequests.contractorId))
       .where(eq(serviceRequests.vendorId, vendorId))
       .orderBy(desc(serviceRequests.createdAt));
-    return requests;
   }
 
   async getPendingServiceRequests(): Promise<ServiceRequest[]> {
@@ -646,6 +649,45 @@ export class DatabaseStorage implements IStorage {
             .set({ isApproved: approve })
             .where(eq(vendorProfiles.id, vendorId));
   }
+  async getMarketplaceServicesByStage(stage: "startup" | "growth" | "scale") {
+    let allowedTiers: string[] = [];
+
+    if (stage === "startup") {
+      allowedTiers = ["startup", "all"];
+    }
+
+    if (stage === "growth") {
+      allowedTiers = ["startup", "growth", "all"];
+    }
+
+    if (stage === "scale") {
+      allowedTiers = ["startup", "growth", "scale", "all"];
+    }
+
+    return await db
+      .select({
+        id: services.id,
+        title: services.name,
+        description: services.description,
+        category: services.category,
+        priceMin: services.priceMin,
+        priceMax: services.priceMax,
+        turnaround: services.turnaround,
+        pricingModel: services.pricingModel,
+        outcomes: services.outcomes,
+        tier: services.tier,
+        vendorId: services.vendorId,
+      })
+      .from(services)
+      .where(
+        and(
+          eq(services.isActive, true),
+          // inArray(services.tier, allowedTiers)
+        )
+      );
+  }
+
+
 }
 
 export const storage = new DatabaseStorage();
