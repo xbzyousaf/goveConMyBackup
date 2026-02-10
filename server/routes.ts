@@ -305,10 +305,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Not authenticated" });
       }
       
-      const profile = await storage.getUserMaturityProfile(userId);
+      let profile = await storage.getUserMaturityProfile(userId);
       
       if (!profile) {
-        return res.status(404).json({ message: "No profile found" });
+        profile = await storage.upsertUserMaturityProfile({
+      userId,
+      maturityStage: 'startup',
+      readinessScore: 0,
+      currentFocus: 'business_structure',
+      businessStructureProgress: 0,
+      businessStrategyProgress: 0,
+      executionProgress: 0,
+      subscriptionTier: 'freemium',
+      assessmentData: {
+        status: 'not_started',
+      },
+    });
       }
       
       res.json(profile);
@@ -347,6 +359,7 @@ app.post('/api/skip-assessment', isAuthenticated, async (req: any, res) => {
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
+    const existingProfile = await storage.getUserMaturityProfile(userId);
     await storage.upsertUserMaturityProfile({
       userId,
       maturityStage: 'startup',
@@ -356,17 +369,28 @@ app.post('/api/skip-assessment', isAuthenticated, async (req: any, res) => {
       businessStrategyProgress: 0,
       executionProgress: 0,
       subscriptionTier: 'freemium',
-      assessmentData: null,
+      assessmentData: {
+        ...(existingProfile?.assessmentData ?? {}),
+        status: 'skipped',
+        skippedAt: new Date(),
+      },
+
     });
     await storage.updateUser(userId, {
       skipAssessment: true,
     });
 
     res.json({ success: true });
-  } catch (error) {
-    console.error('[ASSESSMENT] Error skipping assessment:', error);
+    } catch (error: any) {
+    console.error('[ASSESSMENT] Error skipping assessment:', {
+      message: error?.message,
+      stack: error?.stack,
+      error,
+    });
+
     res.status(500).json({ message: "Failed to skip assessment" });
   }
+
 });
 
 
@@ -501,6 +525,7 @@ app.post('/api/skip-assessment', isAuthenticated, async (req: any, res) => {
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
+      await storage.updateUser(userId, { skipAssessment: false });
       
       // Validate request body
       const chatMessageSchema = z.object({
@@ -559,6 +584,18 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
 
       const response = completion.choices[0].message.content || "";
       console.log('[ASSESSMENT CHAT] Response received, checking for completion...');
+      const updatedConversation = [
+        ...messages,
+        { role: "assistant", content: response },
+      ];
+      await storage.upsertUserMaturityProfile({
+        userId,
+        assessmentData: {
+          status: 'in_progress',
+          conversationHistory: updatedConversation,
+          lastUpdatedAt: new Date(),
+        },
+      });
 
       // Check if AI is completing the assessment
       if (response.includes('"isComplete": true') || response.includes('"isComplete":true')) {
@@ -585,7 +622,7 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
           // Save assessment to database
           await storage.createAssessment({
             userId,
-            conversationHistory: messages,
+            conversationHistory: updatedConversation,
             maturityStage: assessmentResult.maturityStage,
             readinessScore: assessmentResult.readinessScore,
             aiAnalysis: assessmentResult.aiAnalysis,
@@ -598,7 +635,11 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
             userId,
             maturityStage: assessmentResult.maturityStage,
             readinessScore: assessmentResult.readinessScore,
-            assessmentData: { conversationHistory: messages },
+            assessmentData: {
+              status: 'completed',
+              conversationHistory: updatedConversation,
+              completedAt: new Date(),
+            },
             currentFocus: existingProfile?.currentFocus || 'business_structure',
             subscriptionTier: existingProfile?.subscriptionTier || 'freemium',
           });

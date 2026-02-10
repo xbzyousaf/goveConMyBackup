@@ -88,9 +88,13 @@ export default function Dashboard() {
     retry: false,
   });
 
-  const { data: user } = useQuery<any>({
-    queryKey: ['/api/auth/current-user'],
-  });
+  const {
+  data: user,
+  isLoading: isUserLoading,
+} = useQuery<any>({
+  queryKey: ['/api/auth/current-user'],
+});
+
     // AUTH + ONBOARDING GUARD
   if (!user) {
     setLocation("/login");
@@ -167,7 +171,7 @@ export default function Dashboard() {
   }
   
   // Show empty state only if no profile exists AND it's a 404
-  if (!profile && is404) {
+  if (profile?.assessmentData?.status === "not_started") {
     return (
       <div>
         <Header />
@@ -253,7 +257,7 @@ export default function Dashboard() {
             </div>
             
             {/* Retake Assessment Button */}
-            <div className="pt-2 border-t">
+            <div className="pt-2 border-t flex items-center justify-between">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm" disabled={isResetting} data-testid="button-retake-assessment">
@@ -281,6 +285,12 @@ export default function Dashboard() {
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+              {profile.assessmentData?.status !== "completed" && (
+                <Button size="sm" onClick={() => setLocation("/assessment")}>
+                  Resume Assessment
+                </Button>
+              )}
+
             </div>
           </CardContent>
         </Card>
