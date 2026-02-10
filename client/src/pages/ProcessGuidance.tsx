@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute, Link } from "wouter";
+import { useRoute, Link, useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -391,16 +391,59 @@ const PROCESS_CONFIG = {
 };
 
 export default function ProcessGuidance() {
+  const { data: bsJourney } = useQuery<UserJourney>({
+    queryKey: ['/api/journeys', 'business_structure'],
+  });
+
+  const { data: stratJourney } = useQuery<UserJourney>({
+    queryKey: ['/api/journeys', 'business_strategy'],
+  });
+
+  const { data: execJourney } = useQuery<UserJourney>({
+    queryKey: ['/api/journeys', 'execution'],
+  });
+
   const [, params] = useRoute("/process/:processId");
   const processId = params?.processId as keyof typeof PROCESS_CONFIG;
   
   const { data: profile } = useQuery<any>({
     queryKey: ['/api/maturity-profile'],
   });
+  const [, setLocation] = useLocation();
 
   const { data: journey, isLoading } = useQuery<UserJourney>({
     queryKey: ['/api/journeys', processId],
   });
+
+  const isStageCompleteGlobally = () => {
+    if (!profile) return false;
+
+    const userStage = profile.maturityStage as "startup" | "growth" | "scale";
+
+    // 1. Collect all required milestone IDs for this stage
+    const requiredMilestones: string[] = [];
+
+    Object.values(PROCESS_CONFIG).forEach((process) => {
+      const stage = process.stages[userStage];
+      if (!stage) return;
+
+      stage.milestones.forEach((m) => {
+        if (m.required) requiredMilestones.push(m.id);
+      });
+    });
+
+    // 2. Collect completed milestones from all journeys
+    const completed = new Set<string>([
+      ...(bsJourney?.completedMilestones ?? []),
+      ...(stratJourney?.completedMilestones ?? []),
+      ...(execJourney?.completedMilestones ?? []),
+    ]);
+
+    // 3. Check completion
+    return requiredMilestones.every((id) => completed.has(id));
+  };
+
+
 
   const updateMilestoneMutation = useMutation({
     mutationFn: async ({ milestoneId, completed }: { milestoneId: string; completed: boolean }) => {
@@ -415,6 +458,26 @@ export default function ProcessGuidance() {
       queryClient.invalidateQueries({ queryKey: ['/api/maturity-profile'] });
     },
   });
+  type AdvanceStagePayload = {
+    currentStage: "startup" | "growth" | "scale";
+    nextStage: "startup" | "growth" | "scale";
+  };
+  const advanceStageMutation = useMutation({
+    mutationFn: async (payload: AdvanceStagePayload) => {
+      return apiRequest("POST", "/api/maturity/advance", payload);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["/api/maturity-profile"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["/api/journeys", processId],
+      });
+      window.location.href = "/dashboard";
+    },
+  });
+
+
 
   if (!processId || !PROCESS_CONFIG[processId]) {
     return (
@@ -434,8 +497,20 @@ export default function ProcessGuidance() {
   const config = PROCESS_CONFIG[processId];
   const Icon = config.icon;
   const userStage = profile?.maturityStage || 'startup';
-  const stageConfig = config.stages[userStage as keyof typeof config.stages];
 
+  const getNextStage = (
+  stage: "startup" | "growth" | "scale"
+  ) => {
+    if (stage === "startup") return "growth";
+    if (stage === "growth") return "scale";
+    return null;
+  };
+
+  const nextStage = userStage
+    ? getNextStage(userStage)
+    : null;
+
+  const stageConfig = config.stages[userStage as keyof typeof config.stages];
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -455,6 +530,11 @@ export default function ProcessGuidance() {
   const progressPercentage = totalMilestones > 0 
     ? Math.round((completedCount / totalMilestones) * 100) 
     : 0;
+    // const isFinalProcess = processId === "execution";
+    const canAdvance =
+      isStageCompleteGlobally() &&
+      nextStage !== null;
+
 
   const handleMilestoneToggle = (milestoneId: string, currentlyCompleted: boolean) => {
     updateMilestoneMutation.mutate({
@@ -568,21 +648,48 @@ export default function ProcessGuidance() {
         </div>
 
         {/* Completion Message */}
-        {progressPercentage === 100 && (
+        {canAdvance && (
           <Card className="border-2 border-primary bg-primary/5">
             <CardHeader>
               <div className="flex items-center gap-3">
                 <Award className="h-8 w-8 text-primary" />
                 <div>
-                  <CardTitle className="text-primary">Congratulations!</CardTitle>
+                  <CardTitle className="text-primary">
+                    🎉 {stageConfig.label} Complete
+                  </CardTitle>
                   <CardDescription>
-                    You've completed all milestones for {config.label} at the {stageConfig.label} level.
+                    You’re ready to move to the next stage.
                   </CardDescription>
                 </div>
               </div>
             </CardHeader>
+
+            <CardContent className="flex gap-3">
+              <Button variant="outline" onClick={() => setLocation("/assessment")}>
+                Reassess Readiness
+              </Button>
+
+              {nextStage && (
+                <Button
+                  onClick={() =>
+                    advanceStageMutation.mutate({
+                      currentStage: userStage,
+                      nextStage,
+                    })
+                  }
+
+                >
+                  Advance to {nextStage.charAt(0).toUpperCase() + nextStage.slice(1)}
+                </Button>
+              )}
+
+              <Button variant="ghost">
+                Stay in {userStage}
+              </Button>
+            </CardContent>
           </Card>
         )}
+
       </div>
     </div>
   );

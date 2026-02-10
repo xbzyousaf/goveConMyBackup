@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
 import { VendorProfileForm } from "@/components/VendorProfileForm";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,11 +13,14 @@ import { useLocation } from "wouter";
 import { calculateMonthlyMetric } from "@/services/servicesStats.service";
 import { cn } from "@/lib/utils";
 import { isCurrentMonth } from "@/helpers/dateHelper";
+import ServiceMessages from "./ServiceMessages";
 
 export default function VendorDashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const [openChat, setOpenChat] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   // Fetch vendor profile
   const { data: vendorProfile, isLoading: profileLoading } = useQuery({
     queryKey: ["/api/vendor-profile"],
@@ -263,45 +266,80 @@ export default function VendorDashboard() {
                   <CardDescription>Latest requests from contractors</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {recentRequests.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center">
-                        No recent service requests
-                      </p>
-                    )}
+                  {recentRequests.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center">
+                      No recent service requests
+                    </p>
+                  )}
 
-                    {recentRequests.map((request, index) => (
-                      <div
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {recentRequests.map((request) => (
+                      <Card
                         key={request.id}
-                        className="flex items-center justify-between p-4 border rounded-lg"
+                        className="flex flex-col h-full transition-all hover:shadow-lg hover:-translate-y-0.5"
                       >
-                        <div className="space-y-1">
-                          <h4 className="font-medium">{request.title}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Contractor: {request.contractorName ?? "Contractor"} • Budget: $
-                            {(request.budget ?? 0).toLocaleString()}
-                          </p>
-                        </div>
+                        {/* Header */}
+                        <CardHeader className="pb-3 border-b bg-muted/30 rounded-t-lg">
+                          <div className="flex items-start justify-between gap-3">
+                            <CardTitle className="text-base leading-snug">
+                              {request.title}
+                            </CardTitle>
 
-                        <div className="text-right space-y-1">
-                          <Badge
-                            className={cn(
-                              "capitalize",
-                              request.status === "completed" &&
-                                "bg-green-100 text-green-700 border-green-200",
-                              request.status === "in_progress" &&
-                                "bg-primary text-primary-foreground",
-                              request.status === "pending" &&
-                                "bg-red-100 text-red-700 border-red-200"
-                            )}
+                            <Badge
+                              className={cn(
+                                "capitalize text-xs",
+                                request.status === "completed" &&
+                                  "bg-green-100 text-green-700 border-green-200",
+                                request.status === "in_progress" &&
+                                  "bg-blue-100 text-blue-700 border-blue-200",
+                                request.status === "pending" &&
+                                  "bg-amber-100 text-amber-700 border-amber-200"
+                              )}
+                            >
+                              {request.status?.replace("_", " ")}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+
+                        {/* Content */}
+                        <CardContent className="flex-1 pt-4 space-y-3">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Contractor</span>
+                            <span className="font-medium text-foreground">
+                              {request.contractorName ?? "Contractor"}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Budget</span>
+                            <span className="font-medium">
+                              ${(request.budget ?? 0).toLocaleString()}
+                            </span>
+                          </div>
+
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Due date</span>
+                            <span>
+                              {new Date(request.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </CardContent>
+
+                        {/* Footer */}
+                        <CardFooter className="pt-4 border-t bg-muted/20 rounded-b-lg">
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={() => {
+                              setSelectedRequestId(request.id);
+                              setOpenChat(true);
+                            }}
                           >
-                            {request.status?.replace("_", " ")}
-                          </Badge>
-                          <p className="text-sm text-muted-foreground">
-                            Due: {new Date(request.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
+                            Message Contractor
+                          </Button>
+
+                        </CardFooter>
+                      </Card>
                     ))}
                   </div>
                 </CardContent>
@@ -575,6 +613,14 @@ export default function VendorDashboard() {
           </Tabs>
         )}
       </main>
+      {selectedRequestId && (
+        <ServiceMessages
+          open={openChat}
+          onClose={() => setOpenChat(false)}
+          serviceRequestId={selectedRequestId}
+        />
+      )}
+
     </div>
   );
 }

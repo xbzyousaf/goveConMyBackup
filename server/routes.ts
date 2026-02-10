@@ -1217,6 +1217,111 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to fetch services" });
     }
   });
+  app.post('/api/maturity/advance', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { currentStage, nextStage } = req.body;
+      const allowedTransitions = {
+        startup: "growth",
+        growth: "scale",
+        scale: null,
+      };
+      if (allowedTransitions[currentStage] !== nextStage) {
+        return res.status(400).json({ message: "Invalid stage transition" });
+      }
+
+      if (!["startup", "growth", "scale"].includes(nextStage)) {
+        return res.status(400).json({ message: "Invalid stage" });
+      }
+
+      const profile = await storage.advanceUserStage(
+        userId,
+        nextStage
+      );
+
+      res.json(profile);
+    } catch (error) {
+      console.error("Error advancing stage:", error);
+      res.status(500).json({ message: "Failed to advance stage" });
+    }
+  });
+  app.post("/api/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { serviceRequestId, content } = req.body;
+
+      const serviceRequest = await storage.getServiceRequest(serviceRequestId);
+      if (!serviceRequest) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+
+      if (
+        serviceRequest.vendorId !== userId &&
+        serviceRequest.contractorId !== userId
+      ) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      const receiverId =
+        serviceRequest.vendorId === userId
+          ? serviceRequest.contractorId
+          : serviceRequest.vendorId;
+
+      const message = await storage.createMessage({
+        serviceRequestId,
+        senderId: userId,
+        receiverId,
+        content,
+        messageType: "text",
+      });
+
+      res.json(message);
+    } catch (error) {
+      console.error("Send message error:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+  app.get("/api/service-requests/:id/messages", isAuthenticated,async (req, res) => {
+      const userId = getUserId(req);
+      const serviceRequestId = req.params.id;
+
+      const serviceRequest = await storage.getServiceRequest(serviceRequestId);
+      if (!serviceRequest) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+
+      if (
+        serviceRequest.vendorId !== userId &&
+        serviceRequest.contractorId !== userId
+      ) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      const messages = await storage.getMessagesByServiceRequest(
+        serviceRequestId
+      );
+
+      res.json({
+        serviceRequest: {
+          id: serviceRequest.id,
+          title: serviceRequest.title,
+          serviceId: serviceRequest.serviceId,
+        },
+        messages,
+      });
+    }
+  );
+
+
+
 
 
   const httpServer = createServer(app);

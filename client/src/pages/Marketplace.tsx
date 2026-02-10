@@ -367,7 +367,7 @@ export default function Marketplace() {
                         </div>
                         <Link href={`/vendors?category=${service.category}`}>
                           <Button data-testid={`button-view-vendors-${service.id}`}>
-                            View Vendors
+                            View Service
                             <ArrowRight className="ml-2 w-4 h-4" />
                           </Button>
                         </Link>

@@ -38,7 +38,7 @@ import {
   serviceTiers
 } from "@shared/schema";
 import { db } from "./db";
-import { sql, eq, and, desc, asc, inArray } from "drizzle-orm";
+import { sql, eq, ne, and, desc, asc, inArray } from "drizzle-orm";
 
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
@@ -610,14 +610,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllServices() {
-    const allServicesWithTiers = await db
-      .select()
-      .from(services)
-      .leftJoin(serviceTiers, serviceTiers.serviceId.equals(services.id))
-      .orderBy(services.createdAt, "desc");
-
-    return allServicesWithTiers;
+    return await db.query.services.findMany({
+      orderBy: desc(services.createdAt),
+      with: {
+        tiers: true, // 🔥 loads all related service_tiers
+      },
+    });
   }
+
 
   async getServicesByVendorId(vendorId: string) {
     return await db
@@ -668,42 +668,81 @@ export class DatabaseStorage implements IStorage {
             .where(eq(vendorProfiles.id, vendorId));
   }
   async getMarketplaceServicesByStage(stage: "startup" | "growth" | "scale") {
-    let allowedTiers: string[] = [];
+    let allowedTiers: ("free" | "standard" | "premium")[] = [];
 
     if (stage === "startup") {
-      allowedTiers = ["startup", "all"];
+      allowedTiers = ["free"];
     }
 
     if (stage === "growth") {
-      allowedTiers = ["startup", "growth", "all"];
+      allowedTiers = ["free", "standard"];
     }
 
     if (stage === "scale") {
-      allowedTiers = ["startup", "growth", "scale", "all"];
+      allowedTiers = ["free", "standard", "premium"];
     }
 
     return await db
       .select({
-        id: services.id,
+        serviceId: services.id,
         title: services.name,
         description: services.description,
         category: services.category,
-        priceMin: services.priceMin,
-        priceMax: services.priceMax,
-        turnaround: services.turnaround,
-        pricingModel: services.pricingModel,
-        outcomes: services.outcomes,
-        tier: services.tier,
         vendorId: services.vendorId,
+
+        tier: serviceTiers.tier,
+        turnaround: serviceTiers.turnaround,
+        priceMin: serviceTiers.priceMin,
+        priceMax: serviceTiers.priceMax,
+        outcomes: serviceTiers.outcomes,
       })
       .from(services)
+      .innerJoin(
+        serviceTiers,
+        eq(serviceTiers.serviceId, services.id)
+      )
       .where(
         and(
           eq(services.isActive, true),
-          // inArray(services.tier, allowedTiers)
+          inArray(serviceTiers.tier, allowedTiers)
         )
       );
   }
+  async advanceUserStage(userId: string, nextStage: "startup" | "growth" | "scale") {
+    const [updated] = await db
+      .update(userMaturityProfiles)
+      .set({
+        maturityStage: nextStage,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(userMaturityProfiles.userId, userId),
+          ne(userMaturityProfiles.maturityStage, nextStage)
+        )
+      )
+      .returning();
+
+    return updated;
+  }
+  async getServiceRequestWithService(id: string) {
+    return db.query.serviceRequests.findFirst({
+      where: eq(serviceRequests.id, id),
+      with: {
+        service: true, // 🔥 THIS IS THE KEY
+      },
+    });
+  }
+  async getMessagesByServiceRequestId(serviceRequestId: string) {
+    return db
+      .select()
+      .from(messages)
+      .where(eq(messages.serviceRequestId, serviceRequestId))
+      .orderBy(asc(messages.createdAt));
+  }
+
+
+
 
 
 }

@@ -24,7 +24,7 @@ export const contentTypeEnum = pgEnum("content_type", ["playbook", "template", "
 export const subscriptionTierEnum = pgEnum("subscription_tier", ["freemium", "startup", "growth", "scale"]);
 export const vendorJourneyStageEnum = pgEnum("vendor_journey_stage", ["awareness", "application", "vetting", "onboarding", "active", "inactive"]);
 export const serviceTierEnum = pgEnum("service_tier", ["free","standard","premium"]);
-
+export const messageTypeEnum = pgEnum("message_type", ["text", "system", "file", ]);
 
 // Users table - custom email/password authentication
 export const users = pgTable("users", {
@@ -158,6 +158,7 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   attachments: text("attachments").array(),
   isRead: boolean("is_read").default(false),
+  messageType: messageTypeEnum("message_type").default("text").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
