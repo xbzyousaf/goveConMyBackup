@@ -50,14 +50,7 @@ const getVendorsHandler = async (req: any, res: any) => {
     return res.status(401).json({ message: "Not authenticated" });
   }
   try {
-    const { category, location, verified } = req.query;
-    const filters: any = {};
-
-    if (category) filters.category = category as string;
-    if (location) filters.location = location as string;
-    if (verified !== undefined) filters.verified = verified === 'true';
-
-    const vendors = await storage.getVendors(filters);
+    const vendors = await storage.getOnlyVendors();
     res.json(vendors);
   } catch (error) {
     console.error("Error fetching vendors:", error);
@@ -678,16 +671,25 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
     }
   });
 
-  // Vendor routes
-  app.get('/api/vendors', async (req, res) => {
+  // Vendor routes — contractor only
+  app.get("/api/vendors", async (req: any, res) => {
     try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const user = await storage.getUser(userId);
+      if (user?.userType == "vendor") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
       const { category, location, verified } = req.query;
       const filters: any = {};
-      
+
       if (category) filters.category = category as string;
       if (location) filters.location = location as string;
-      if (verified !== undefined) filters.verified = verified === 'true';
-      
+      if (verified !== undefined) filters.verified = verified === "true";
+
       const vendors = await storage.getVendors(filters);
       res.json(vendors);
     } catch (error) {
@@ -695,6 +697,7 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
       res.status(500).json({ message: "Failed to fetch vendors" });
     }
   });
+
 
   app.get('/api/vendors/:id', async (req, res) => {
     try {
@@ -1034,18 +1037,18 @@ Respond in JSON format:
     try {
       const { description, priority, budget, vendorId } = req.body;
       if (vendorId) {
-  const vendors = await storage.getVendors();
-  const vendor = vendors.find(v => v.id === vendorId);
+        const vendors = await storage.getVendors();
+        const vendor = vendors.find(v => v.id === vendorId);
 
-  if (!vendor) {
-    return res.json({ matches: [] });
-  }
+        if (!vendor) {
+          return res.json({ matches: [] });
+        }
 
-  // Return single vendor as "matched"
-  return res.json({
-    matches: [vendor]
-  });
-}
+        // Return single vendor as "matched"
+        return res.json({
+          matches: [vendor]
+        });
+      }
       // Get all approved vendors
       const vendors = await storage.getVendors();
       const approvedVendors = vendors.filter(v => v.isApproved);
