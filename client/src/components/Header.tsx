@@ -52,25 +52,40 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
               <span className="font-semibold text-lg gradient-text">GovScale Alliance</span>
             </div>
           </Link>
-          {user?.userType !== "admin" && (
           <nav className="hidden md:flex items-center gap-6">
-            <Link href="/marketplace">
-              <Button variant="ghost" data-testid="link-marketplace" className="text-sm">
-                Marketplace
-              </Button>
-            </Link>
-            <Link href="/services">
-              <Button variant="ghost" data-testid="link-services" className="text-sm">
-                Services
-              </Button>
-            </Link>
-            <Link href="/vendors">
-              <Button variant="ghost" data-testid="link-vendors" className="text-sm">
-                Vendors
-              </Button>
-            </Link>
+            {user?.userType === "vendor" && (
+              <>
+                <Link href="/vendor-dashboard">
+                  <Button variant="ghost" className="text-sm">
+                    Dashboard
+                  </Button>
+                </Link>
+
+                <Link href="/services">
+                  <Button variant="ghost" className="text-sm">
+                    Services
+                  </Button>
+                </Link>
+              </>
+            )}
+
+            {user?.userType === "contractor" && (
+              <>
+                <Link href="/dashboard">
+                  <Button variant="ghost" className="text-sm">
+                    Dashboard
+                  </Button>
+                </Link>
+
+                <Link href="/marketplace">
+                  <Button variant="ghost" className="text-sm">
+                    Marketplace
+                  </Button>
+                </Link>
+              </>
+            )}
           </nav>
-        )}
+
         </div>
 
         <div className="flex items-center gap-4">

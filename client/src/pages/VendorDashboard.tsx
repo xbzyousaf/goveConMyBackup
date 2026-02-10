@@ -209,7 +209,7 @@ export default function VendorDashboard() {
                       {mockStats.completedRequests}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {Math.round((mockStats.completedRequests / mockStats.totalRequests) * 100)}% completion rate
+                      {Math.round(((mockStats?.completedRequests || 0) / (mockStats?.totalRequests || 1)) * 100)}% completion rate
                     </p>
                   </CardContent>
                 </Card>

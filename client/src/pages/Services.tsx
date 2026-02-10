@@ -331,14 +331,11 @@ export default function Services() {
                 </div>
 
                 <div className="mt-auto pt-4 border-t">
-                  <Link
-                    href={`/vendors?category=${service.category ?? "all"}`}
-                  >
+                  
                     <Button className="w-full">
                       Find Vendors
                       <ArrowRight className="ml-2 w-4 h-4" />
                     </Button>
-                  </Link>
                 </div>
               </CardContent>
             </Card>

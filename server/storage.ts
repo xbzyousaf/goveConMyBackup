@@ -231,49 +231,67 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getVendors(
-  filters?: { category?: string; location?: string; verified?: boolean }
-): Promise<(VendorProfile & { reviewCount: number })[]> {
+    filters?: { category?: string; location?: string; verified?: boolean }
+  ): Promise<(VendorProfile & { reviewCount: number })[]> {
 
-  const whereConditions = [];
+    const whereConditions = [];
 
-  if (filters?.verified !== undefined) {
-    whereConditions.push(eq(vendorProfiles.isApproved, filters.verified));
+    if (filters?.verified !== undefined) {
+      whereConditions.push(eq(vendorProfiles.isApproved, filters.verified));
+    }
+
+    if (filters?.location) {
+      whereConditions.push(eq(vendorProfiles.location, filters.location));
+    }
+
+    // Create a subquery for review stats
+    const reviewStats = db
+      .select({
+        revieweeId: reviews.revieweeId,
+        reviewCount: sql<number>`COUNT(${reviews.id})`.as('review_count'),
+        avgRating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`.as('avg_rating')
+      })
+      .from(reviews)
+      .groupBy(reviews.revieweeId)
+      .as('review_stats');
+
+    const baseQuery = db
+      .select({
+        vendor: vendorProfiles,
+        reviewCount: sql<number>`COALESCE(MAX(review_stats.review_count), 0)`,
+        rating: sql<number>`COALESCE(MAX(review_stats.avg_rating), 0)`
+      })
+      .from(vendorProfiles)
+      .innerJoin(
+        services,
+        eq(services.vendorId, vendorProfiles.userId)
+      )
+      .leftJoin(
+        reviewStats,
+        eq(reviewStats.revieweeId, vendorProfiles.userId)
+      )
+      .groupBy(vendorProfiles.id)
+      .orderBy(desc(vendorProfiles.rating));
+
+    const rows =
+      whereConditions.length > 0
+        ? await baseQuery.where(
+            whereConditions.length === 1
+              ? whereConditions[0]
+              : and(...whereConditions as [any, ...any[]])
+          )
+        : await baseQuery;
+
+    return rows.map(row => ({
+      ...row.vendor,
+      rating: Number(row.rating) || 0,
+      reviewCount: Number(row.reviewCount) || 0,
+    }));
   }
 
-  if (filters?.location) {
-    whereConditions.push(eq(vendorProfiles.location, filters.location));
+  async getOnlyVendors(): Promise<VendorProfile[]> {
+    return await db.select().from(vendorProfiles);
   }
-
-  const baseQuery = db
-    .select({
-      vendor: vendorProfiles,
-      reviewCount: sql<number>`COUNT(${reviews.id})`,
-      rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`
-    })
-    .from(vendorProfiles)
-    .leftJoin(
-      reviews,
-      eq(reviews.revieweeId, vendorProfiles.userId)
-    )
-    .groupBy(vendorProfiles.id)
-    .orderBy(desc(vendorProfiles.rating));
-
-  const rows =
-    whereConditions.length > 0
-      ? await baseQuery.where(
-          whereConditions.length === 1
-            ? whereConditions[0]
-            : and(...whereConditions as [any, ...any[]])
-        )
-      : await baseQuery;
-
-  return rows.map(row => ({
-    ...row.vendor,
-    rating: Number(row.rating) || 0,
-    reviewCount: Number(row.reviewCount) || 0,
-  }));
-}
-
 
   // Service request management
   async getServiceRequest(id: string): Promise<ServiceRequest | undefined> {

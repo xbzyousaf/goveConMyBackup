@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Filter, X } from "lucide-react";
 import type { VendorProfile } from "@shared/schema";
+import { useNavigate } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
 
 export default function Vendors() {
   const [location] = useLocation();
@@ -20,6 +22,7 @@ export default function Vendors() {
   const [selectedCategory, setSelectedCategory] = useState<string>(categoryParam || "all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (categoryParam) {
@@ -27,9 +30,29 @@ export default function Vendors() {
     }
   }, [categoryParam]);
 
-  const { data: vendors = [], isLoading } = useQuery<VendorProfile[]>({
-    queryKey: ["/api/vendors"],
-  });
+  const {
+  data: vendors = [],
+  isLoading,
+  error,
+} = useQuery<VendorProfile[]>({
+  queryKey: ["/api/vendors"],
+  queryFn: async () => {
+    const res = await fetch("/api/vendors");
+    const data = await res.json();
+      debugger
+
+    if (data?.message === "Access denied") {
+      throw new Error("ACCESS_DENIED");
+    }
+
+    return data;
+  },
+});
+
+if (error instanceof Error && error.message === "ACCESS_DENIED") {
+  toast({ title: "Access denied" });
+  navigate("/vendor-dashboard");
+}
 
   const categories = [
     { id: "all", label: "All Categories" },
