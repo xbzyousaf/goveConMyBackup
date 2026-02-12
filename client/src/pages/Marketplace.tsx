@@ -8,8 +8,39 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Star, TrendingUp, Package, Zap, Award, Filter, ArrowRight, CheckCircle } from "lucide-react";
+import { Search, Star, TrendingUp, Package, Briefcase, Scale, Zap, Award, Filter, ArrowRight, CheckCircle } from "lucide-react";
 import type { VendorProfile } from "@shared/schema";
+const categoryIconMap: Record<string, React.ElementType> = {
+  legal: Scale,
+  cybersecurity: Zap,
+  marketing: TrendingUp,
+  finance: Briefcase,
+  hr: Package,
+  business_tools: Award,
+};
+export interface MarketplaceService {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  tier: string;
+  priceMin: string | null;
+  priceMax: string | null;
+  turnaround: string | null;
+  pricingModel: string | null;
+  outcomes: string[] | null;
+  vendorId: string;
+}
+export const getServiceDisplayPrice = (service: MarketplaceService) => {
+  if (service.priceMin && service.priceMax) {
+    return `$${Number(service.priceMin).toLocaleString()} – $${Number(service.priceMax).toLocaleString()}`;
+  }
+  if (service.priceMin) {
+    return `$${Number(service.priceMin).toLocaleString()}`;
+  }
+  return "Contact for pricing";
+};
+
 
 export default function Marketplace() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,47 +52,50 @@ export default function Marketplace() {
     queryKey: ["/api/vendors"],
   });
 
-  const featuredServices = [
-    {
-      id: "sam-registration",
-      title: "SAM.gov Registration & Renewal",
-      description: "Complete SAM.gov registration service with expert guidance through the entire process",
-      category: "legal",
-      price: 1500,
-      trending: true,
-      icon: Award,
-      features: ["Entity registration", "Unique Entity ID", "CAGE code assistance", "Annual renewal support"]
-    },
-    {
-      id: "gsa-schedule",
-      title: "GSA Schedule Pricing Refresh",
-      description: "Update and optimize your GSA Schedule pricing for maximum competitiveness",
-      category: "finance",
-      price: 2000,
-      trending: true,
-      icon: TrendingUp,
-      features: ["Price analysis", "Market research", "Modification support", "Compliance review"]
-    },
-    {
-      id: "proposal-writing",
-      title: "Federal Proposal Writing",
-      description: "Professional proposal development for federal opportunities",
-      category: "marketing",
-      price: 5000,
-      icon: Package,
-      features: ["Technical volumes", "Past performance", "Pricing strategy", "Compliance matrix"]
-    },
-    {
-      id: "cybersecurity-audit",
-      title: "CMMC/NIST Compliance Audit",
-      description: "Comprehensive cybersecurity assessment and compliance roadmap",
-      category: "cybersecurity",
-      price: 3500,
-      trending: true,
-      icon: Zap,
-      features: ["Gap analysis", "CMMC preparation", "NIST 800-171", "Remediation plan"]
-    }
-  ];
+  // const featuredServices = [
+  //   {
+  //     id: "sam-registration",
+  //     title: "SAM.gov Registration & Renewal",
+  //     description: "Complete SAM.gov registration service with expert guidance through the entire process",
+  //     category: "legal",
+  //     price: 1500,
+  //     trending: true,
+  //     icon: Award,
+  //     features: ["Entity registration", "Unique Entity ID", "CAGE code assistance", "Annual renewal support"]
+  //   },
+  //   {
+  //     id: "gsa-schedule",
+  //     title: "GSA Schedule Pricing Refresh",
+  //     description: "Update and optimize your GSA Schedule pricing for maximum competitiveness",
+  //     category: "finance",
+  //     price: 2000,
+  //     trending: true,
+  //     icon: TrendingUp,
+  //     features: ["Price analysis", "Market research", "Modification support", "Compliance review"]
+  //   },
+  //   {
+  //     id: "proposal-writing",
+  //     title: "Federal Proposal Writing",
+  //     description: "Professional proposal development for federal opportunities",
+  //     category: "marketing",
+  //     price: 5000,
+  //     icon: Package,
+  //     features: ["Technical volumes", "Past performance", "Pricing strategy", "Compliance matrix"]
+  //   },
+  //   {
+  //     id: "cybersecurity-audit",
+  //     title: "CMMC/NIST Compliance Audit",
+  //     description: "Comprehensive cybersecurity assessment and compliance roadmap",
+  //     category: "cybersecurity",
+  //     price: 3500,
+  //     trending: true,
+  //     icon: Zap,
+  //     features: ["Gap analysis", "CMMC preparation", "NIST 800-171", "Remediation plan"]
+  //   }
+  // ];
+  const { data: featuredServices = [], isLoading } = useQuery<MarketplaceService[]>({
+    queryKey: ["/api/marketplace/services"],
+  });
 
   const serviceBundles = [
     {
@@ -294,12 +328,14 @@ export default function Marketplace() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-              {filteredServices.map((service) => (
+              {filteredServices.map((service) => {
+                const Icon = categoryIconMap[service.category] ?? Package;
+                return (
                 <Card key={service.id} className="hover-elevate active-elevate-2 transition-all" data-testid={`card-service-${service.id}`}>
                   <CardHeader>
                     <div className="flex items-start justify-between mb-2">
                       <div className="p-3 rounded-lg bg-primary/10">
-                        <service.icon className="w-6 h-6 text-primary" />
+                        <Icon className="w-6 h-6 text-primary" />
                       </div>
                       {service.trending && (
                         <Badge variant="default" className="flex items-center gap-1">
@@ -314,21 +350,24 @@ export default function Marketplace() {
                   <CardContent>
                     <div className="space-y-4">
                       <ul className="space-y-2">
-                        {service.features.map((feature, idx) => (
+                        {service.outcomes?.map((outcomes, idx) => (
                           <li key={idx} className="flex items-center gap-2 text-sm">
                             <CheckCircle className="w-4 h-4 text-primary" />
-                            <span>{feature}</span>
+                            <span>{outcomes}</span>
                           </li>
                         ))}
                       </ul>
                       
                       <div className="flex items-center justify-between pt-4 border-t">
                         <div>
-                          <span className="text-2xl font-bold">${service.price.toLocaleString()}</span>
+                          <span className="text-2xl font-bold">
+                            {getServiceDisplayPrice(service)}
+                          </span>
+
                         </div>
                         <Link href={`/vendors?category=${service.category}`}>
                           <Button data-testid={`button-view-vendors-${service.id}`}>
-                            View Vendors
+                            View Service
                             <ArrowRight className="ml-2 w-4 h-4" />
                           </Button>
                         </Link>
@@ -336,7 +375,7 @@ export default function Marketplace() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              )})}
             </div>
           </TabsContent>
 

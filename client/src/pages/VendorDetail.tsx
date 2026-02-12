@@ -314,7 +314,7 @@ export default function VendorDetail() {
                                 className="w-full"
                                 onClick={() =>
                                   setLocation(
-                                    `/request?vendorId=${vendor.id}&serviceId=${service.id}`
+                                    `/request?vendorId=${vendor.userId}&serviceId=${service.id}`
                                   )
                                 }
                               >

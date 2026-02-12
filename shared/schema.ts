@@ -24,7 +24,7 @@ export const contentTypeEnum = pgEnum("content_type", ["playbook", "template", "
 export const subscriptionTierEnum = pgEnum("subscription_tier", ["freemium", "startup", "growth", "scale"]);
 export const vendorJourneyStageEnum = pgEnum("vendor_journey_stage", ["awareness", "application", "vetting", "onboarding", "active", "inactive"]);
 export const serviceTierEnum = pgEnum("service_tier", ["free","standard","premium"]);
-
+export const messageTypeEnum = pgEnum("message_type", ["text", "system", "file", ]);
 
 // Users table - custom email/password authentication
 export const users = pgTable("users", {
@@ -135,7 +135,7 @@ export const serviceTiers = pgTable("service_tiers", {
     contractorId: varchar("contractor_id").references(() => users.id).notNull(),
     vendorId: varchar("vendor_id").references(() => users.id),
     title: text("title").notNull(),
-    serviceId: uuid("service_id").notNull(),
+    serviceId: varchar("service_id").references(() => services.id, { onDelete: "cascade" }).notNull(),
     description: text("description").notNull(),
     category: serviceCategoryEnum("category").notNull(),
     priority: text("priority").notNull(),
@@ -158,6 +158,7 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   attachments: text("attachments").array(),
   isRead: boolean("is_read").default(false),
+  messageType: messageTypeEnum("message_type").default("text").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -295,6 +296,10 @@ export const serviceRequestsRelations = relations(serviceRequests, ({ one, many 
     references: [users.id],
     relationName: "vendorRequests",
   }),
+  service: one(services, {
+    fields: [serviceRequests.serviceId],
+    references: [services.id],
+  }),
   messages: many(messages),
   reviews: many(reviews),
   transactions: many(transactions),
@@ -308,12 +313,10 @@ export const messagesRelations = relations(messages, ({ one }) => ({
   sender: one(users, {
     fields: [messages.senderId],
     references: [users.id],
-    relationName: "sentMessages",
   }),
   receiver: one(users, {
     fields: [messages.receiverId],
     references: [users.id],
-    relationName: "receivedMessages",
   }),
 }));
 

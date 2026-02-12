@@ -1,4 +1,4 @@
-import { Search, User, Bell, LogOut } from "lucide-react";
+import { Search, User, Bell, LogOut, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,10 @@ import { ThemeToggle } from "./ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-
+import { useMessages } from "./ui/MessageContext";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import { useToast } from "@/hooks/use-toast";
 interface HeaderProps {
   onSearch?: (query: string) => void;
   notificationCount?: number;
@@ -18,7 +21,8 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [, setLocation] = useLocation();
   const { user } = useAuth();
-
+  const { toast } = useToast();
+  const { toggleMessages } = useMessages();
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -26,6 +30,28 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
     }
     onSearch?.(searchQuery);
   };
+  const { data: conversationsData } = useQuery({
+    queryKey: ["/api/conversations"],
+    queryFn: async () => {
+      const res = await fetch("/api/conversations");
+      if (!res.ok) throw new Error("Failed to load conversations");
+      return res.json();
+    },
+    enabled: !!user,
+    refetchInterval: 5000, // keep header updated
+  });
+  const unreadMessages = conversationsData?.totalUnread ?? 0;
+  const previousUnreadRef = useRef<number>(0);
+  useEffect(() => {
+    if (unreadMessages > previousUnreadRef.current) {
+      toast({
+        title: "New Message",
+        description: "You have received a new message.",
+      });
+    }
+
+  previousUnreadRef.current = unreadMessages;
+}, [unreadMessages]);
 
   const handleLogout = async () => {
     try {
@@ -111,6 +137,24 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                   {notificationCount}
                 </Badge>
               )}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={toggleMessages} >
+              <div className="relative">
+                <MessageSquare className="h-5 w-5" />
+                {unreadMessages > 0 && (
+                  <span
+                    className=" absolute -top-2 -right-1 min-w-[14px] h-[14px] px-[3px]
+                      flex items-center justify-center
+                      rounded-full
+                      bg-red-500 text-white
+                      text-[9px] font-semibold
+                      leading-none
+                    "
+                  >
+                    {unreadMessages > 99 ? "99+" : unreadMessages}
+                  </span>
+                )}
+              </div>
             </Button>
             
             <ThemeToggle />

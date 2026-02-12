@@ -8,6 +8,7 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { insertUserSchema } from "@shared/schema";
 import { pool } from "./db";
+import { Description } from "@radix-ui/react-toast";
 
 if (!process.env.OPENAI_API_KEY) {
   throw new Error("OPENAI_API_KEY is missing");
@@ -360,6 +361,11 @@ app.post('/api/skip-assessment', isAuthenticated, async (req: any, res) => {
       return res.status(401).json({ message: "Not authenticated" });
     }
     const existingProfile = await storage.getUserMaturityProfile(userId);
+    if (existingProfile?.assessmentData?.status === 'completed') {
+      return res.status(409).json({
+        message: "Assessment already completed",
+      });
+    }
     await storage.upsertUserMaturityProfile({
       userId,
       maturityStage: 'startup',
@@ -942,10 +948,13 @@ Respond in JSON format:
       }
       
       res.json(requests);
-    } catch (error) {
-      console.error("Error fetching service requests:", error);
-      res.status(500).json({ message: "Failed to fetch service requests" });
-    }
+    } catch (error: any) {
+        console.error("Error fetching service requests:", error);
+        res.status(500).json({ 
+          message: error.message,
+          stack: error.stack 
+        });
+      }
   });
 
   // Seed sample vendors (development only)
@@ -1193,6 +1202,230 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to update vendor status" });
     }
   });
+  app.get("/api/marketplace/services", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      let profile = await storage.getUserMaturityProfile(userId);
+      
+      const stage = profile?.maturityStage ?? '';
+
+      if (!stage) {
+        return res.status(400).json({ message: "Stage is required" });
+      }
+
+      const services = await storage.getMarketplaceServicesByStage(stage);
+      res.json(services);
+    } catch (error) {
+      console.error("Error fetching marketplace services:", error);
+      res.status(500).json({ message: "Failed to fetch services" });
+    }
+  });
+  app.post('/api/maturity/advance', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { currentStage, nextStage } = req.body;
+      const allowedTransitions = {
+        startup: "growth",
+        growth: "scale",
+        scale: null,
+      };
+      if (allowedTransitions[currentStage] !== nextStage) {
+        return res.status(400).json({ message: "Invalid stage transition" });
+      }
+
+      if (!["startup", "growth", "scale"].includes(nextStage)) {
+        return res.status(400).json({ message: "Invalid stage" });
+      }
+
+      const profile = await storage.advanceUserStage(
+        userId,
+        nextStage
+      );
+
+      res.json(profile);
+    } catch (error) {
+      console.error("Error advancing stage:", error);
+      res.status(500).json({ message: "Failed to advance stage" });
+    }
+  });
+  app.post("/api/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { serviceRequestId, content } = req.body;
+
+      const serviceRequest = await storage.getServiceRequest(serviceRequestId);
+      if (!serviceRequest) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+
+      if (
+        serviceRequest.vendorId !== userId &&
+        serviceRequest.contractorId !== userId
+      ) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      const receiverId =
+        serviceRequest.vendorId === userId
+          ? serviceRequest.contractorId
+          : serviceRequest.vendorId;
+
+      const message = await storage.createMessage({
+        serviceRequestId,
+        senderId: userId,
+        receiverId,
+        content,
+        messageType: "text",
+      });
+
+      res.json(message);
+    } catch (error) {
+      console.error("Send message error:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+  app.get("/api/service-requests/:id/messages", isAuthenticated,async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) {
+          return res.status(401).json({ message: "Not authenticated" });
+        }
+
+        const serviceRequestId = req.params.id;
+
+        const serviceRequest = await storage.getServiceRequest(serviceRequestId);
+        if (!serviceRequest) {
+          return res.status(404).json({ message: "Service request not found" });
+        }
+
+        if (
+          serviceRequest.vendorId !== userId &&
+          serviceRequest.contractorId !== userId
+        ) {
+          return res.status(403).json({ message: "Not authorized" });
+        }
+
+      return res.json({
+        serviceRequest: {
+          id: serviceRequest.id,
+          title: serviceRequest.title,
+          vendorId: serviceRequest.vendorId,
+          contractorId: serviceRequest.contractorId,
+        },
+        service: serviceRequest.service
+          ? {
+              id: serviceRequest.service.id,
+              title: serviceRequest.service.name,
+            }
+          : null,
+        participants: {
+          vendorName: serviceRequest.vendor?.firstName,
+          contractorName: serviceRequest.contractor?.firstName,
+        },
+        messages: serviceRequest.messages,
+      });
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+        return res.status(500).json({
+          message: "Failed to fetch messages",
+        });
+      }
+    }
+  );
+
+
+  app.patch("/api/service-requests/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { id } = req.params;
+      const { status } = req.body;
+
+      const allowedStatuses = [
+        "pending",
+        "matched",
+        "in_progress",
+        "completed",
+        "cancelled",
+      ];
+
+      if (!allowedStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const serviceRequest = await storage.getServiceRequest(id);
+
+      if (!serviceRequest) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+
+      // Only vendor can approve/reject
+      if (serviceRequest.vendorId !== userId) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      const updated = await storage.updateServiceRequestStatus(id, status);
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Update status error:", error);
+      res.status(500).json({ message: "Failed to update status" });
+    }
+  });
+  app.get("/api/conversations", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const data = await storage.getUserServiceRequests(userId);
+      return res.json(data);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: "Failed to load conversations" });
+    }
+  });
+  app.post("/api/conversations/:id/mark-read", isAuthenticated, async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const conversationId = req.params.id;
+
+        if (!userId) {
+          return res.status(401).json({ message: "Not authenticated" });
+        }
+
+        const updatedCount  = await storage.markAsRead(conversationId, userId);
+
+        return res.json({
+          success: true,
+          updated: updatedCount,
+        });
+
+      } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Failed to mark as read" });
+      }
+    }
+  );
+
+
+
 
   const httpServer = createServer(app);
   return httpServer;

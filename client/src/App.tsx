@@ -4,7 +4,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
-import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Assessment from "@/pages/Assessment";
 import ProcessGuidance from "@/pages/ProcessGuidance";
@@ -28,7 +27,8 @@ import VendorOnboarding from "./pages/VendorOnboarding";
 import CreateService from "./pages/services/create";
 import RequestService from "./pages/RequestService";
 import AdminVendors from "./pages/admin/AdminVendors";
-
+import { MessageProvider, useMessages } from "./components/ui/MessageContext";
+import ServiceMessages from "./pages/ServiceMessages";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -39,6 +39,22 @@ function LoadingSpinner() {
     </div>
   );
 }
+function GlobalMessages() {
+  const { isOpen, closeMessages, selectedConversationId } = useMessages();
+
+  if (!isOpen) return null;
+
+  return (
+    <ServiceMessages
+      open={true}
+      onClose={closeMessages}
+      serviceRequestId={selectedConversationId ?? undefined}
+      fullScreen
+    />
+  );
+}
+
+
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -95,10 +111,16 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+
+        <MessageProvider> 
+          <Router />
+          <GlobalMessages />
+        </MessageProvider>
+
       </TooltipProvider>
     </QueryClientProvider>
   );
 }
+
 
 export default App;

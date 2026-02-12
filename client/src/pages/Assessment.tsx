@@ -32,103 +32,65 @@ export default function Assessment() {
   const [isComplete, setIsComplete] = useState(false);
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [assessmentStatus, setAssessmentStatus] = useState<
+    'not_started' | 'in_progress' | 'completed' | 'skipped' | null
+  >(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
   useEffect(() => {
-    const loadDraft = async () => {
-      try {
-        const res = await fetch("/api/maturity-profile", {
-          credentials: "include",
-        });
-        if (!res.ok) {
-          throw new Error("Failed to load assessment draft");
-        }
+  const loadDraft = async () => {
+    try {
+      const res = await fetch("/api/maturity-profile", {
+        credentials: "include",
+      });
 
-        const profile = await res.json();
-        const assessmentStatus = profile?.assessmentData?.status;
-        const loadDraft = async () => {
-  try {
-    const res = await fetch("/api/maturity-profile", {
-      credentials: "include",
-    });
+      if (!res.ok) {
+        throw new Error("Failed to load assessment draft");
+      }
 
-    if (!res.ok) {
-      throw new Error("Failed to load assessment draft");
-    }
+      const profile = await res.json();
 
-    const profile = await res.json();
-    const status = profile?.assessmentData?.status;
-    const history = profile?.assessmentData?.conversationHistory;
+      const status = profile?.assessmentData?.status ?? "not_started";
+      const history = profile?.assessmentData?.conversationHistory;
 
-    // ✅ CASE 1: Never started
-    if (status === "not_started") {
+      // 🔐 save status for UI logic
+      setAssessmentStatus(status);
+
+      // CASE 1: never started
+      if (status === "not_started") {
+        setMessages([
+          {
+            role: "assistant",
+            content:
+              "Welcome to GovScale Alliance! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
+          },
+        ]);
+        return;
+      }
+
+      // CASE 2: resume (in_progress or skipped)
+      if (Array.isArray(history) && history.length > 0) {
+        setMessages(history);
+        return;
+      }
+
+      // fallback safety
       setMessages([
         {
           role: "assistant",
-          content:
-            "Welcome to GovScale Alliance! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
+          content: "Welcome back! Let's continue your assessment.",
         },
       ]);
-      return;
+    } catch (err) {
+      console.error("Load draft failed:", err);
     }
+  };
 
-    // ✅ CASE 2: In progress or skipped → resume
-    if (Array.isArray(history) && history.length > 0) {
-      setMessages(history);
-      return;
-    }
+  loadDraft();
+}, []);
 
-    // ✅ FALLBACK (safety)
-    setMessages([
-      {
-        role: "assistant",
-        content:
-          "Welcome back! Let's continue your assessment.",
-      },
-    ]);
-  } catch (err) {
-    console.error("Load draft failed:", err);
-  }
-};
-
-        if (profile?.assessmentData?.status === "not_started") {
-  setMessages([
-    {
-      role: "assistant",
-      content:
-        "Welcome to GovScale Alliance! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
-    },
-  ]);
-  return;
-}
-
-        if (
-            profile?.assessmentData?.conversationHistory &&
-            profile.assessmentData.conversationHistory.length > 0
-          ) {
-            // RESUME assessment
-            setMessages(profile.assessmentData.conversationHistory);
-          } else {
-            // FIRST TIME assessment
-            setMessages([
-              {
-                role: "assistant",
-                content:
-                  "Welcome to GovScale Alliance! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
-              },
-            ]);
-          }
-
-
-      } catch (err) {
-        console.error("Load draft failed:", err);
-      }
-    };
-
-    loadDraft();
-  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -363,7 +325,17 @@ export default function Assessment() {
                 </Button>
               </div>
             </form>
+            {assessmentStatus === 'completed' ? (
             <Button
+                className="ml-2 mb-2"
+                variant="default"
+                onClick={() => setLocation("/dashboard")}
+              >
+                Status: Completed - Go to Dashboard
+              </Button>
+            ) : (
+            <Button
+              className="ml-2 mb-2"
               variant="ghost"
               onClick={async () => {
                 await apiRequest("POST", "/api/skip-assessment");
@@ -378,6 +350,7 @@ export default function Assessment() {
             >
               Skip Assessment
             </Button>
+            )}
 
           </CardContent>
         </Card>
