@@ -38,7 +38,7 @@ import {
   serviceTiers
 } from "@shared/schema";
 import { db } from "./db";
-import { sql, eq, ne, and, desc, asc, inArray } from "drizzle-orm";
+import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
 
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
@@ -294,10 +294,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Service request management
-  async getServiceRequest(id: string): Promise<ServiceRequest | undefined> {
-    const [request] = await db.select().from(serviceRequests).where(eq(serviceRequests.id, id));
-    return request || undefined;
-  }
+  async getServiceRequest(id: string) {
+  return await db.query.serviceRequests.findFirst({
+    where: eq(serviceRequests.id, id),
+    with: {
+      vendor: {
+        columns: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      contractor: {
+        columns: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      service: true,      // if relation exists
+      messages: true,     // optional
+    },
+  });
+}
+
 
   async createServiceRequest(request: InsertServiceRequest): Promise<ServiceRequest> {
     const [serviceRequest] = await db
@@ -338,16 +358,26 @@ export class DatabaseStorage implements IStorage {
     return requests;
   }
 
-  async getServiceRequestsByVendor(vendorId: string): Promise<ServiceRequestWithContractor[]> {
-    return await db
-      .select({
-        ...serviceRequests, // ✅ KEEP FULL SHAPE
-        contractorName: users.firstName, // ✅ ADD EXTRA FIELD
-      })
-      .from(serviceRequests)
-      .leftJoin(users, eq(users.id, serviceRequests.contractorId))
-      .where(eq(serviceRequests.vendorId, vendorId))
-      .orderBy(desc(serviceRequests.createdAt));
+  async getServiceRequestsByVendor(vendorId: string) {
+    return await db.query.serviceRequests.findMany({
+      where: eq(serviceRequests.vendorId, vendorId),
+      with: {
+        contractor: {
+          columns: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        service: {
+          columns: {
+            name: true,
+          },
+        },
+      },
+      orderBy: (serviceRequests, { desc }) => [
+        desc(serviceRequests.createdAt),
+      ],
+    });
   }
 
   async getPendingServiceRequests(): Promise<ServiceRequest[]> {
@@ -368,13 +398,27 @@ export class DatabaseStorage implements IStorage {
     return newMessage;
   }
 
-  async getMessagesByServiceRequest(serviceRequestId: string): Promise<Message[]> {
-    const messageList = await db
-      .select()
-      .from(messages)
-      .where(eq(messages.serviceRequestId, serviceRequestId))
-      .orderBy(asc(messages.createdAt));
-    return messageList;
+  async getMessagesByServiceRequest(serviceRequestId: string) {
+    return await db.query.messages.findMany({
+      where: eq(messages.serviceRequestId, serviceRequestId),
+      with: {
+        sender: {
+          columns: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        receiver: {
+          columns: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      orderBy: (messages, { asc }) => [asc(messages.createdAt)],
+    });
   }
 
   async markMessageAsRead(messageId: string): Promise<void> {
@@ -644,6 +688,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(services.vendorId, vendorId))
       .orderBy(desc(services.createdAt));
   }
+  async getService(serviceId: string) {
+    const [service] = await db
+      .select()
+      .from(services)
+      .where(eq(services.id, serviceId));
+
+    return service ?? undefined;
+  }
+
   async findServiceRequestByContractorVendorService({contractorId, vendorId, serviceId, }: {
     contractorId: string;
     vendorId: string;
@@ -759,6 +812,154 @@ export class DatabaseStorage implements IStorage {
       .orderBy(asc(messages.createdAt));
   }
 
+  async updateServiceRequestStatus(id: string, status: string) {
+    await db
+      .update(serviceRequests)
+      .set({
+        status,
+        updatedAt: new Date(),
+      })
+      .where(eq(serviceRequests.id, id));
+
+    return this.getServiceRequest(id);
+  }
+  async markAsRead(conversationId: string, userId: string) {
+    const result = await db
+      .update(messages)
+      .set({ isRead: true })
+      .where(
+        and(
+          eq(messages.serviceRequestId, conversationId),
+          eq(messages.receiverId, userId),
+          eq(messages.isRead, false)
+        )
+      )
+      .returning({ id: messages.id });
+
+    return result.length;
+  }
+
+ async getUserServiceRequests(userId: string) {
+  const results = await db
+    .select({
+      id: serviceRequests.id,
+      title: serviceRequests.title,
+      vendorId: serviceRequests.vendorId,
+      contractorId: serviceRequests.contractorId,
+    })
+    .from(serviceRequests)
+    .where(
+      or(
+        eq(serviceRequests.vendorId, userId),
+        eq(serviceRequests.contractorId, userId)
+      )
+    );
+
+  if (!results.length) {
+    return { conversations: [], totalUnread: 0 };
+  }
+
+  const conversationIds = results.map(r => r.id);
+
+  // 🔹 Get last messages
+  const lastMessages = await db
+    .select({
+      serviceRequestId: messages.serviceRequestId,
+      content: messages.content,
+      createdAt: messages.createdAt,
+    })
+    .from(messages)
+    .where(inArray(messages.serviceRequestId, conversationIds))
+    .orderBy(desc(messages.createdAt));
+
+  // 🔹 Get unread counts
+  const unreadCountsRaw = await db
+    .select({
+      serviceRequestId: messages.serviceRequestId,
+      count: sql<number>`count(*)`,
+    })
+    .from(messages)
+    .where(
+      and(
+        inArray(messages.serviceRequestId, conversationIds),
+        eq(messages.receiverId, userId),
+        eq(messages.isRead, false)
+      )
+    )
+    .groupBy(messages.serviceRequestId);
+
+  const unreadMap = Object.fromEntries(
+    unreadCountsRaw.map(u => [u.serviceRequestId, Number(u.count)])
+  );
+
+  const totalUnread = unreadCountsRaw.reduce(
+    (sum, u) => sum + Number(u.count),
+    0
+  );
+
+  // 🔹 Get users
+  const userIds = [
+    ...new Set(
+      results.flatMap(r => [r.vendorId, r.contractorId])
+    ),
+  ];
+
+  const usersList = await db
+    .select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+    })
+    .from(users)
+    .where(inArray(users.id, userIds));
+
+  const userMap = Object.fromEntries(
+    usersList.map(u => [
+      u.id,
+      `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim(),
+    ])
+  );
+
+  // 🔹 Map last message per conversation
+  const lastMessageMap = new Map();
+
+  for (const msg of lastMessages) {
+    if (!lastMessageMap.has(msg.serviceRequestId)) {
+      lastMessageMap.set(msg.serviceRequestId, msg);
+    }
+  }
+
+  const conversations = results.map(r => {
+    const otherUserId =
+      r.vendorId === userId ? r.contractorId : r.vendorId;
+
+    const lastMsg = lastMessageMap.get(r.id);
+
+    return {
+      id: r.id,
+      otherUser: {
+        name: userMap[otherUserId] ?? "Unknown",
+      },
+      lastMessage: lastMsg?.content ?? null,
+      lastMessageCreatedAt: lastMsg?.createdAt ?? null,
+      unreadCount: unreadMap[r.id] ?? 0,
+    };
+  });
+  conversations.sort((a, b) => {
+    if (!a.lastMessageCreatedAt) return 1;
+    if (!b.lastMessageCreatedAt) return -1;
+
+    return (
+      new Date(b.lastMessageCreatedAt).getTime() -
+      new Date(a.lastMessageCreatedAt).getTime()
+    );
+  });
+
+  return {
+    conversations,
+    totalUnread,
+  };
+}
 
 
 
