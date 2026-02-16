@@ -744,6 +744,36 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
       res.status(500).json({ message: "Failed to fetch vendor reviews" });
     }
   });
+  app.post("/api/reviews", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      const { serviceRequestId, rating, comment } = req.body;
+
+      const serviceRequest =
+        await storage.getServiceRequest(serviceRequestId);
+
+      if (!serviceRequest)
+        return res.status(404).json({ message: "Not found" });
+
+      const revieweeId =
+        serviceRequest.vendorId === userId
+          ? serviceRequest.contractorId
+          : serviceRequest.vendorId;
+
+      const review = await storage.createReview({
+        serviceRequestId,
+        reviewerId: userId,
+        revieweeId,
+        rating,
+        comment,
+      });
+
+      res.json(review);
+    } catch (error: any) {
+      res.status(400).json({ message: error.message });
+    }
+  });
+
 
   app.get('/api/vendor-profile', isAuthenticated, async (req: any, res) => {
     try {
@@ -1319,6 +1349,17 @@ Respond in JSON format:
         content,
         messageType: "text",
       });
+      await storage.createNotification({
+        userId: receiverId,
+        triggeredBy: message.senderId,
+        title: "New Message",
+        message: content.length > 100 
+          ? content.substring(0, 100) + "..." 
+          : content,
+        type: "new_review",
+        referenceId: serviceRequestId,
+        isRead: false,
+      });
 
       res.json(message);
     } catch (error) {
@@ -1453,6 +1494,54 @@ Respond in JSON format:
       }
     }
   );
+  app.get("/api/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const notifications = await storage.getUserNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Fetch notifications error:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+  app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const { id } = req.params;
+
+      const updated = await storage.markNotificationAsRead(id, userId);
+
+      if (!updated) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Mark read error:", error);
+      res.status(500).json({ message: "Failed to update notification" });
+    }
+  });
+  app.get("/api/notifications/unread-count", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const count = await storage.getUnreadNotificationCount(userId);
+
+      res.json({ count });
+    } catch (error) {
+      console.error("Unread count error:", error);
+      res.status(500).json({ message: "Failed to fetch count" });
+    }
+  });
 
 
 

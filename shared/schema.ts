@@ -26,6 +26,7 @@ export const vendorJourneyStageEnum = pgEnum("vendor_journey_stage", ["awareness
 export const serviceTierEnum = pgEnum("service_tier", ["free","standard","premium"]);
 export const messageTypeEnum = pgEnum("message_type", ["text", "system", "file", ]);
 
+
 // Users table - custom email/password authentication
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -268,8 +269,70 @@ export const userContentActivity = pgTable("user_content_activity", {
   completionPercentage: integer("completion_percentage").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "request_submitted",
+  "request_matched",
+  "request_in_progress",
+  "request_completed",
+  "request_cancelled",
+  "new_message",
+  "new_review",
+  "payment_update"
+]);
+
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
+
+  triggeredBy: varchar("triggered_by")
+    .references(() => users.id),
+
+  type: notificationTypeEnum("type").notNull(),
+
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+
+  relatedRequestId: varchar("related_request_id")
+    .references(() => serviceRequests.id),
+
+  relatedMessageId: varchar("related_message_id")
+    .references(() => messages.id),
+
+  isRead: boolean("is_read").default(false),
+
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export const insertNotificationSchema =
+  createInsertSchema(notifications).omit({
+    id: true,
+    isRead: true,
+    createdAt: true,
+  });
+
+export type InsertNotification =
+  z.infer<typeof insertNotificationSchema>;
+
 
 // Relations
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+  sender: one(users, {
+    fields: [notifications.triggeredBy],
+    references: [users.id],
+  }),
+  request: one(serviceRequests, {
+    fields: [notifications.relatedRequestId],
+    references: [serviceRequests.id],
+  }),
+}));
+
 export const usersRelations = relations(users, ({ one, many }) => ({
   vendorProfile: one(vendorProfiles),
   contractorRequests: many(serviceRequests, { relationName: "contractorRequests" }),
