@@ -22,7 +22,18 @@ import {
   CheckCircle2,
   AlertTriangle,
   RotateCcw,
+  FileText,
+  User,
+  DollarSign,
+  CalendarDays,
+  Check,
+  X,
+  CheckCircle,
+  MessageSquare,
 } from "lucide-react";
+import { ServiceRequest } from "@shared/schema";
+import { cn } from "@/lib/utils";
+import { useMessages } from "@/components/ui/MessageContext";
 
 interface UserMaturityProfile {
   id: string;
@@ -86,6 +97,11 @@ export default function Dashboard() {
   const { data: profile, isLoading, isError, error } = useQuery<UserMaturityProfile>({
     queryKey: ['/api/maturity-profile'],
     retry: false,
+  });
+  const { openConversation } = useMessages();
+  
+  const { data: serviceRequests = [] } = useQuery<ServiceRequest[]>({
+    queryKey: ["/api/service-requests"],
   });
 
   const {
@@ -406,6 +422,137 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground">
                   Coming soon
                 </p>
+              </CardContent>
+            </Card>
+            <Card data-testid="card-recent-requests"
+              className="col-span-full">
+              <CardHeader>
+                <CardTitle>Recent Service Requests</CardTitle>
+                <CardDescription>Latest requests to vendors</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {serviceRequests.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center">
+                    No recent service requests
+                  </p>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {serviceRequests.map((request) => (
+                    <Card
+                      key={request.id}
+                      className="flex flex-col h-full transition-all hover:shadow-xl hover:-translate-y-1 rounded-2xl"
+                    >
+                      {/* Header */}
+                      <CardHeader>
+                        <div className="flex items-start justify-between gap-3">
+                          <CardTitle className="text-lg">
+                            {request.service?.name ?? "Service"}
+                          </CardTitle>
+
+                          <Badge
+                            className={cn(
+                              "capitalize text-xs font-medium",
+                              request.status === "completed" &&
+                                "bg-green-100 text-green-700 border-green-200",
+                              request.status === "in_progress" &&
+                                "bg-blue-100 text-blue-700 border-blue-200",
+                              request.status === "pending" &&
+                                "bg-amber-100 text-amber-700 border-amber-200"
+                            )}
+                          >
+                            {request.status?.replace("_", " ") ?? "Unknown"}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+
+                      {/* Content */}
+                      <CardContent className="flex-1 flex flex-col">
+                        <div className="space-y-3 mb-4">
+                          <div className="space-y-2 mb-6">
+                            {/* Title Row */}
+                            <div className="flex items-start gap-2">
+                              <FileText className="w-4 h-4 mt-1 text-muted-foreground flex-shrink-0" />
+                              <h4 className="font-semibold text-foreground leading-snug">
+                                {request.title ?? "Untitled Request"}
+                              </h4>
+                            </div>
+
+                            {/* Description */}
+                            <p className="text-sm text-muted-foreground pl-6">
+                              {request.description ?? "No description provided"}
+                            </p>
+                          </div>
+
+                          {/* Contractor */}
+                          <div className="flex justify-between text-sm">
+                            <div className="flex gap-2">
+                              <User className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">Vendor:</span>
+                            </div>
+                            <div>
+                              <span className="font-medium">
+                              {request.vendor?.firstName
+                                ? `${request.vendor.firstName} ${request.vendor.lastName ?? ""}`
+                                : "Not assigned"}
+
+                            </span>
+                            </div>
+                            
+                          </div>
+
+                          {/* Budget */}
+                          <div className="flex justify-between text-sm">
+                            <div className="flex gap-2">
+                              <DollarSign className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">Budget:</span>
+                            </div>
+                            <div>
+                              <span className="font-medium">
+                                {request?.budget
+                                  ? `${(request.budget ?? 0).toLocaleString()}`
+                                  : "Not specified"}
+                              </span>
+                            </div>
+                            
+                          </div>
+
+                          {/* Created Date */}
+                          <div className="flex justify-between text-sm">
+                            <div className="flex gap-2">
+                              <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">Created:</span>
+                            </div>
+                            <div>
+                              <span className="font-medium">
+                                {request.createdAt
+                                  ? new Date(request.createdAt).toLocaleDateString()
+                                  : "N/A"}
+                              </span>
+                            </div>
+                          </div>
+
+                        </div>
+
+                        {/* Footer Button */}
+                        <div className="mt-auto pt-4 border-t flex items-center justify-between">
+
+                        
+
+                        {/* Message Button */}
+                        <Button
+                          className="rounded-lg bg-primary hover:bg-primary/90"
+                          onClick={() => openConversation(request.id)}
+                        >
+                          <MessageSquare className="w-4 h-4 mr-2" />
+                          Message
+                        </Button>
+                      </div>
+
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>
