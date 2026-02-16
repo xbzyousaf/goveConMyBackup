@@ -161,7 +161,28 @@ export class DatabaseStorage implements IStorage {
     const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, userId));
     return profile || undefined;
   }
+  async getContractorById(id: string) {
+    const result = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        username: users.username,
+        profileImageUrl: users.profileImageUrl,
+        userType: users.userType,
+        hasCompletedOnboarding: users.hasCompletedOnboarding,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
 
+    if (!result.length) return undefined;
+
+    return result[0];
+  }
   async getVendorProfileById(
   id: string
 ): Promise<(VendorProfile & { rating: number; reviewCount: number }) | undefined> {
@@ -634,7 +655,7 @@ export class DatabaseStorage implements IStorage {
   }
   async createService(data: any, vendorId: string) {
     return await db.transaction(async tx => {
-      // 1️⃣ Create parent service
+      // Create service (single-level pricing)
       const [service] = await tx
         .insert(services)
         .values({
@@ -643,33 +664,16 @@ export class DatabaseStorage implements IStorage {
           description: data.description,
           category: data.category,
           pricingModel: data.pricingModel ?? null,
+          priceMin: data.priceMin != null ? String(data.priceMin) : null,
+          priceMax: data.priceMax != null ? String(data.priceMax) : null,
           isActive: true,
         })
         .returning();
 
-      // 2️⃣ Create tiers (children)
-      const tiersData = Object.entries(data.tiers || {}).map(
-        ([tierKey, tier]: [string, any]) => ({
-          serviceId: service.id,
-          tier: tierKey, // "free" | "standard" | "premium"
-          turnaround: tier.turnaround ?? null,
-          priceMin: tier.priceMin != null ? String(tier.priceMin) : null,
-          priceMax: tier.priceMax != null ? String(tier.priceMax) : null,
-          outcomes: Array.isArray(tier.outcomes) ? tier.outcomes : [],
-        })
-      );
-
-      if (tiersData.length > 0) {
-        await tx.insert(serviceTiers).values(tiersData);
-      }
-
-      // 3️⃣ Return service with tiers
-      return {
-        ...service,
-        tiers: tiersData,
-      };
+      return service;
     });
   }
+
 
   async getAllServices() {
     return await db.query.services.findMany({
@@ -680,6 +684,14 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  async getServiceById(serviceId: string) {
+    // Fetch only the parent service, no tiers
+    const service = await db.query.services.findFirst({
+      where: eq(services.id, serviceId),
+    });
+
+    return service || null;
+  }
 
   async getServicesByVendorId(vendorId: string) {
     return await db
@@ -728,31 +740,15 @@ export class DatabaseStorage implements IStorage {
   async getVendorServices(vendorId: string) {
     return await db.query.services.findMany({
       where: eq(services.vendorId, vendorId),
-      with: {
-        tiers: true, // 🔥 loads all related service_tiers
-      },
     });
   }
+
   async updateVendorApproval(vendorId: string, approve: boolean) {
     await db.update(vendorProfiles)
             .set({ isApproved: approve })
             .where(eq(vendorProfiles.id, vendorId));
   }
   async getMarketplaceServicesByStage(stage: "startup" | "growth" | "scale") {
-    let allowedTiers: ("free" | "standard" | "premium")[] = [];
-
-    if (stage === "startup") {
-      allowedTiers = ["free"];
-    }
-
-    if (stage === "growth") {
-      allowedTiers = ["free", "standard"];
-    }
-
-    if (stage === "scale") {
-      allowedTiers = ["free", "standard", "premium"];
-    }
-
     return await db
       .select({
         serviceId: services.id,
@@ -760,25 +756,11 @@ export class DatabaseStorage implements IStorage {
         description: services.description,
         category: services.category,
         vendorId: services.vendorId,
-
-        tier: serviceTiers.tier,
-        turnaround: serviceTiers.turnaround,
-        priceMin: serviceTiers.priceMin,
-        priceMax: serviceTiers.priceMax,
-        outcomes: serviceTiers.outcomes,
       })
       .from(services)
-      .innerJoin(
-        serviceTiers,
-        eq(serviceTiers.serviceId, services.id)
-      )
-      .where(
-        and(
-          eq(services.isActive, true),
-          inArray(serviceTiers.tier, allowedTiers)
-        )
-      );
+      .where(eq(services.isActive, true));
   }
+
   async advanceUserStage(userId: string, nextStage: "startup" | "growth" | "scale") {
     const [updated] = await db
       .update(userMaturityProfiles)

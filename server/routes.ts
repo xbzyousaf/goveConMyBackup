@@ -717,6 +717,18 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
       res.status(500).json({ message: "Failed to fetch vendor" });
     }
   });
+  app.get('/api/contractors/:id', async (req, res) => {
+    try {
+      const vendor = await storage.getContractorById(req.params.id);
+      if (!vendor) {
+        return res.status(404).json({ message: "contractor not found" });
+      }
+      res.json(vendor);
+    } catch (error) {
+      console.error("Error fetching vendor:", error);
+      res.status(500).json({ message: "Failed to fetch contractor" });
+    }
+  });
 
   app.get('/api/vendors/:id/reviews', async (req, res) => {
     try {
@@ -1155,6 +1167,24 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to fetch services" });
     }
   });
+  app.get("/api/services/:serviceId", async (req: any, res) => {
+    const { serviceId } = req.params;
+
+    try {
+      // Fetch the service from storage
+      const service = await storage.getServiceById(serviceId);
+
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+
+      res.json(service);
+    } catch (error) {
+      console.error("Error fetching service:", error);
+      res.status(500).json({ message: "Failed to fetch service" });
+    }
+  });
+
   app.get("/api/services", isAuthenticated, async (req: any, res) => {
     try {
       const vendorId = getUserId(req);

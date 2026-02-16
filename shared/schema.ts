@@ -85,7 +85,7 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Services (what vendor offers parent)
+// Services (what vendor offers)
 export const services = pgTable("services", {
   id: varchar("id")
     .primaryKey()
@@ -100,6 +100,10 @@ export const services = pgTable("services", {
   category: serviceCategoryEnum("category").notNull(),
 
   pricingModel: text("pricing_model"),
+
+  // ✅ Moved from service_tiers
+  priceMin: decimal("price_min", { precision: 10, scale: 2 }),
+  priceMax: decimal("price_max", { precision: 10, scale: 2 }),
 
   isActive: boolean("is_active").default(false),
 
