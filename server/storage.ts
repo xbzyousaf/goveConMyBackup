@@ -35,10 +35,12 @@ import {
   type UserContentActivity,
   type InsertUserContentActivity,
   services,
-  serviceTiers
+  serviceTiers,
+  InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
+import { notifications } from "@shared/schema"; // adjust path correctly
 
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
@@ -451,6 +453,16 @@ export class DatabaseStorage implements IStorage {
 
   // Reviews
   async createReview(review: InsertReview): Promise<Review> {
+    const existing = await db.query.reviews.findFirst({
+      where: and(
+        eq(reviews.serviceRequestId, review.serviceRequestId),
+        eq(reviews.reviewerId, review.reviewerId)
+      ),
+    });
+
+    if (existing) {
+      throw new Error("Review already submitted for this request.");
+    }
     const [newReview] = await db
       .insert(reviews)
       .values(review)
@@ -492,6 +504,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(reviews.createdAt));
     return reviewList;
   }
+
 
   async getReviewsByServiceRequest(serviceRequestId: string): Promise<Review[]> {
     const reviewList = await db
@@ -793,8 +806,35 @@ export class DatabaseStorage implements IStorage {
       .where(eq(messages.serviceRequestId, serviceRequestId))
       .orderBy(asc(messages.createdAt));
   }
+  private isValidStatusTransition(
+    currentStatus: string,
+    newStatus: string
+  ): boolean {
+    const transitions: Record<string, string[]> = {
+      pending: ["matched", "cancelled"],
+      matched: ["in_progress", "cancelled"],
+      in_progress: ["completed", "cancelled"],
+      completed: [],
+      cancelled: [],
+    };
+
+    return transitions[currentStatus]?.includes(newStatus) ?? false;
+  }
 
   async updateServiceRequestStatus(id: string, status: string) {
+    // 1️⃣ Get existing request first
+    const existingRequest = await db.query.serviceRequests.findFirst({
+      where: eq(serviceRequests.id, id),
+    });
+
+    if (!existingRequest) {
+      throw new Error("Service request not found");
+    }
+    if (existingRequest.status === status) {
+      return this.getServiceRequest(id);
+    }
+
+    // 2️⃣ Update status
     await db
       .update(serviceRequests)
       .set({
@@ -803,8 +843,113 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(serviceRequests.id, id));
 
+    // 3️⃣ Create notification based on status
+    await this.createStatusNotification(existingRequest, status);
+
+    // 4️⃣ Return updated request
     return this.getServiceRequest(id);
   }
+  private async createStatusNotification(request: typeof serviceRequests.$inferSelect, newStatus: string) {
+    let title = "";
+    let message = "";
+    let type:
+      | "request_in_progress"
+      | "request_completed"
+      | "request_cancelled"
+      | "request_matched"
+      | null = null;
+
+    switch (newStatus) {
+      case "matched":
+        type = "request_matched";
+        title = "Vendor Assigned";
+        message = "A vendor has been assigned to your request.";
+        break;
+
+      case "in_progress":
+        type = "request_in_progress";
+        title = "Work Started";
+        message = "Your service request is now in progress.";
+        break;
+
+      case "completed":
+        type = "request_completed";
+        title = "Request Completed";
+        message = "Your service request has been marked as completed.";
+        break;
+
+      case "cancelled":
+        type = "request_cancelled";
+        title = "Request Cancelled";
+        message = "Your service request has been cancelled.";
+        break;
+
+      default:
+        return; // No notification for other statuses
+    }
+
+    if (!type) return;
+
+    // Notify contractor (not vendor)
+    await this.createNotification({
+      userId: request.contractorId,
+      triggeredBy: request.vendorId,
+      type,
+      title,
+      message,
+      relatedRequestId: request.id,
+      relatedMessageId: null,
+    });
+  }
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db
+      .insert(notifications)
+      .values(notification)
+      .returning();
+
+    return newNotification;
+  }
+  async getUserNotifications(userId: string) {
+    return await db.query.notifications.findMany({
+      where: eq(notifications.userId, userId),
+      orderBy: (notifications, { desc }) => [
+        desc(notifications.createdAt),
+      ],
+      with: {
+      sender: true,   // 👈 include related user
+    },
+    });
+  }
+  async markNotificationAsRead(id: string, userId: string) {
+    const notification = await db.query.notifications.findFirst({
+      where: eq(notifications.id, id),
+    });
+
+    if (!notification || notification.userId !== userId) {
+      return null;
+    }
+
+    await db
+      .update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, id));
+
+    return true;
+  }
+  async getUnreadNotificationCount(userId: string) {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.isRead, false)
+        )
+      );
+
+    return result[0]?.count ?? 0;
+  }
+
   async markAsRead(conversationId: string, userId: string) {
     const result = await db
       .update(messages)

@@ -40,6 +40,28 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
     enabled: !!user,
     refetchInterval: 5000, // keep header updated
   });
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["/api/notifications"],
+    queryFn: async () => {
+      const res = await fetch("/api/notifications");
+      if (!res.ok) throw new Error("Failed to fetch notifications");
+      return res.json();
+    },
+    enabled: !!user,
+    refetchInterval: 5000,
+  });
+
+  const unreadNotifications = notifications.filter(
+    (n: any) => !n.isRead
+  ).length;
+
+  const markAsRead = async (id: number) => {
+    await fetch(`/api/notifications/${id}/read`, {
+      method: "PATCH",
+    });
+  };
+
+
   const unreadMessages = conversationsData?.totalUnread ?? 0;
   const previousUnreadRef = useRef<number>(0);
   useEffect(() => {
@@ -130,14 +152,96 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
           )}
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" data-testid="button-notifications" className="relative">
-              <Bell className="h-4 w-4" />
-              {notificationCount > 0 && (
-                <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs">
-                  {notificationCount}
-                </Badge>
-              )}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  data-testid="button-notifications"
+                >
+                  <div className="relative">
+                    <Bell className="h-5 w-5" />
+
+                    {unreadNotifications > 0 && (
+                      <span
+                        className="absolute -top-2 -right-2 min-w-[16px] h-[16px] px-[4px]
+                          flex items-center justify-center
+                          rounded-full
+                          bg-red-500 text-white
+                          text-[10px] font-semibold
+                          leading-none"
+                      >
+                        {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                      </span>
+                    )}
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent
+                align="end"
+                className="w-96 max-h-[500px] overflow-y-auto p-2"
+              >
+                <DropdownMenuLabel className="px-2 py-1">
+                  Notifications
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator />
+
+                {notifications.length === 0 && (
+                  <div className="p-6 text-sm text-muted-foreground text-center">
+                    No notifications
+                  </div>
+                )}
+
+                {notifications.map((notification: any, index: number) => (
+                  <div key={notification.id}>
+                    <DropdownMenuItem
+                      onClick={() => markAsRead(notification.id)}
+                      className={`group flex items-start gap-3 whitespace-normal
+                        rounded-md px-3 py-2
+                        hover:bg-primary hover:text-white
+                        transition-all duration-200
+                        ${!notification.isRead ? "bg-muted/50" : ""}
+                      `}
+                    >
+                      {/* Avatar Circle */}
+                      <div className="h-9 w-9 rounded-full bg-primary text-white flex items-center justify-center shrink-0 text-sm font-semibold">
+                        {notification.sender?.firstName
+                          ?.charAt(0)
+                          .toUpperCase() || "N"}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex flex-col gap-1">
+                        {/* Title */}
+                        <p className="text-sm font-semibold group-hover:text-white">
+                          {notification.title} by{" "}
+                          {notification.sender?.firstName}{" "}
+                          {notification.sender?.lastName}
+                        </p>
+
+                        {/* Message */}
+                        <p className="text-xs text-muted-foreground group-hover:text-white">
+                          {notification.message}
+                        </p>
+
+                        {/* Date */}
+                        <p className="text-[10px] text-muted-foreground group-hover:text-white/80">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </DropdownMenuItem>
+
+                    {/* Separator (not after last item) */}
+                    {index !== notifications.length - 1 && (
+                      <DropdownMenuSeparator />
+                    )}
+                  </div>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button variant="ghost" size="icon" onClick={toggleMessages} >
               <div className="relative">
                 <MessageSquare className="h-5 w-5" />
