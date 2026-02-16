@@ -370,14 +370,50 @@ export class DatabaseStorage implements IStorage {
     return request;
   }
 
-  async getServiceRequestsByContractor(contractorId: string): Promise<ServiceRequest[]> {
+  async getServiceRequestsByContractor(contractorId: string) {
     const requests = await db
-      .select()
+      .select({
+        id: serviceRequests.id,
+        title: serviceRequests.title,
+        description: serviceRequests.description,
+        budget: serviceRequests.budget,
+        status: serviceRequests.status,
+        createdAt: serviceRequests.createdAt,
+
+        service: {
+          id: services.id,
+          name: services.name,
+        },
+
+        vendor: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+        },
+
+      })
       .from(serviceRequests)
+
+      // filter contractor requests
       .where(eq(serviceRequests.contractorId, contractorId))
+
+      // join service
+      .leftJoin(
+        services,
+        eq(serviceRequests.serviceId, services.id)
+      )
+
+      // ✅ join vendor using vendorId
+      .leftJoin(
+        users,
+        eq(serviceRequests.vendorId, users.id)
+      )
+
       .orderBy(desc(serviceRequests.createdAt));
+
     return requests;
   }
+
 
   async getServiceRequestsByVendor(vendorId: string) {
     return await db.query.serviceRequests.findMany({
