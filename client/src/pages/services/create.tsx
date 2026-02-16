@@ -7,87 +7,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
-type TierKey = "free" | "standard" | "premium";
 
 export default function CreateService() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const [outcomeInput, setOutcomeInput] = useState<Record<TierKey, string>>({
-    free: "",
-    standard: "",
-    premium: "",
-  });
-
   const [form, setForm] = useState({
     name: "",
     category: "",
     description: "",
     pricingModel: "Fixed",
-    tiers: {
-      free: {
-        turnaround: "",
-        priceMin: "",
-        priceMax: "",
-        outcomes: [] as string[],
-      },
-      standard: {
-        turnaround: "",
-        priceMin: "",
-        priceMax: "",
-        outcomes: [] as string[],
-      },
-      premium: {
-        turnaround: "",
-        priceMin: "",
-        priceMax: "",
-        outcomes: [] as string[],
-      },
-    },
+    priceMin: "",
+    priceMax: "",
   });
 
-  // Validation for required fields
   const isValid =
     form.name.trim() &&
     form.category.trim() &&
-    form.description.trim();
-
-  const updateTier = (tier: TierKey, key: string, value: any) => {
-    setForm(prev => ({
-      ...prev,
-      tiers: {
-        ...prev.tiers,
-        [tier]: {
-          ...prev.tiers[tier],
-          [key]: value,
-        },
-      },
-    }));
-  };
-
-  const addOutcome = (tier: TierKey) => {
-    if (!outcomeInput[tier].trim()) return;
-
-    updateTier(tier, "outcomes", [
-      ...form.tiers[tier].outcomes,
-      outcomeInput[tier].trim(),
-    ]);
-
-    setOutcomeInput(prev => ({ ...prev, [tier]: "" }));
-  };
-
-  const removeOutcome = (tier: TierKey, i: number) => {
-    updateTier(
-      tier,
-      "outcomes",
-      form.tiers[tier].outcomes.filter((_, idx) => idx !== i)
-    );
-  };
+    form.description.trim() &&
+    form.priceMin !== "" &&
+    form.priceMax !== "";
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -99,16 +40,8 @@ export default function CreateService() {
           category: form.category,
           description: form.description,
           pricingModel: form.pricingModel,
-          tiers: Object.fromEntries(
-            Object.entries(form.tiers).map(([k, v]) => [
-              k,
-              {
-                ...v,
-                priceMin: v.priceMin ? Number(v.priceMin) : null,
-                priceMax: v.priceMax ? Number(v.priceMax) : null,
-              },
-            ])
-          ),
+          priceMin: form.priceMin ? Number(form.priceMin) : null,
+          priceMax: form.priceMax ? Number(form.priceMax) : null,
         }),
       });
 
@@ -123,8 +56,7 @@ export default function CreateService() {
       queryClient.invalidateQueries(["services"]);
       toast({ title: "Service created successfully" });
       setLocation("/services");
-    }
-
+    },
   });
 
   return (
@@ -132,11 +64,11 @@ export default function CreateService() {
       <Header />
 
       <main className="container mx-auto max-w-4xl px-4 py-10 space-y-6">
-        {/* Service Info */}
         <Card>
           <CardContent className="p-6 space-y-4">
             <h2 className="text-2xl font-bold">Create Service</h2>
 
+            {/* Service Name */}
             <Input
               placeholder="Service name *"
               value={form.name}
@@ -149,9 +81,7 @@ export default function CreateService() {
               value={form.category}
               onValueChange={v => setForm(prev => ({ ...prev, category: v }))}
             >
-              <SelectTrigger
-                className={!form.category ? "border-red-500" : ""}
-              >
+              <SelectTrigger className={!form.category ? "border-red-500" : ""}>
                 <SelectValue placeholder="Select category *" />
               </SelectTrigger>
               <SelectContent>
@@ -164,17 +94,44 @@ export default function CreateService() {
               </SelectContent>
             </Select>
 
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                type="number"
+                placeholder="Minimum Price *"
+                value={form.priceMin}
+                className={!form.priceMin ? "border-red-500" : ""}
+                onChange={e =>
+                  setForm({ ...form, priceMin: e.target.value })
+                }
+              />
+              <Input
+                type="number"
+                placeholder="Maximum Price *"
+                value={form.priceMax}
+                className={!form.priceMax ? "border-red-500" : ""}
+                onChange={e =>
+                  setForm({ ...form, priceMax: e.target.value })
+                }
+              />
+            </div>
+
+
+            {/* Description */}
             <Textarea
               placeholder="Service description *"
               value={form.description}
               className={!form.description ? "border-red-500" : ""}
-              onChange={e => setForm({ ...form, description: e.target.value })}
+              onChange={e =>
+                setForm({ ...form, description: e.target.value })
+              }
             />
 
             {/* Pricing Model */}
             <Select
               value={form.pricingModel}
-              onValueChange={v => setForm(prev => ({ ...prev, pricingModel: v }))}
+              onValueChange={v =>
+                setForm(prev => ({ ...prev, pricingModel: v }))
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select pricing model" />
@@ -187,69 +144,6 @@ export default function CreateService() {
           </CardContent>
         </Card>
 
-        {/* Tier Cards */}
-        <div className="grid md:grid-cols-3 gap-6">
-          {(["free", "standard", "premium"] as TierKey[]).map(tier => (
-            <Card key={tier}>
-              <CardContent className="p-5 space-y-4">
-                <h3 className="text-lg font-bold capitalize">{tier} Tier</h3>
-
-                {/* Turnaround */}
-                <Input
-                  placeholder="Turnaround time"
-                  value={form.tiers[tier].turnaround}
-                  onChange={e => updateTier(tier, "turnaround", e.target.value)}
-                />
-
-                {/* Prices */}
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Min price"
-                    value={form.tiers[tier].priceMin}
-                    onChange={e => updateTier(tier, "priceMin", e.target.value)}
-                  />
-                  <Input
-                    type="number"
-                    placeholder="Max price"
-                    value={form.tiers[tier].priceMax}
-                    onChange={e => updateTier(tier, "priceMax", e.target.value)}
-                  />
-                </div>
-
-                {/* Outcomes */}
-                <div>
-                  <div className="flex gap-2 mb-2">
-                    <Input
-                      placeholder="Add outcome"
-                      value={outcomeInput[tier]}
-                      onChange={e =>
-                        setOutcomeInput(prev => ({ ...prev, [tier]: e.target.value }))
-                      }
-                      onKeyDown={e => e.key === "Enter" && addOutcome(tier)}
-                    />
-                    <Button type="button" onClick={() => addOutcome(tier)}>
-                      Add
-                    </Button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {form.tiers[tier].outcomes.map((o, i) => (
-                      <Badge key={i} variant="secondary">
-                        {o}
-                        <X
-                          className="w-3 h-3 ml-2 cursor-pointer"
-                          onClick={() => removeOutcome(tier, i)}
-                        />
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
         {/* Submit */}
         <Button
           className="w-full"
@@ -258,7 +152,8 @@ export default function CreateService() {
             if (!isValid) {
               toast({
                 title: "Missing required fields",
-                description: "Service name, category, and description are required",
+                description:
+                  "Service name, category, description, minimum price and maximum price are required",
                 variant: "destructive",
               });
               return;

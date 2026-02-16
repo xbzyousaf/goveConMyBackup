@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef  } from "react";
 import { IconLeft } from "react-day-picker";
+import { Link } from "wouter";
 
 interface Props {
   open: boolean;
@@ -79,12 +80,16 @@ export default function ServiceMessages({
     const messages = messagesQuery.data?.messages ?? [];
     const conversations = conversationsQuery.data?.conversations ?? [];
     const totalUnread = conversationsQuery.data?.totalUnread ?? 0;
-
+    
+    const serviceId = messagesQuery.data?.service?.id;
     const serviceTitle = messagesQuery.data?.service?.title;
     const requestTitle = messagesQuery.data?.serviceRequest?.title;
     const vendorName = messagesQuery.data?.participants?.vendorName;
     const contractorName = messagesQuery.data?.participants?.contractorName;
     const isVendor = user?.id === messagesQuery.data?.serviceRequest?.vendorId;
+    const vendorId = messagesQuery.data?.serviceRequest?.vendorId;
+    const contractorId = messagesQuery.data?.serviceRequest?.contractorId;
+
 
     const otherName = isVendor ? contractorName : vendorName;
     const firstLetter = otherName?.charAt(0)?.toUpperCase() ?? "?";
@@ -170,11 +175,45 @@ useEffect(() => {
                 </div>
 
                 <div>
-                    <p className="font-semibold">{otherName ?? "User"}</p>
+                    {(isVendor ? contractorId : vendorId) ? (
+                    <Link
+                        href={
+                        isVendor
+                            ? `/contractor/${contractorId}`
+                            : `/vendor/${vendorId}`
+                        }
+                        onClick={() => {
+                        onClose(); // 🔥 close chat box
+                        }}
+                    >
+                        <p className="font-semibold hover:underline cursor-pointer">
+                        {otherName ?? "User"}
+                        </p>
+                    </Link>
+                    ) : (
+                    <p className="font-semibold">
+                        {otherName ?? "User"}
+                    </p>
+                    )}
 
+                    {serviceId ? (
+                        <Link
+                            href={`/services/${serviceId}`}
+                            onClick={() => {
+                            onClose(); // 🔥 hide message box
+                            }}
+                        >
+                            <h2 className="text-sm text-muted-foreground hover:underline cursor-pointer">
+                            {serviceTitle ?? "Service"}
+                            </h2>
+                        </Link>
+                    ) : (
                     <h2 className="text-sm text-muted-foreground">
-                    {serviceTitle ?? "Service"}
+                        {serviceTitle ?? "Service"}
                     </h2>
+                    )}
+
+
 
                     {requestTitle && (
                     <p className="text-xs text-muted-foreground">
@@ -201,7 +240,7 @@ useEffect(() => {
             {/* Header Click → Show Conversation List */}
             {!activeConversationId  &&
                 conversations.map((conv: any) => {
-                    const otherName = conv.otherUserName ?? "User";
+                    const otherName = conv.otherUser?.name ?? "User";
                     const firstLetter = otherName.charAt(0).toUpperCase();
 
                     return (

@@ -29,6 +29,8 @@ import RequestService from "./pages/RequestService";
 import AdminVendors from "./pages/admin/AdminVendors";
 import { MessageProvider, useMessages } from "./components/ui/MessageContext";
 import ServiceMessages from "./pages/ServiceMessages";
+import ServiceDetails from "./pages/ServiceDetails";
+import ContractorDetail from "./pages/ContractorDetail";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -84,6 +86,7 @@ function Router() {
           <Route path="/vendor-signup" component={VendorSignup} />
           <Route path="/vendors" component={Vendors} />
           <Route path="/vendor/:id" component={VendorDetail} />
+          <Route path="/contractor/:id" component={ContractorDetail} />
           <Route path="/skip-assessment" component={SkipAssessment} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/service/create" component={CreateService} />
@@ -93,6 +96,7 @@ function Router() {
           <Route path="/onboarding" component={Onboarding} />
           <Route path="/vendor-onboarding" component={VendorOnboarding} />
           <Route path="/request" component={RequestService} />
+          <Route path="/services/:serviceId" component={ServiceDetails} />
           <Route component={NotFound} />
         </>
       ) : (

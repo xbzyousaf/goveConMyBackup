@@ -365,12 +365,13 @@ export default function Marketplace() {
                           </span>
 
                         </div>
-                        <Link href={`/vendors?category=${service.category}`}>
-                          <Button data-testid={`button-view-vendors-${service.id}`}>
-                            View Service
-                            <ArrowRight className="ml-2 w-4 h-4" />
-                          </Button>
-                        </Link>
+                        <Link href={`/services/${service.serviceId}`}>
+                        <Button data-testid={`button-view-service-${service.serviceId}`}>
+                          View Service
+                          <ArrowRight className="ml-2 w-4 h-4" />
+                        </Button>
+                      </Link>
+
                       </div>
                     </div>
                   </CardContent>
