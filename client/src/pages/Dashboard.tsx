@@ -721,59 +721,83 @@ export default function Dashboard() {
 
               {/* ✅ Reviews FULL ROW */}
               <TabsContent value="reviews" className="space-y-6">
-                <Card data-testid="card-reviews">
-                  <CardHeader>
-                    <CardTitle>Reviews & Ratings</CardTitle>
-                    <CardDescription>Feedback from your clients</CardDescription>
-                  </CardHeader>
+              <Card data-testid="card-reviews">
+                <CardHeader>
+                  <CardTitle>Reviews & Ratings</CardTitle>
+                  <CardDescription>Feedback from your clients</CardDescription>
+                </CardHeader>
 
-                  <CardContent>
-                    <div className="space-y-4">
-                      {reviews.length === 0 && (
-                        <p className="text-sm text-muted-foreground text-center">
-                          No reviews yet
-                        </p>
-                      )}
+                <CardContent>
+                  <div className="space-y-4">
+                    {reviews.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center">
+                        No reviews yet
+                      </p>
+                    )}
 
-                      {reviews.map((review, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-4 border rounded-lg"
-                      >
-                        <div className="space-y-1">
-                          <p className="font-medium">
-                            {review.vendorName ?? "Contractor"}
-                          </p>
+                    {reviews.map((review, index) => {
+                      const firstLetter = review.vendorName
+                        ? review.vendorName.charAt(0).toUpperCase()
+                        : "C";
 
-                          <p className="text-xs text-muted-foreground capitalize">
-                            {review.vendorUserType}
-                          </p>
+                      return (
+                        <div
+                          key={index}
+                          className="flex gap-4 p-4 border rounded-lg"
+                        >
+                          {/* Avatar */}
+                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-700 font-semibold">
+                            {firstLetter}
+                          </div>
 
-                          <div className="flex items-center gap-1">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                              <Star
-                                key={i}
-                                className={cn(
-                                  "w-4 h-4",
-                                  i < review.rating
-                                    ? "text-yellow-400 fill-current"
-                                    : "text-muted-foreground"
-                                )}
-                              />
-                            ))}
-                          </div>
-                        </div>
+                          <div className="flex-1 space-y-2">
+                            {/* Name + Date */}
+                            <div className="flex justify-between items-center">
+                              <p className="font-medium">
+                                {review.vendorName ?? "Contractor"}
+                              </p>
 
-                        <Badge variant="outline">
-                          {review.rating} / 5
-                        </Badge>
-                      </div>
-                    ))}
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(review.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
 
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                            {/* Rating + Stars */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">
+                                {review.rating}/5
+                              </span>
+
+                              <div className="flex items-center gap-1">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={cn(
+                                      "w-4 h-4",
+                                      i < review.rating
+                                        ? "text-yellow-400 fill-yellow-400"
+                                        : "text-muted-foreground"
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Comment */}
+                            {review.comment && (
+                              <p className="text-sm text-muted-foreground">
+                                {review.comment}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
 
             </Tabs>
