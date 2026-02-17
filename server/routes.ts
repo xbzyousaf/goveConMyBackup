@@ -744,6 +744,20 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
       res.status(500).json({ message: "Failed to fetch vendor reviews" });
     }
   });
+  app.get('/api/contractor/:id/reviews', async (req, res) => {
+    try {
+      const contractorId = req.params.id;
+      const vendor = await storage.getContractorById(contractorId);
+      if (!vendor) {
+        return res.status(404).json({ message: "Contractor not found" });
+      }
+      const reviews = await storage.getReviewsByContractor(contractorId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching contractor reviews:", error);
+      res.status(500).json({ message: "Failed to fetch contractor reviews" });
+    }
+  });
   app.post("/api/reviews", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
@@ -1446,7 +1460,7 @@ Respond in JSON format:
       }
 
       // Only vendor can approve/reject
-      if (serviceRequest.vendorId !== userId) {
+      if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId) {
         return res.status(403).json({ message: "Not authorized" });
       }
 

@@ -541,6 +541,29 @@ export class DatabaseStorage implements IStorage {
     return reviewList;
   }
 
+  async getReviewsByContractor(contractorId: string) {
+    const reviewList = await db
+      .select({
+        id: reviews.id,
+        serviceRequestId: reviews.serviceRequestId,
+        reviewerId: reviews.reviewerId,
+        revieweeId: reviews.revieweeId,
+        rating: reviews.rating,
+        comment: reviews.comment,
+        createdAt: reviews.createdAt,
+
+        // reviewer info (vendor who gave review)
+        vendorName: users.firstName,
+        vendorUserType: users.userType,
+        vendorEmail: users.email,
+      })
+      .from(reviews)
+      .leftJoin(users, eq(users.id, reviews.reviewerId))
+      .where(eq(reviews.revieweeId, contractorId))
+      .orderBy(desc(reviews.createdAt));
+
+    return reviewList;
+  }
 
   async getReviewsByServiceRequest(serviceRequestId: string): Promise<Review[]> {
     const reviewList = await db
