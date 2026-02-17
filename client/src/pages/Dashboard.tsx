@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -30,10 +30,12 @@ import {
   X,
   CheckCircle,
   MessageSquare,
+  Star,
 } from "lucide-react";
 import { ServiceRequest } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { useMessages } from "@/components/ui/MessageContext";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 
 interface UserMaturityProfile {
   id: string;
@@ -93,7 +95,50 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isResetting, setIsResetting] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    id: string;
+    status: "in_progress" | "cancelled" | "completed";
+  } | null>(null);
+  const updateStatus = useMutation({
+    mutationFn: async ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: string;
+    }) => {
+      const res = await fetch(`/api/service-requests/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
 
+      if (!res.ok) throw new Error("Failed to update status");
+
+      return res.json();
+    },
+    onSuccess: (updatedRequest, variables) => {
+      setConfirmAction(null);
+      toast({
+        title: "Service Request Update",
+        description: "Service Request Updated Sucessfuly",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
+        if (variables.status === "completed") {
+      setReviewModal({
+        serviceRequestId: updatedRequest.id,
+        revieweeId: updatedRequest.vendorId,
+      });
+    }
+    },
+  });
+  const [reviewModal, setReviewModal] = useState<{
+    serviceRequestId: string;
+    revieweeId: string;
+  } | null>(null);
+  
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
   const { data: profile, isLoading, isError, error } = useQuery<UserMaturityProfile>({
     queryKey: ['/api/maturity-profile'],
     retry: false,
@@ -103,7 +148,33 @@ export default function Dashboard() {
   const { data: serviceRequests = [] } = useQuery<ServiceRequest[]>({
     queryKey: ["/api/service-requests"],
   });
-
+  const submitReview = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceRequestId: reviewModal?.serviceRequestId,
+          rating,
+          comment,
+        }),
+      });
+  
+      if (!res.ok) throw new Error("Failed to submit review");
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Review Submitted",
+        description: "Thank you for your feedback.",
+      });
+  
+      setReviewModal(null);
+      setRating(0);
+      setComment("");
+      queryClient.invalidateQueries();
+    },
+  });
   const {
   data: user,
   isLoading: isUserLoading,
@@ -123,7 +194,17 @@ export default function Dashboard() {
     return null;
   }
 
-
+  const { data: reviews = [] } = useQuery<{
+    rating: number;
+  }[]>({
+    queryKey: ["/api/contractor", user?.id, "reviews"],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const res = await fetch(`/api/contractor/${user!.id}/reviews`);
+      if (!res.ok) throw new Error("Failed to fetch reviews");
+      return res.json();
+    },
+  });
   const handleResetAssessment = async () => {
     setIsResetting(true);
     try {
@@ -424,137 +505,280 @@ export default function Dashboard() {
                 </p>
               </CardContent>
             </Card>
-            <Card data-testid="card-recent-requests"
-              className="col-span-full">
-              <CardHeader>
-                <CardTitle>Recent Service Requests</CardTitle>
-                <CardDescription>Latest requests to vendors</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {serviceRequests.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center">
-                    No recent service requests
-                  </p>
-                )}
+            <Tabs defaultValue="recent" className="space-y-6 col-span-full w-full">
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {serviceRequests.map((request) => (
-                    <Card
-                      key={request.id}
-                      className="flex flex-col h-full transition-all hover:shadow-xl hover:-translate-y-1 rounded-2xl"
-                    >
-                      {/* Header */}
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-3">
-                          <CardTitle className="text-lg">
-                            {request.service?.name ?? "Service"}
-                          </CardTitle>
+              {/* Full Width Tabs */}
+              <TabsList className="w-full grid grid-cols-2">
+                <TabsTrigger value="recent">
+                  Recent Services
+                </TabsTrigger>
 
-                          <Badge
-                            className={cn(
-                              "capitalize text-xs font-medium",
-                              request.status === "completed" &&
-                                "bg-green-100 text-green-700 border-green-200",
-                              request.status === "in_progress" &&
-                                "bg-blue-100 text-blue-700 border-blue-200",
-                              request.status === "pending" &&
-                                "bg-amber-100 text-amber-700 border-amber-200"
+                <TabsTrigger value="reviews">
+                  Reviews
+                </TabsTrigger>
+              </TabsList>
+
+
+              {/* ✅ Recent Services FULL ROW */}
+              <TabsContent value="recent" className="space-y-6 w-full">
+
+                <Card data-testid="card-recent-requests"
+                          className="col-span-full">
+                          <CardHeader>
+                            <CardTitle>Recent Service Requests</CardTitle>
+                            <CardDescription>Latest requests to vendors</CardDescription>
+                          </CardHeader>
+                          <CardContent className="w-full">
+                            {serviceRequests.length === 0 && (
+                              <p className="text-sm text-muted-foreground text-center">
+                                No recent service requests
+                              </p>
                             )}
-                          >
-                            {request.status?.replace("_", " ") ?? "Unknown"}
-                          </Badge>
+
+                              <div className="grid grid-cols-1 gap-6 w-full">
+                              {serviceRequests.map((request) => (
+                                <Card
+                                  key={request.id}
+                                  className="flex flex-col h-full transition-all hover:shadow-xl hover:-translate-y-1 rounded-2xl"
+                                >
+                                  {/* Header */}
+                                  <CardHeader>
+                                    <div className="flex items-start justify-between gap-3">
+                                      <CardTitle className="text-lg">
+                                        {request.service?.name ?? "Service"}
+                                      </CardTitle>
+
+                                      <Badge
+                                        className={cn(
+                                          "capitalize text-xs font-medium",
+                                          request.status === "completed" &&
+                                            "bg-green-100 text-green-700 border-green-200",
+                                          request.status === "in_progress" &&
+                                            "bg-blue-100 text-blue-700 border-blue-200",
+                                          request.status === "pending" &&
+                                            "bg-amber-100 text-amber-700 border-amber-200"
+                                        )}
+                                      >
+                                        {request.status?.replace("_", " ") ?? "Unknown"}
+                                      </Badge>
+                                    </div>
+                                  </CardHeader>
+
+                                  {/* Content */}
+                                  <CardContent className="flex-1 flex flex-col">
+                                    <div className="space-y-3 mb-4">
+                                      <div className="space-y-2 mb-6">
+                                        {/* Title Row */}
+                                        <div className="flex items-start gap-2">
+                                          <FileText className="w-4 h-4 mt-1 text-muted-foreground flex-shrink-0" />
+                                          <h4 className="font-semibold text-foreground leading-snug">
+                                            {request.title ?? "Untitled Request"}
+                                          </h4>
+                                        </div>
+
+                                        {/* Description */}
+                                        <p className="text-sm text-muted-foreground pl-6">
+                                          {request.description ?? "No description provided"}
+                                        </p>
+                                      </div>
+
+                                      {/* Contractor */}
+                                      <div className="flex justify-between text-sm">
+                                        <div className="flex gap-2">
+                                          <User className="w-4 h-4 text-muted-foreground" />
+                                          <span className="text-muted-foreground">Vendor:</span>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">
+                                          {request.vendor?.firstName
+                                            ? `${request.vendor.firstName} ${request.vendor.lastName ?? ""}`
+                                            : "Not assigned"}
+
+                                        </span>
+                                        </div>
+                                        
+                                      </div>
+
+                                      {/* Budget */}
+                                      <div className="flex justify-between text-sm">
+                                        <div className="flex gap-2">
+                                          <DollarSign className="w-4 h-4 text-muted-foreground" />
+                                          <span className="text-muted-foreground">Budget:</span>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">
+                                            {request?.budget
+                                              ? `${(request.budget ?? 0).toLocaleString()}`
+                                              : "Not specified"}
+                                          </span>
+                                        </div>
+                                        
+                                      </div>
+
+                                      {/* Created Date */}
+                                      <div className="flex justify-between text-sm">
+                                        <div className="flex gap-2">
+                                          <CalendarDays className="w-4 h-4 text-muted-foreground" />
+                                          <span className="text-muted-foreground">Created:</span>
+                                        </div>
+                                        <div>
+                                          <span className="font-medium">
+                                            {request.createdAt
+                                              ? new Date(request.createdAt).toLocaleDateString()
+                                              : "N/A"}
+                                          </span>
+                                        </div>
+                                      </div>
+
+                                    </div>
+
+                                    {/* Footer Button */}
+                                      <div className="mt-auto pt-4 border-t flex items-center justify-between">
+
+                                      {/* Left Icons */}
+                                      <div className="flex items-center gap-3">
+
+                                        {/* Approve */}
+                                        <button
+                                          disabled={request.status === "in_progress" || request.status === "completed"}
+                                          className={cn(
+                                            "p-2 rounded-lg transition-colors",
+                                            request.status === "in_progress" || request.status === "completed"
+                                              ? "bg-gray-100 cursor-not-allowed opacity-50"
+                                              : "bg-primary/10 hover:bg-primary/20"
+                                          )}
+                                          onClick={() =>
+                                            setConfirmAction({
+                                              id: request.id,
+                                              status: "in_progress",
+                                            })
+                                          }
+                                        >
+                                          <Check className="w-4 h-4 text-primary" />
+                                        </button>
+
+                                        {/* Cancel */}
+                                        <button
+                                          disabled={request.status === "cancelled" || request.status === "completed"}
+                                          className={cn(
+                                            "p-2 rounded-lg transition-colors",
+                                            request.status === "cancelled" || request.status === "completed"
+                                              ? "bg-gray-100 cursor-not-allowed opacity-50"
+                                              : "bg-red-100 hover:bg-red-200"
+                                          )}
+                                          onClick={() =>
+                                            setConfirmAction({
+                                              id: request.id,
+                                              status: "cancelled",
+                                            })
+                                          }
+                                        >
+                                          <X className="w-4 h-4 text-red-600" />
+                                        </button>
+
+                                        {/* Complete */}
+                                        <button
+                                          disabled={request.status !== "in_progress"}
+                                          className={cn(
+                                            "p-2 rounded-lg transition-colors",
+                                            request.status !== "in_progress"
+                                              ? "bg-gray-100 cursor-not-allowed opacity-50"
+                                              : "bg-green-100 hover:bg-green-200"
+                                          )}
+                                          onClick={() => {
+                                            if (request.status !== "in_progress") return;
+                                            setConfirmAction({
+                                              id: request.id,
+                                              status: "completed",
+                                            });
+                                          }}
+
+                                        >
+                                          <CheckCircle className="w-4 h-4 text-green-600" />
+                                        </button>
+
+                                      </div>
+                                    {/* Message Button */}
+                                    <Button
+                                      className="rounded-lg bg-primary hover:bg-primary/90"
+                                      onClick={() => openConversation(request.id)}
+                                    >
+                                      <MessageSquare className="w-4 h-4 mr-2" />
+                                      Message
+                                    </Button>
+                                  </div>
+
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+
+              </TabsContent>
+
+
+
+              {/* ✅ Reviews FULL ROW */}
+              <TabsContent value="reviews" className="space-y-6">
+                <Card data-testid="card-reviews">
+                  <CardHeader>
+                    <CardTitle>Reviews & Ratings</CardTitle>
+                    <CardDescription>Feedback from your clients</CardDescription>
+                  </CardHeader>
+
+                  <CardContent>
+                    <div className="space-y-4">
+                      {reviews.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center">
+                          No reviews yet
+                        </p>
+                      )}
+
+                      {reviews.map((review, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
+                        <div className="space-y-1">
+                          <p className="font-medium">
+                            {review.vendorName ?? "Contractor"}
+                          </p>
+
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {review.vendorUserType}
+                          </p>
+
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star
+                                key={i}
+                                className={cn(
+                                  "w-4 h-4",
+                                  i < review.rating
+                                    ? "text-yellow-400 fill-current"
+                                    : "text-muted-foreground"
+                                )}
+                              />
+                            ))}
+                          </div>
                         </div>
-                      </CardHeader>
 
-                      {/* Content */}
-                      <CardContent className="flex-1 flex flex-col">
-                        <div className="space-y-3 mb-4">
-                          <div className="space-y-2 mb-6">
-                            {/* Title Row */}
-                            <div className="flex items-start gap-2">
-                              <FileText className="w-4 h-4 mt-1 text-muted-foreground flex-shrink-0" />
-                              <h4 className="font-semibold text-foreground leading-snug">
-                                {request.title ?? "Untitled Request"}
-                              </h4>
-                            </div>
-
-                            {/* Description */}
-                            <p className="text-sm text-muted-foreground pl-6">
-                              {request.description ?? "No description provided"}
-                            </p>
-                          </div>
-
-                          {/* Contractor */}
-                          <div className="flex justify-between text-sm">
-                            <div className="flex gap-2">
-                              <User className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">Vendor:</span>
-                            </div>
-                            <div>
-                              <span className="font-medium">
-                              {request.vendor?.firstName
-                                ? `${request.vendor.firstName} ${request.vendor.lastName ?? ""}`
-                                : "Not assigned"}
-
-                            </span>
-                            </div>
-                            
-                          </div>
-
-                          {/* Budget */}
-                          <div className="flex justify-between text-sm">
-                            <div className="flex gap-2">
-                              <DollarSign className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">Budget:</span>
-                            </div>
-                            <div>
-                              <span className="font-medium">
-                                {request?.budget
-                                  ? `${(request.budget ?? 0).toLocaleString()}`
-                                  : "Not specified"}
-                              </span>
-                            </div>
-                            
-                          </div>
-
-                          {/* Created Date */}
-                          <div className="flex justify-between text-sm">
-                            <div className="flex gap-2">
-                              <CalendarDays className="w-4 h-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">Created:</span>
-                            </div>
-                            <div>
-                              <span className="font-medium">
-                                {request.createdAt
-                                  ? new Date(request.createdAt).toLocaleDateString()
-                                  : "N/A"}
-                              </span>
-                            </div>
-                          </div>
-
-                        </div>
-
-                        {/* Footer Button */}
-                        <div className="mt-auto pt-4 border-t flex items-center justify-between">
-
-                        
-
-                        {/* Message Button */}
-                        <Button
-                          className="rounded-lg bg-primary hover:bg-primary/90"
-                          onClick={() => openConversation(request.id)}
-                        >
-                          <MessageSquare className="w-4 h-4 mr-2" />
-                          Message
-                        </Button>
+                        <Badge variant="outline">
+                          {review.rating} / 5
+                        </Badge>
                       </div>
+                    ))}
 
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+
+            </Tabs>
+
+            
           </div>
         </div>
 
@@ -587,6 +811,110 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+      
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          
+          {/* backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setConfirmAction(null)}
+          />
+
+          {/* dialog */}
+          <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
+            
+            <h3 className="text-lg font-semibold mb-2">
+              Confirm Action
+            </h3>
+
+            <p className="text-sm text-muted-foreground mb-6">
+              Are you sure you want to mark this request as{" "}
+              <span className="font-medium capitalize">
+                {confirmAction.status.replace("_", " ")}
+              </span>
+              ?
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmAction(null)}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                disabled={updateStatus.isPending}
+                onClick={async () => {
+                  updateStatus.mutate(
+                    {
+                      id: confirmAction.id,
+                      status: confirmAction.status,
+                    }
+                  );
+                }}
+              >
+                Confirm
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {reviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setReviewModal(null)}
+          />
+
+          <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">
+              Leave Feedback
+            </h3>
+
+            {/* Star Rating */}
+            <div className="flex items-center gap-2 mb-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Star
+                  key={i}
+                  onClick={() => setRating(i + 1)}
+                  className={`w-6 h-6 cursor-pointer ${
+                    i < rating
+                      ? "text-yellow-400 fill-current"
+                      : "text-muted-foreground"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Comment */}
+            <textarea
+              className="w-full border rounded-lg p-2 text-sm mb-4"
+              rows={4}
+              placeholder="Write your feedback..."
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+            />
+
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setReviewModal(null)}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                disabled={rating === 0 || submitReview.isPending}
+                onClick={() => submitReview.mutate()}
+              >
+                Submit Review
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
