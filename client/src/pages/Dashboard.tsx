@@ -740,19 +740,19 @@ export default function Dashboard() {
                         key={index}
                         className="flex items-center justify-between p-4 border rounded-lg"
                       >
-                        <div className="space-y-1">
-                          <p className="font-medium">
-                            {review.vendorName ?? "Contractor"}
-                          </p>
-
-                          <p className="text-xs text-muted-foreground capitalize">
-                            {review.comment}
-                          </p>
-                          <p className="text-xs text-muted-foreground capitalize">
-                            {review.vendorUserType}
-                          </p>
-
+                        <div className="flex-1 space-y-2">
+                            <div className="flex justify-between items-center">
+                              <p className="font-medium">
+                              {review.contractorName ?? "Contractor"}
+                              </p>
+                              <span className="text-xs text-muted-foreground">
+                              {new Date(review.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
                           <div className="flex items-center gap-1">
+                            <Badge variant="outline">
+                              {review.rating} / 5
+                            </Badge>
                             {Array.from({ length: 5 }).map((_, i) => (
                               <Star
                                 key={i}
@@ -765,11 +765,10 @@ export default function Dashboard() {
                               />
                             ))}
                           </div>
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {review.comment}
+                          </p>
                         </div>
-
-                        <Badge variant="outline">
-                          {review.rating} / 5
-                        </Badge>
                       </div>
                     ))}
 
