@@ -17,7 +17,7 @@ import { z } from "zod";
 import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon } from "lucide-react";
 
 const formSchema = insertVendorProfileSchema
-  .omit({ userId: true })   // ✅ remove userId requirement
+  .omit({ userId: true, responseTime: true })
   .extend({
     categories: z.array(
       z.enum(["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools"])
@@ -57,7 +57,6 @@ export function VendorProfileForm({defaultValues,profileId, mode = "create", onS
       description: "",
       location: "",
       hourlyRate: "",
-      responseTime: "2-4 hours",
       skills: [],
       categories: [],
       avatar: "",
@@ -72,7 +71,6 @@ useEffect(() => {
       description: defaultValues.description ?? "",
       location: defaultValues.location ?? "",
       hourlyRate: defaultValues.hourlyRate ?? "",
-      responseTime: defaultValues.responseTime ?? "2-4 hours",
       skills: defaultValues.skills ?? [],
       categories: defaultValues.categories ?? [],
       avatar: defaultValues.avatar ?? "",
@@ -263,32 +261,6 @@ useEffect(() => {
                           />
                         </div>
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="responseTime"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Response Time</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-response-time">
-                            <Clock className="w-4 h-4 mr-2" />
-                            <SelectValue placeholder="Select response time" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="1-2 hours">1-2 hours</SelectItem>
-                          <SelectItem value="2-4 hours">2-4 hours</SelectItem>
-                          <SelectItem value="4-8 hours">4-8 hours</SelectItem>
-                          <SelectItem value="8-24 hours">8-24 hours</SelectItem>
-                          <SelectItem value="1-2 days">1-2 days</SelectItem>
-                        </SelectContent>
-                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

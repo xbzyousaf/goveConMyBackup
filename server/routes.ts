@@ -972,7 +972,7 @@ Respond in JSON format:
       });
       res.json(serviceRequest);
     }catch (error) {
-      console.error("❌ CREATE SERVICE REQUEST FAILED");
+      console.error("CREATE SERVICE REQUEST FAILED");
 
       if (error instanceof Error) {
         console.error(error.message);
