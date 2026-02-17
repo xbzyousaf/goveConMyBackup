@@ -746,6 +746,9 @@ export default function Dashboard() {
                           </p>
 
                           <p className="text-xs text-muted-foreground capitalize">
+                            {review.comment}
+                          </p>
+                          <p className="text-xs text-muted-foreground capitalize">
                             {review.vendorUserType}
                           </p>
 
