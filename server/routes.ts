@@ -937,7 +937,9 @@ Respond in JSON format:
       if (!contractorId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
+
       const { vendorId, serviceId } = req.body;
+
       const existing =
         await storage.findServiceRequestByContractorVendorService({
           contractorId,
@@ -951,13 +953,27 @@ Respond in JSON format:
           requestId: existing.id,
         });
       }
+
       const serviceRequest = await storage.createServiceRequest({
         ...req.body,
         contractorId,
         status: "pending",
       });
+
+      // ✅ CREATE NOTIFICATION FOR VENDOR
+      await storage.createNotification({
+        userId: vendorId, // receiver (vendor)
+        triggeredBy: contractorId, // sender (contractor)
+        title: "New Service Request",
+        message: "You have received a new service request",
+        type: "request_submitted", // use correct type
+        referenceId: serviceRequest.id,
+        isRead: false,
+      });
+
       res.json(serviceRequest);
-    }catch (error) {
+
+    } catch (error) {
       console.error("❌ CREATE SERVICE REQUEST FAILED");
 
       if (error instanceof Error) {
@@ -971,8 +987,8 @@ Respond in JSON format:
         message: "Internal server error"
       });
     }
-
   });
+
 
   app.get('/api/service-requests', isAuthenticated, async (req: any, res) => {
     try {
