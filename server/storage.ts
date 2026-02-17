@@ -454,8 +454,64 @@ export class DatabaseStorage implements IStorage {
       .insert(messages)
       .values(message)
       .returning();
+
+    // ===== RESPONSE TIME LOGIC =====
+    const serviceRequest = await db.query.serviceRequests.findFirst({
+      where: eq(serviceRequests.id, message.serviceRequestId),
+      with: {
+        messages: true,
+      },
+    });
+
+    if (!serviceRequest) return newMessage;
+
+    // Only calculate if sender is vendor
+    if (serviceRequest.vendorId !== message.senderId) {
+      return newMessage;
+    }
+
+    const contractorMessages = serviceRequest.messages
+      ?.filter(m => m.senderId === serviceRequest.contractorId)
+      .sort((a, b) =>
+        (a.createdAt ? a.createdAt.getTime() : 0) -
+        (b.createdAt ? b.createdAt.getTime() : 0)
+      );
+
+    const vendorMessages = serviceRequest.messages
+      ?.filter(m => m.senderId === serviceRequest.vendorId)
+      .sort((a, b) =>
+        (a.createdAt ? a.createdAt.getTime() : 0) -
+        (b.createdAt ? b.createdAt.getTime() : 0)
+      );
+
+    if (
+      contractorMessages?.length > 0 &&
+      vendorMessages?.length === 1
+    ) {
+      const firstContractorMessage = contractorMessages[0];
+      const firstVendorReply = vendorMessages[0];
+
+      if (
+        firstVendorReply.createdAt &&
+        firstContractorMessage.createdAt
+      ) {
+        const diffMinutes = Math.floor(
+          (firstVendorReply.createdAt.getTime() -
+            firstContractorMessage.createdAt.getTime()) / 60000
+        );
+
+        await this.updateVendorResponseTime(
+          serviceRequest.vendorId!,
+          diffMinutes
+        );
+      }
+    }
+
+    // ===== END LOGIC =====
+
     return newMessage;
   }
+
 
   async getMessagesByServiceRequest(serviceRequestId: string) {
     return await db.query.messages.findMany({
@@ -530,7 +586,9 @@ export class DatabaseStorage implements IStorage {
         rating: reviews.rating,
         comment: reviews.comment,
         createdAt: reviews.createdAt,
-        contractorName: users.firstName, 
+        contractorName: sql<string>`
+        ${users.firstName} || ' ' || ${users.lastName}
+      `.as("contractorName"),
         contractorUserType: users.userType, 
         contractorEmail: users.email,    
       })
@@ -1123,6 +1181,46 @@ export class DatabaseStorage implements IStorage {
     totalUnread,
   };
 }
+async updateVendorResponseTime(vendorId: string, newMinutes: number) {
+  const vendorProfile = await db.query.vendorProfiles.findFirst({
+    where: eq(vendorProfiles.userId, vendorId),
+  });
+
+  if (!vendorProfile) return;
+
+  let existingMinutes = 0;
+
+  if (vendorProfile.responseTime) {
+    const match = vendorProfile.responseTime.match(/\d+/);
+    if (match) {
+      existingMinutes = parseInt(match[0]);
+    }
+  }
+
+  let finalAverage;
+
+  if (existingMinutes === 0) {
+    finalAverage = newMinutes;
+  } else {
+    finalAverage = Math.floor(
+      (existingMinutes + newMinutes) / 2
+    );
+  }
+
+  function format(minutes: number) {
+    if (minutes < 60) return `${minutes} min`;
+    if (minutes < 1440) return `${Math.round(minutes / 60)} hr`;
+    return `${Math.round(minutes / 1440)} day`;
+  }
+
+  await db
+    .update(vendorProfiles)
+    .set({
+      responseTime: format(finalAverage),
+    })
+    .where(eq(vendorProfiles.userId, vendorId));
+}
+
 
 
 

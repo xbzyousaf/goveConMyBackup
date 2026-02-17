@@ -30,6 +30,10 @@ export default function VendorDashboard() {
   });
   const { data: reviews = [] } = useQuery<{
     rating: number;
+    comment: string;
+    contractorName: string;
+    contractorUserType: string;
+    createdAt: string;
   }[]>({
     queryKey: ["/api/vendors", user?.id, "reviews"],
     enabled: !!user?.id,
@@ -768,40 +772,64 @@ export default function VendorDashboard() {
                       </p>
                     )}
 
-                    {reviews.map((review, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
-                      <div className="space-y-1">
-                        <p className="font-medium">
-                          {review.contractorName ?? "Contractor"}
-                        </p>
+                    {reviews.map((review, index) => {
+                      const firstLetter = review.contractorName
+                        ? review.contractorName.charAt(0).toUpperCase()
+                        : "C";
 
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {review.contractorUserType}
-                        </p>
+                      return (
+                        <div
+                          key={index}
+                          className="flex gap-4 p-4 border rounded-lg"
+                        >
+                          {/* Avatar */}
+                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-700 font-semibold">
+                            {firstLetter}
+                          </div>
 
-                        <div className="flex items-center gap-1">
-                          {Array.from({ length: 5 }).map((_, i) => (
-                            <Star
-                              key={i}
-                              className={cn(
-                                "w-4 h-4",
-                                i < review.rating
-                                  ? "text-yellow-400 fill-current"
-                                  : "text-muted-foreground"
-                              )}
-                            />
-                          ))}
+                          <div className="flex-1 space-y-2">
+                            {/* Name + Date */}
+                            <div className="flex justify-between items-center">
+                              <p className="font-medium">
+                                {review.contractorName ?? "Contractor"}
+                              </p>
+
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(review.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+
+                            {/* Rating + Stars */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">
+                                {review.rating}/5
+                              </span>
+
+                              <div className="flex items-center gap-1">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={cn(
+                                      "w-4 h-4",
+                                      i < review.rating
+                                        ? "text-yellow-400 fill-yellow-400"
+                                        : "text-muted-foreground"
+                                    )}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Comment */}
+                            {review.comment && (
+                              <p className="text-sm text-muted-foreground">
+                                {review.comment}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-
-                      <Badge variant="outline">
-                        {review.rating} / 5
-                      </Badge>
-                    </div>
-                  ))}
+                      );
+                    })}
 
                   </div>
                 </CardContent>
