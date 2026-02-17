@@ -736,8 +736,8 @@ export default function Dashboard() {
                     )}
 
                     {reviews.map((review, index) => {
-                      const firstLetter = review.contractorName
-                        ? review.contractorName.charAt(0).toUpperCase()
+                      const firstLetter = review.vendorName
+                        ? review.vendorName.charAt(0).toUpperCase()
                         : "C";
 
                       return (
