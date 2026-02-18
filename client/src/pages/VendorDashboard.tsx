@@ -92,6 +92,11 @@ export default function VendorDashboard() {
     }
     },
   });
+  const hasReviewed = (serviceRequestId: string) => {
+    return reviews.some(
+      (review: any) => review.serviceRequestId === serviceRequestId
+    );
+  };
   const [reviewModal, setReviewModal] = useState<{
     serviceRequestId: string;
     revieweeId: string;
@@ -523,7 +528,33 @@ export default function VendorDashboard() {
                             >
                               <CheckCircle className="w-4 h-4 text-green-600" />
                             </button>
+                            <button
+                              disabled={
+                                request.status !== "completed" ||
+                                hasReviewed(request.id)
+                              }
+                              className={cn(
+                                "p-2 rounded-lg transition-colors",
+                                request.status !== "completed" || hasReviewed(request.id)
+                                  ? "bg-gray-100 cursor-not-allowed opacity-50"
+                                  : "bg-yellow-100 hover:bg-yellow-200"
+                              )}
+                              onClick={() => {
 
+                                if (hasReviewed(request.id)) return;
+
+                                setReviewModal({
+                                  serviceRequestId: request.id,
+                                  revieweeId: request.vendorId,
+                                });
+
+                                setRating(0);
+                                setComment("");
+
+                              }}
+                            >
+                              <Star className="w-4 h-4 text-yellow-600" />
+                            </button>
                           </div>
 
                           {/* Message Button */}

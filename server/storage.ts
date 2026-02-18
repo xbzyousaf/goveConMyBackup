@@ -489,16 +489,16 @@ export class DatabaseStorage implements IStorage {
 
   // Reviews
   async createReview(review: InsertReview): Promise<Review> {
-    const existing = await db.query.reviews.findFirst({
-      where: and(
-        eq(reviews.serviceRequestId, review.serviceRequestId),
-        eq(reviews.reviewerId, review.reviewerId)
-      ),
-    });
+    // const existing = await db.query.reviews.findFirst({
+    //   where: and(
+    //     eq(reviews.serviceRequestId, review.serviceRequestId),
+    //     eq(reviews.reviewerId, review.reviewerId)
+    //   ),
+    // });
 
-    if (existing) {
-      throw new Error("Review already submitted for this request.");
-    }
+    // if (existing) {
+    //   throw new Error("Review already submitted for this request.");
+    // }
     const [newReview] = await db
       .insert(reviews)
       .values(review)

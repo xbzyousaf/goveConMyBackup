@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
   const [priority, setPriority] = useState("");
   const [budget, setBudget] = useState("");
   const [matches, setMatches] = useState<VendorProfile[]>([]);
+  const queryClient = useQueryClient();
 
   const aiMatchMutation = useMutation({
     mutationFn: async (payload: ServiceRequestPayload) => {
@@ -50,6 +51,9 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
       return data;
     },
      onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/service-requests"],
+      });
       setMatches(data.matchedVendors || []);
       toast({
         title: "Request submitted successfully",
