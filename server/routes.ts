@@ -9,6 +9,35 @@ import { z } from "zod";
 import { insertUserSchema } from "@shared/schema";
 import { pool } from "./db";
 import { Description } from "@radix-ui/react-toast";
+import multer from "multer";
+import type { Request } from "express";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+
+// recreate __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// uploads folder
+const uploadDir = path.join(__dirname, "uploads");
+
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storageConfig = multer.diskStorage({
+  destination: (req, file, callback) => {
+    callback(null, uploadDir);
+  },
+
+  filename: (req, file, callback) => {
+    const uniqueName = Date.now() + "-" + file.originalname;
+    callback(null, uniqueName);
+  },
+});
+
+const upload = multer({ storage: storageConfig });
 
 if (!process.env.OPENAI_API_KEY) {
   throw new Error("OPENAI_API_KEY is missing");
@@ -1556,7 +1585,99 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to fetch count" });
     }
   });
+  app.get("/api/service-requests/:id", async (req, res) => {
+  try {
+      const request = await storage.getServiceRequest(req.params.id);
 
+      if (!request) {
+        return res.status(404).json({ message: "Not found" });
+      }
+      const userId = getUserId(req);
+
+      const alreadyReviewed = request.reviews?.some(
+        (review) => review.reviewerId === userId
+      );
+
+      res.json({
+        ...request,
+        alreadyReviewed,
+      });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to fetch request" });
+    }
+  });
+  app.post("/api/service-requests/:id/deliver", isAuthenticated, async (req, res) => {
+  try {
+      const serviceRequestId = req.params.id;
+      // const userId = req.user?.id;
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { message, attachments } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const existingRequest = await storage.getServiceRequest(serviceRequestId);
+
+      if (!existingRequest) {
+        return res.status(404).json({ message: "Service request not found" });
+      }
+
+      // Optional: ensure only vendor can deliver
+      if (existingRequest.vendorId !== userId) {
+        return res.status(403).json({ message: "Only assigned vendor can deliver" });
+      }
+
+      const delivery = await storage.createDelivery({
+        serviceRequestId,
+        deliveredBy: userId,
+        message,
+        attachments, // array of file metadata
+      });
+      const receiverId =
+      existingRequest.vendorId === userId
+        ? existingRequest.contractorId
+        : existingRequest.vendorId;
+      await storage.createNotification({
+        userId: receiverId, // service owner
+        triggeredBy: userId,
+        type: "delivery",
+        title: "New Delivery Received",
+        message: `Your service request has been delivered.`,
+        relatedRequestId: serviceRequestId,
+         isRead: false,
+      });
+
+      res.status(201).json(delivery);
+    } catch (err: any) {
+      console.error("DELIVERY ERROR:", err);
+      res.status(500).json({ 
+        message: "Failed to create delivery",
+        error: err.message,
+        stack: err.stack
+      });
+    }
+
+  });
+
+  app.post("/api/upload", upload.single("file"),
+    (req: Request & { file?: Express.Multer.File }, res) => {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+
+      res.json({
+        filePath: fileUrl,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+      });
+    }
+  );
 
 
 

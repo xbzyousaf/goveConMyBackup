@@ -41,7 +41,7 @@ import {
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
 import { notifications } from "@shared/schema"; // adjust path correctly
-
+import { deliveries, deliveryAttachments } from "@shared/schema";
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
   // User management
@@ -101,6 +101,18 @@ export interface IStorage {
   deleteUserMaturityProfile(userId: string): Promise<void>;
   deleteUserAssessments(userId: string): Promise<void>;
   deleteUserJourneys(userId: string): Promise<void>;
+  // Deliveries
+  createDelivery(data: {
+    serviceRequestId: string;
+    deliveredBy: string;
+    message: string;
+    attachments?: {
+      filePath: string;
+      fileName: string;
+      fileSize?: number;
+    }[];
+  }): Promise<any>;
+
 }
 
 // Database storage implementation
@@ -326,6 +338,7 @@ export class DatabaseStorage implements IStorage {
           id: true,
           firstName: true,
           lastName: true,
+          username: true,
         },
       },
       contractor: {
@@ -333,10 +346,21 @@ export class DatabaseStorage implements IStorage {
           id: true,
           firstName: true,
           lastName: true,
+          username: true,
         },
       },
       service: true,      // if relation exists
       messages: true,     // optional
+      reviews: {   // 🔥 ADD THIS
+        columns: {
+          id: true,
+          reviewerId: true,
+          revieweeId: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
+        },
+      },
     },
   });
 }
@@ -1244,6 +1268,51 @@ async updateVendorResponseTime(vendorId: string, newMinutes: number) {
     .where(eq(vendorProfiles.userId, vendorId));
 }
 
+async createDelivery(data: {
+  serviceRequestId: string;
+  deliveredBy: string;
+  message: string;
+  attachments?: {
+    filePath: string;
+    fileName: string;
+    fileSize?: number;
+  }[];
+}) {
+  return await db.transaction(async (tx) => {
+    // 1️⃣ Insert delivery
+    const [delivery] = await tx
+      .insert(deliveries)
+      .values({
+        serviceRequestId: data.serviceRequestId,
+        deliveredBy: data.deliveredBy,
+        message: data.message,
+      })
+      .returning();
+
+    // 2️⃣ Insert attachments (if any)
+    if (data.attachments?.length) {
+      await tx.insert(deliveryAttachments).values(
+        data.attachments.map((file) => ({
+          deliveryId: delivery.id,
+          filePath: file.filePath,
+          fileName: file.fileName,
+          fileSize: file.fileSize ?? null,
+        }))
+      );
+    }
+
+    // 3️⃣ Update service request status
+    await tx
+      .update(serviceRequests)
+      .set({
+        status: "delivered",
+        updatedAt: new Date(),
+      })
+      .where(eq(serviceRequests.id, data.serviceRequestId));
+
+    return delivery;
+  });
+}
 
 
 

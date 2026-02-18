@@ -75,7 +75,7 @@ export default function ServiceDetails() {
                 </div>
               )}
 
-              {/* 🔥 Request This Service Button */}
+              {/*  Request This Service Button */}
               <Link
                 href={`/request?vendorId=${vendorId}&serviceId=${service.id}`}
               >
