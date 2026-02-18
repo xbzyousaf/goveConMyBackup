@@ -136,6 +136,17 @@ export default function Dashboard() {
     serviceRequestId: string;
     revieweeId: string;
   } | null>(null);
+  const hasReviewed = (
+    serviceRequestId: string,
+    userId: string
+  ): boolean => {
+    return reviews.some(
+      (review) =>
+        review.serviceRequestId === serviceRequestId &&
+        review.reviewerId === userId
+    );
+  };
+
   
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -193,6 +204,7 @@ export default function Dashboard() {
     setLocation("/onboarding");
     return null;
   }
+  const currentUserId = user.id;
 
   const { data: reviews = [] } = useQuery<{
     rating: number;
@@ -508,7 +520,10 @@ export default function Dashboard() {
             <Tabs defaultValue="recent" className="space-y-6 col-span-full w-full">
 
               {/* Full Width Tabs */}
-              <TabsList className="w-full grid grid-cols-2">
+              <TabsList
+                  className="w-full grid grid-cols-4"
+                  data-testid="tabs-dashboard"
+                >
                 <TabsTrigger value="recent">
                   Recent Services
                 </TabsTrigger>
@@ -535,7 +550,7 @@ export default function Dashboard() {
                               </p>
                             )}
 
-                              <div className="grid grid-cols-1 gap-6 w-full">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                               {serviceRequests.map((request) => (
                                 <Card
                                   key={request.id}
@@ -638,24 +653,7 @@ export default function Dashboard() {
                                       {/* Left Icons */}
                                       <div className="flex items-center gap-3">
 
-                                        {/* Approve */}
-                                        <button
-                                          disabled={request.status === "in_progress" || request.status === "completed"}
-                                          className={cn(
-                                            "p-2 rounded-lg transition-colors",
-                                            request.status === "in_progress" || request.status === "completed"
-                                              ? "bg-gray-100 cursor-not-allowed opacity-50"
-                                              : "bg-primary/10 hover:bg-primary/20"
-                                          )}
-                                          onClick={() =>
-                                            setConfirmAction({
-                                              id: request.id,
-                                              status: "in_progress",
-                                            })
-                                          }
-                                        >
-                                          <Check className="w-4 h-4 text-primary" />
-                                        </button>
+                                        
 
                                         {/* Cancel */}
                                         <button
@@ -696,6 +694,41 @@ export default function Dashboard() {
                                         >
                                           <CheckCircle className="w-4 h-4 text-green-600" />
                                         </button>
+                                        <button
+                                          disabled={
+                                            request.status !== "completed" ||
+                                            hasReviewed(request.id, currentUserId)
+                                          }
+                                          className={cn(
+                                            "p-2 rounded-lg transition-colors",
+                                            request.status !== "completed" ||
+                                              hasReviewed(request.id, currentUserId)
+                                              ? "bg-gray-100 cursor-not-allowed opacity-50"
+                                              : "bg-yellow-100 hover:bg-yellow-200"
+                                          )}
+                                          onClick={() => {
+
+                                            if (hasReviewed(request.id, currentUserId)) return;
+
+                                            setReviewModal({
+                                              serviceRequestId: request.id,
+
+                                              // FIX reviewee logic also (important)
+                                              revieweeId:
+                                                request.vendorId === currentUserId
+                                                  ? request.contractorId
+                                                  : request.vendorId,
+                                            });
+
+                                            setRating(0);
+                                            setComment("");
+
+                                          }}
+                                        >
+                                          <Star className="w-4 h-4 text-yellow-600" />
+                                        </button>
+
+
 
                                       </div>
                                     {/* Message Button */}
