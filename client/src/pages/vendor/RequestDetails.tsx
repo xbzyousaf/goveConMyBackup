@@ -117,7 +117,11 @@ onError: (error: any) => {
 const handleDeliver = async () => {
   try {
     if (!deliveryMessage.trim()) {
-      alert("Please write delivery message");
+      toast({
+        title: "Validation Error",
+        description: "Please write delivery message",
+        variant: "destructive",
+      });
       return;
     }
     let uploadedAttachment = null;
@@ -150,18 +154,31 @@ const handleDeliver = async () => {
     });
     
 
-    if (!res.ok) {
-      throw new Error("Delivery failed");
+     if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      throw new Error(errorData?.message || "Delivery failed");
     }
 
-    // 3️⃣ Refresh request or update local state
-    // example:
-    // refetchRequest();
+    // ✅ Success Toast
+    toast({
+      title: "Delivered Successfully",
+      description: "Your work has been delivered to the client.",
+    });
+    // Optional: refresh request
+    queryClient.invalidateQueries({
+      queryKey: ["service-request", request.id],
+    });
 
     setIsDeliverOpen(false);
-  } catch (err) {
+    setDeliveryMessage("");
+    setAttachment(null);
+  } catch (err:any) {
     console.error(err);
-    alert("Something went wrong while delivering");
+    toast({
+      title: "Delivery Failed",
+      description: err.message || "Something went wrong",
+      variant: "destructive",
+    });
   }
 };
 
@@ -483,9 +500,10 @@ const handleDeliver = async () => {
 
 
                 {/* Status Action Card */}
+                {user?.userType === "vendor" && (
                 <Card className="rounded-2xl shadow-md">
                 <CardContent className="p-5 space-y-3">
-
+    
                     <Button
                         disabled={
                             user?.userType !== "vendor" ||
@@ -527,6 +545,7 @@ const handleDeliver = async () => {
 
                 </CardContent>
                 </Card>
+                )}
 
             </div>
             </div>

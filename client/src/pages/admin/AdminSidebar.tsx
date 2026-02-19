@@ -6,6 +6,7 @@ import {
   DollarSign,
   AlertTriangle,
   BarChart,
+  FileText,
 } from "lucide-react";
 
 const nav = [
@@ -15,6 +16,8 @@ const nav = [
   { label: "Escrow", href: "/admin/escrow", icon: DollarSign },
   { label: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart },
+  { label: "Request Logs", href: "/admin/request-logs", icon: FileText },
+
 ];
 
 export function AdminSidebar() {
@@ -24,12 +27,10 @@ export function AdminSidebar() {
 
       <nav className="space-y-1 px-3">
         {nav.map(({ label, href, icon: Icon }) => (
-          <Link key={href} href={href}>
-            <a className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted text-sm">
+            <a key={href} href={href} className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted text-sm">
               <Icon className="w-4 h-4" />
               {label}
             </a>
-          </Link>
         ))}
       </nav>
     </aside>

@@ -799,6 +799,9 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
   app.post("/api/reviews", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
       const { serviceRequestId, rating, comment } = req.body;
 
       const serviceRequest =
@@ -812,12 +815,23 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
           ? serviceRequest.contractorId
           : serviceRequest.vendorId;
 
+          const reviewer = await storage.getUser(userId);
+
       const review = await storage.createReview({
         serviceRequestId,
         reviewerId: userId,
         revieweeId,
         rating,
         comment,
+      });
+      await storage.createNotification({
+        userId: revieweeId,
+        triggeredBy: userId, 
+        title: "New Review Received",
+        message: reviewer? `${reviewer.firstName} left you a ${rating}-star review` : '',
+        type: "new_review",
+        referenceId: review.id,
+        isRead: false,
       });
 
       res.json(review);
@@ -990,24 +1004,43 @@ Respond in JSON format:
         return res.status(401).json({ message: "Not authenticated" });
       }
       const { vendorId, serviceId } = req.body;
-      const existing =
-        await storage.findServiceRequestByContractorVendorService({
-          contractorId,
-          vendorId,
-          serviceId,
-        });
+      // const existing =
+      //   await storage.findServiceRequestByContractorVendorService({
+      //     contractorId,
+      //     vendorId,
+      //     serviceId,
+      //   });
 
-      if (existing) {
-        return res.status(409).json({
-          message: "You have already requested this service from this vendor",
-          requestId: existing.id,
-        });
-      }
+      // if (existing) {
+      //   return res.status(409).json({
+      //     message: "You have already requested this service from this vendor",
+      //     requestId: existing.id,
+      //   });
+      // }
       const serviceRequest = await storage.createServiceRequest({
         ...req.body,
         contractorId,
         status: "pending",
       });
+
+      const existingRequest = await storage.getServiceRequest(serviceRequest?.id);
+      await storage.createRequestLog({
+        serviceRequestId: serviceRequest.id,
+        action: "SERVICE REQUEST CREATED",
+        performedBy: contractorId,
+        previousStatus: serviceRequest.status ?? 'pending',
+        newStatus: "pending",
+         metadata: {
+          vendorName: existingRequest?.vendor
+          ? `${existingRequest.vendor.firstName} ${existingRequest.vendor.lastName ?? ""} (${existingRequest.vendor.id})`.trim()
+          : "Vendor",
+          contractorName: existingRequest?.contractor
+          ? `${existingRequest.contractor.firstName} ${existingRequest.contractor.lastName ?? ""} (${existingRequest.contractor.id})`.trim()
+          : "contractor",
+          serviceTitle: existingRequest?.service?.name ?? 'Service Title',
+          requestTitle: existingRequest?.title ?? 'Request Title'
+        }
+      })
       await storage.createNotification({
         userId: vendorId, // receiver (vendor)
         triggeredBy: contractorId, // sender (contractor)
@@ -1510,14 +1543,21 @@ Respond in JSON format:
       if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId) {
         return res.status(403).json({ message: "Not authorized" });
       }
-
+      const previousStatus = serviceRequest.status ?? 'pending';
       const updated = await storage.updateServiceRequestStatus(id, status);
+      await storage.createRequestLog({
+        serviceRequestId: id,
+        action: "STATUS_UPDATED",
+        performedBy: userId,
+        previousStatus,
+        newStatus: status,
+      });
+
       const receiverId =
       serviceRequest.vendorId === userId
         ? serviceRequest.contractorId
         : serviceRequest.vendorId;
       const notification = getNotificationContent(status);
-
       await storage.createNotification({
         userId: receiverId,
         triggeredBy: userId,
@@ -1654,7 +1694,7 @@ Respond in JSON format:
       }
 
       const existingRequest = await storage.getServiceRequest(serviceRequestId);
-
+      const previousStatus = existingRequest?.status ?? 'pending';
       if (!existingRequest) {
         return res.status(404).json({ message: "Service request not found" });
       }
@@ -1683,6 +1723,13 @@ Respond in JSON format:
         relatedRequestId: serviceRequestId,
          isRead: false,
       });
+      await storage.createRequestLog({
+        serviceRequestId: serviceRequestId,
+        action: "DELIVERED",
+        performedBy: userId,
+        previousStatus: previousStatus,
+        newStatus: "delivered",
+      });
 
       res.status(201).json(delivery);
     } catch (err: any) {
@@ -1710,6 +1757,29 @@ Respond in JSON format:
       });
     }
   );
+ app.get("/api/admin/request-logs", isAdmin, async (req, res) => {
+  try {
+    const { requestId, page = "1", limit = "10" } = req.query;
+
+    const result = await storage.getRequestLogs({
+      requestId: requestId as string | undefined,
+      page: Number(page),
+      limit: Number(limit),
+    });
+
+    res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch logs",
+    });
+  }
+});
+
 
 
 

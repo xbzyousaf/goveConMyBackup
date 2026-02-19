@@ -342,6 +342,21 @@ export const insertNotificationSchema =
 export type InsertNotification =
   z.infer<typeof insertNotificationSchema>;
 
+export const requestLogs = pgTable("request_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  serviceRequestId: uuid("service_request_id")
+    .references(() => serviceRequests.id)
+    .notNull(),
+  action: varchar("action", { length: 100 }).notNull(), 
+  // e.g. "STATUS_UPDATED", "DELIVERED", "COMPLETED"
+  performedBy: uuid("performed_by")
+    .references(() => users.id)
+    .notNull(),
+  previousStatus: varchar("previous_status", { length: 50 }),
+  newStatus: varchar("new_status", { length: 50 }),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 // Relations
 

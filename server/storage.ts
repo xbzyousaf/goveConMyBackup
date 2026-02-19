@@ -36,7 +36,8 @@ import {
   type InsertUserContentActivity,
   services,
   serviceTiers,
-  InsertNotification
+  InsertNotification,
+  requestLogs
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
@@ -899,6 +900,7 @@ export class DatabaseStorage implements IStorage {
   async getVendorServices(vendorId: string) {
     return await db.query.services.findMany({
       where: eq(services.vendorId, vendorId),
+      orderBy: (services, { desc }) => [desc(services.createdAt)],
     });
   }
 
@@ -990,63 +992,9 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(serviceRequests.id, id));
 
-    // 3️⃣ Create notification based on status
-    await this.createStatusNotification(existingRequest, status);
 
     // 4️⃣ Return updated request
     return this.getServiceRequest(id);
-  }
-  private async createStatusNotification(request: typeof serviceRequests.$inferSelect, newStatus: string) {
-    let title = "";
-    let message = "";
-    let type:
-      | "request_in_progress"
-      | "request_completed"
-      | "request_cancelled"
-      | "request_matched"
-      | null = null;
-
-    switch (newStatus) {
-      case "matched":
-        type = "request_matched";
-        title = "Vendor Assigned";
-        message = "A vendor has been assigned to your request.";
-        break;
-
-      case "in_progress":
-        type = "request_in_progress";
-        title = "Work Started";
-        message = "Your service request is now in progress.";
-        break;
-
-      case "completed":
-        type = "request_completed";
-        title = "Request Completed";
-        message = "Your service request has been marked as completed.";
-        break;
-
-      case "cancelled":
-        type = "request_cancelled";
-        title = "Request Cancelled";
-        message = "Your service request has been cancelled.";
-        break;
-
-      default:
-        return; // No notification for other statuses
-    }
-
-    if (!type) return;
-
-    // Notify contractor (not vendor)
-    await this.createNotification({
-      userId: request.contractorId,
-      triggeredBy: request.vendorId,
-      type,
-      title,
-      message,
-      relatedRequestId: request.id,
-      relatedMessageId: null,
-    });
   }
   async createNotification(notification: InsertNotification): Promise<Notification> {
     const [newNotification] = await db
@@ -1319,7 +1267,47 @@ async createDelivery(data: {
     return delivery;
   });
 }
+async createRequestLog(data: {serviceRequestId: string; action: string; performedBy: string; previousStatus?: string; newStatus?: string; metadata?: any;}) {
+  return await db.insert(requestLogs).values(data);
+}
+async getRequestLogs(options?: { requestId?: string; page?: number; limit?: number;}) {
+  const page = options?.page ?? 1;
+  const limit = options?.limit ?? 11;
+  const offset = (page - 1) * limit;
 
+  // Count total records
+  const totalQuery = await db.query.requestLogs.findMany({
+    where: (logs, { eq }) =>
+      options?.requestId
+        ? eq(logs.serviceRequestId, options.requestId)
+        : undefined,
+  });
+
+  const total = totalQuery.length;
+
+  // Get paginated data
+  const data = await db.query.requestLogs.findMany({
+    where: (logs, { eq }) =>
+      options?.requestId
+        ? eq(logs.serviceRequestId, options.requestId)
+        : undefined,
+
+    orderBy: (logs, { desc }) => [desc(logs.createdAt)],
+
+    limit,
+    offset,
+  });
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
 
 
 
