@@ -676,15 +676,15 @@ export default function Dashboard() {
 
                                         {/* Complete */}
                                         <button
-                                          disabled={request.status !== "in_progress"}
+                                          disabled={request.status !== "delivered"}
                                           className={cn(
                                             "p-2 rounded-lg transition-colors",
-                                            request.status !== "in_progress"
+                                            request.status !== "delivered"
                                               ? "bg-gray-100 cursor-not-allowed opacity-50"
                                               : "bg-green-100 hover:bg-green-200"
                                           )}
                                           onClick={() => {
-                                            if (request.status !== "in_progress") return;
+                                            if (request.status !== "delivered") return;
                                             setConfirmAction({
                                               id: request.id,
                                               status: "completed",
