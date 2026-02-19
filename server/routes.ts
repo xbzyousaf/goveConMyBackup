@@ -980,24 +980,39 @@ Respond in JSON format:
       if (!contractorId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      const { vendorId, serviceId } = req.body;
-      const existing =
-        await storage.findServiceRequestByContractorVendorService({
-          contractorId,
-          vendorId,
-          serviceId,
-        });
+      // const { vendorId, serviceId } = req.body;
+      // const existing =
+      //   await storage.findServiceRequestByContractorVendorService({
+      //     contractorId,
+      //     vendorId,
+      //     serviceId,
+      //   });
 
-      if (existing) {
-        return res.status(409).json({
-          message: "You have already requested this service from this vendor",
-          requestId: existing.id,
-        });
-      }
+      // if (existing) {
+      //   return res.status(409).json({
+      //     message: "You have already requested this service from this vendor",
+      //     requestId: existing.id,
+      //   });
+      // }
       const serviceRequest = await storage.createServiceRequest({
         ...req.body,
         contractorId,
         status: "pending",
+      });
+      const existingRequest = await storage.getServiceRequest(serviceRequest?.id);
+      await storage.createRequestLog({
+        serviceRequestId: serviceRequest.id,
+        action: "SERVICE REQUEST CREATED",
+        performedBy: contractorId,
+        previousStatus: serviceRequest.status ?? 'pending',
+        newStatus: "pending",
+         metadata: {
+          performedByName: existingRequest?.vendor
+          ? `${existingRequest.vendor.firstName} ${existingRequest.vendor.lastName ?? ""}`.trim()
+          : "Vendor",
+          serviceTitle: existingRequest?.service?.name ?? 'Service Title',
+          requestTitle: existingRequest?.title ?? 'Request Title'
+        }
       });
       res.json(serviceRequest);
     }catch (error) {
@@ -1492,8 +1507,15 @@ Respond in JSON format:
       if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId) {
         return res.status(403).json({ message: "Not authorized" });
       }
-
+      const previousStatus = serviceRequest.status ?? 'pending';
       const updated = await storage.updateServiceRequestStatus(id, status);
+      await storage.createRequestLog({
+        serviceRequestId: id,
+        action: "STATUS_UPDATED",
+        performedBy: userId,
+        previousStatus,
+        newStatus: status,
+      });
 
       res.json(updated);
     } catch (error) {
@@ -1622,7 +1644,7 @@ Respond in JSON format:
       }
 
       const existingRequest = await storage.getServiceRequest(serviceRequestId);
-
+      const previousStatus = existingRequest?.status ?? 'pending';
       if (!existingRequest) {
         return res.status(404).json({ message: "Service request not found" });
       }
@@ -1651,6 +1673,13 @@ Respond in JSON format:
         relatedRequestId: serviceRequestId,
          isRead: false,
       });
+      await storage.createRequestLog({
+        serviceRequestId: serviceRequestId,
+        action: "DELIVERED",
+        performedBy: userId,
+        previousStatus: previousStatus,
+        newStatus: "delivered",
+      });
 
       res.status(201).json(delivery);
     } catch (err: any) {
@@ -1678,6 +1707,29 @@ Respond in JSON format:
       });
     }
   );
+ app.get("/api/admin/request-logs", isAdmin, async (req, res) => {
+  try {
+    const { requestId, page = "1", limit = "10" } = req.query;
+
+    const result = await storage.getRequestLogs({
+      requestId: requestId as string | undefined,
+      page: Number(page),
+      limit: Number(limit),
+    });
+
+    res.status(200).json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch logs",
+    });
+  }
+});
+
 
 
 

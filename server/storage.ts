@@ -36,7 +36,8 @@ import {
   type InsertUserContentActivity,
   services,
   serviceTiers,
-  InsertNotification
+  InsertNotification,
+  requestLogs
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
@@ -1313,7 +1314,47 @@ async createDelivery(data: {
     return delivery;
   });
 }
+async createRequestLog(data: {serviceRequestId: string; action: string; performedBy: string; previousStatus?: string; newStatus?: string; metadata?: any;}) {
+  return await db.insert(requestLogs).values(data);
+}
+async getRequestLogs(options?: { requestId?: string; page?: number; limit?: number;}) {
+  const page = options?.page ?? 1;
+  const limit = options?.limit ?? 11;
+  const offset = (page - 1) * limit;
 
+  // Count total records
+  const totalQuery = await db.query.requestLogs.findMany({
+    where: (logs, { eq }) =>
+      options?.requestId
+        ? eq(logs.serviceRequestId, options.requestId)
+        : undefined,
+  });
+
+  const total = totalQuery.length;
+
+  // Get paginated data
+  const data = await db.query.requestLogs.findMany({
+    where: (logs, { eq }) =>
+      options?.requestId
+        ? eq(logs.serviceRequestId, options.requestId)
+        : undefined,
+
+    orderBy: (logs, { desc }) => [desc(logs.createdAt)],
+
+    limit,
+    offset,
+  });
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
 
 
 
