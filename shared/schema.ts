@@ -411,7 +411,32 @@ export const serviceRequestsRelations = relations(serviceRequests, ({ one, many 
   }),
   messages: many(messages),
   reviews: many(reviews),
+  deliveries: many(deliveries),
   transactions: many(transactions),
+}));
+// Deliveries Relations
+export const deliveriesRelations = relations(deliveries, ({ one, many }) => ({
+  serviceRequest: one(serviceRequests, {
+    fields: [deliveries.serviceRequestId],
+    references: [serviceRequests.id],
+  }),
+  deliveredBy: one(users, {
+    fields: [deliveries.deliveredBy],
+    references: [users.id],
+  }),
+  attachments: many(deliveryAttachments, {
+    relationName: "attachments",
+  }),
+
+}));
+
+// Delivery Attachments Relations
+export const deliveryAttachmentsRelations = relations(deliveryAttachments, ({ one }) => ({
+  delivery: one(deliveries, {
+    fields: [deliveryAttachments.deliveryId],
+    references: [deliveries.id],
+    relationName: "attachments",  // must match
+  }),
 }));
 
 export const messagesRelations = relations(messages, ({ one }) => ({

@@ -352,6 +352,11 @@ export class DatabaseStorage implements IStorage {
       },
       service: true,      // if relation exists
       messages: true,     // optional
+      deliveries: {
+        with: {
+          attachments: true,
+        },
+      },
       reviews: {   // 🔥 ADD THIS
         columns: {
           id: true,
@@ -895,6 +900,7 @@ export class DatabaseStorage implements IStorage {
   async getVendorServices(vendorId: string) {
     return await db.query.services.findMany({
       where: eq(services.vendorId, vendorId),
+      orderBy: (services, { desc }) => [desc(services.createdAt)],
     });
   }
 
@@ -913,7 +919,8 @@ export class DatabaseStorage implements IStorage {
         vendorId: services.vendorId,
       })
       .from(services)
-      .where(eq(services.isActive, true));
+      .where(eq(services.isActive, true))
+      .orderBy(desc(services.createdAt));
   }
 
   async advanceUserStage(userId: string, nextStage: "startup" | "growth" | "scale") {
@@ -985,63 +992,9 @@ export class DatabaseStorage implements IStorage {
       })
       .where(eq(serviceRequests.id, id));
 
-    // 3️⃣ Create notification based on status
-    await this.createStatusNotification(existingRequest, status);
 
     // 4️⃣ Return updated request
     return this.getServiceRequest(id);
-  }
-  private async createStatusNotification(request: typeof serviceRequests.$inferSelect, newStatus: string) {
-    let title = "";
-    let message = "";
-    let type:
-      | "request_in_progress"
-      | "request_completed"
-      | "request_cancelled"
-      | "request_matched"
-      | null = null;
-
-    switch (newStatus) {
-      case "matched":
-        type = "request_matched";
-        title = "Vendor Assigned";
-        message = "A vendor has been assigned to your request.";
-        break;
-
-      case "in_progress":
-        type = "request_in_progress";
-        title = "Work Started";
-        message = "Your service request is now in progress.";
-        break;
-
-      case "completed":
-        type = "request_completed";
-        title = "Request Completed";
-        message = "Your service request has been marked as completed.";
-        break;
-
-      case "cancelled":
-        type = "request_cancelled";
-        title = "Request Cancelled";
-        message = "Your service request has been cancelled.";
-        break;
-
-      default:
-        return; // No notification for other statuses
-    }
-
-    if (!type) return;
-
-    // Notify contractor (not vendor)
-    await this.createNotification({
-      userId: request.contractorId,
-      triggeredBy: request.vendorId,
-      type,
-      title,
-      message,
-      relatedRequestId: request.id,
-      relatedMessageId: null,
-    });
   }
   async createNotification(notification: InsertNotification): Promise<Notification> {
     const [newNotification] = await db

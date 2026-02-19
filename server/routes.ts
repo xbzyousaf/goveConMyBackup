@@ -110,6 +110,15 @@ function getMilestoneCountForProcess(process: string, stage: string): number {
   
   return counts[process]?.[stage] || 0;
 }
+function getNotificationContent(status) {
+  const statusText = status.replace("_", " ");
+
+  return {
+    title: statusText.replace(/\b\w/g, l => l.toUpperCase()),
+    message: `Your service request is now ${statusText}`,
+    type: `request_${status}`,
+  };
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup session middleware (without Replit Auth)
@@ -790,6 +799,9 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
   app.post("/api/reviews", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
       const { serviceRequestId, rating, comment } = req.body;
 
       const serviceRequest =
@@ -803,12 +815,23 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
           ? serviceRequest.contractorId
           : serviceRequest.vendorId;
 
+          const reviewer = await storage.getUser(userId);
+
       const review = await storage.createReview({
         serviceRequestId,
         reviewerId: userId,
         revieweeId,
         rating,
         comment,
+      });
+      await storage.createNotification({
+        userId: revieweeId,
+        triggeredBy: userId, 
+        title: "New Review Received",
+        message: reviewer? `${reviewer.firstName} left you a ${rating}-star review` : '',
+        type: "new_review",
+        referenceId: review.id,
+        isRead: false,
       });
 
       res.json(review);
@@ -980,7 +1003,7 @@ Respond in JSON format:
       if (!contractorId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      // const { vendorId, serviceId } = req.body;
+      const { vendorId, serviceId } = req.body;
       // const existing =
       //   await storage.findServiceRequestByContractorVendorService({
       //     contractorId,
@@ -999,6 +1022,7 @@ Respond in JSON format:
         contractorId,
         status: "pending",
       });
+
       const existingRequest = await storage.getServiceRequest(serviceRequest?.id);
       await storage.createRequestLog({
         serviceRequestId: serviceRequest.id,
@@ -1007,12 +1031,24 @@ Respond in JSON format:
         previousStatus: serviceRequest.status ?? 'pending',
         newStatus: "pending",
          metadata: {
-          performedByName: existingRequest?.vendor
-          ? `${existingRequest.vendor.firstName} ${existingRequest.vendor.lastName ?? ""}`.trim()
+          vendorName: existingRequest?.vendor
+          ? `${existingRequest.vendor.firstName} ${existingRequest.vendor.lastName ?? ""} (${existingRequest.vendor.id})`.trim()
           : "Vendor",
+          contractorName: existingRequest?.contractor
+          ? `${existingRequest.contractor.firstName} ${existingRequest.contractor.lastName ?? ""} (${existingRequest.contractor.id})`.trim()
+          : "contractor",
           serviceTitle: existingRequest?.service?.name ?? 'Service Title',
           requestTitle: existingRequest?.title ?? 'Request Title'
         }
+      })
+      await storage.createNotification({
+        userId: vendorId, // receiver (vendor)
+        triggeredBy: contractorId, // sender (contractor)
+        title: "New Service Request",
+        message: "You have received a new service request",
+        type: "request_submitted", // use correct type
+        referenceId: serviceRequest.id,
+        isRead: false,
       });
       res.json(serviceRequest);
     }catch (error) {
@@ -1517,6 +1553,20 @@ Respond in JSON format:
         newStatus: status,
       });
 
+      const receiverId =
+      serviceRequest.vendorId === userId
+        ? serviceRequest.contractorId
+        : serviceRequest.vendorId;
+      const notification = getNotificationContent(status);
+      await storage.createNotification({
+        userId: receiverId,
+        triggeredBy: userId,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        referenceId: serviceRequest.id,
+        isRead: false,
+      });
       res.json(updated);
     } catch (error) {
       console.error("Update status error:", error);
