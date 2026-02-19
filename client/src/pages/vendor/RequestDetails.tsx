@@ -509,8 +509,7 @@ const handleDeliver = async () => {
                         disabled={
                             request.status === "cancelled" ||
                             request.status === "pending" ||
-                            request.status === "completed" ||
-                            request.status === "in_progress"
+                            request.status === "completed" 
                         }
                         className="w-full"
                         onClick={() => {
