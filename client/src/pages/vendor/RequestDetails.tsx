@@ -14,6 +14,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
 import { Star } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function RequestDetails() {
   const [, params] = useRoute("/vendor/requests/:id");
@@ -24,6 +25,7 @@ export default function RequestDetails() {
     id: string;
     status: "in_progress" | "cancelled";
   } | null>(null);
+  const { user } = useAuth();
 
 
   const { data: request, isLoading } = useQuery({
@@ -171,7 +173,9 @@ const handleDeliver = async () => {
             {/* Back Button */}
             <Button
             variant="ghost"
-            onClick={() => setLocation("/vendor-dashboard")}
+            onClick={() =>
+              setLocation(user?.userType === "vendor" ? "/vendor-dashboard" : "/dashboard")
+            }
             className="flex items-center gap-2 mb-6"
             >
             <ArrowLeft className="w-4 h-4" />
@@ -258,11 +262,64 @@ const handleDeliver = async () => {
 
                 </CardContent>
                 </Card>
+                {/* ================= CONTRACTOR DELIVERY VIEW ================= */}
+                {user?.userType === "contractor" && (
+                  <Card className="rounded-2xl shadow-md mt-6">
+                    <CardHeader>
+                      <CardTitle className="text-lg font-semibold">Deliveries</CardTitle>
+                      <CardDescription>View messages and files from the vendor</CardDescription>
+                      <hr />
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {request.deliveries && request.deliveries.length > 0 ? (
+                        request.deliveries.map((delivery: any, idx: number) => (
+                          <div key={idx} className="p-3 border rounded-md bg-gray-50 space-y-2">
+                            <p className="font-medium">{delivery.message}</p>
+                            {delivery.attachments?.length > 0 && (
+                              <div className="flex flex-col gap-1">
+                                {delivery.attachments.map((file: any, i: number) => (
+                                  <a
+                                    key={i}
+                                    href={file.filePath}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 underline"
+                                  >
+                                    {file.fileName}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-muted-foreground">No deliveries yet</p>
+                      )}
+
+                      { request.status === "delivered" && (
+                        <Button
+                          className="w-full mt-2"
+                          variant="success"
+                          onClick={() => {
+                            setConfirmAction({
+                            id: request.id,
+                            status: "completed",
+                            });
+                        }}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Mark as Completed
+                        </Button>
+                      )}
+
+                    </CardContent>
+                  </Card>
+                  )}
             </div>
 
 
             {/* ================= RIGHT SIDE (Action Panel) ================= */}
-            <div className="space-y-6">
+            <div className="space-y-6 ">
 
                 {/* Service Summary Card */}
                 <Card className="rounded-2xl shadow-md">
@@ -292,19 +349,21 @@ const handleDeliver = async () => {
                     </div>
 
                     <Button variant="outline" className="w-full" disabled={
-                            request.status == "in_progress"
+                            request.status !== "in_progress" || user?.userType !== "vendor"
                         }>
                     Extend delivery date
                     </Button>
 
                     <Dialog open={isDeliverOpen} onOpenChange={setIsDeliverOpen}>
                         <DialogTrigger asChild>
-                            <Button className="w-full" disabled={
-                            request.status == "pending"
-                        }>
+                          <Button
+                            className="w-full"
+                            disabled={request.status !== "in_progress" || user?.userType !== "vendor"}
+                          >
                             {isDelivered ? "Re-Deliver" : "Deliver Now"}
-                            </Button>
+                          </Button>
                         </DialogTrigger>
+
 
                         <DialogContent className="sm:max-w-lg">
                             <DialogHeader>
@@ -429,6 +488,7 @@ const handleDeliver = async () => {
 
                     <Button
                         disabled={
+                            user?.userType !== "vendor" ||
                             request.status === "in_progress" ||
                             request.status === "completed" ||
                             request.status === "delivered"
@@ -449,8 +509,7 @@ const handleDeliver = async () => {
                         disabled={
                             request.status === "cancelled" ||
                             request.status === "pending" ||
-                            request.status === "completed" ||
-                            request.status === "in_progress"
+                            request.status === "completed" 
                         }
                         className="w-full"
                         onClick={() => {

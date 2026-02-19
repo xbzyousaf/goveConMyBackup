@@ -351,6 +351,11 @@ export class DatabaseStorage implements IStorage {
       },
       service: true,      // if relation exists
       messages: true,     // optional
+      deliveries: {
+        with: {
+          attachments: true,
+        },
+      },
       reviews: {   // 🔥 ADD THIS
         columns: {
           id: true,
@@ -912,7 +917,8 @@ export class DatabaseStorage implements IStorage {
         vendorId: services.vendorId,
       })
       .from(services)
-      .where(eq(services.isActive, true));
+      .where(eq(services.isActive, true))
+      .orderBy(desc(services.createdAt));
   }
 
   async advanceUserStage(userId: string, nextStage: "startup" | "growth" | "scale") {

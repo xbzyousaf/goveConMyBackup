@@ -110,6 +110,15 @@ function getMilestoneCountForProcess(process: string, stage: string): number {
   
   return counts[process]?.[stage] || 0;
 }
+function getNotificationContent(status) {
+  const statusText = status.replace("_", " ");
+
+  return {
+    title: statusText.replace(/\b\w/g, l => l.toUpperCase()),
+    message: `Your service request is now ${statusText}`,
+    type: `request_${status}`,
+  };
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup session middleware (without Replit Auth)
@@ -999,6 +1008,15 @@ Respond in JSON format:
         contractorId,
         status: "pending",
       });
+      await storage.createNotification({
+        userId: vendorId, // receiver (vendor)
+        triggeredBy: contractorId, // sender (contractor)
+        title: "New Service Request",
+        message: "You have received a new service request",
+        type: "request_submitted", // use correct type
+        referenceId: serviceRequest.id,
+        isRead: false,
+      });
       res.json(serviceRequest);
     }catch (error) {
       console.error("CREATE SERVICE REQUEST FAILED");
@@ -1494,7 +1512,21 @@ Respond in JSON format:
       }
 
       const updated = await storage.updateServiceRequestStatus(id, status);
+      const receiverId =
+      serviceRequest.vendorId === userId
+        ? serviceRequest.contractorId
+        : serviceRequest.vendorId;
+      const notification = getNotificationContent(status);
 
+      await storage.createNotification({
+        userId: receiverId,
+        triggeredBy: userId,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        referenceId: serviceRequest.id,
+        isRead: false,
+      });
       res.json(updated);
     } catch (error) {
       console.error("Update status error:", error);

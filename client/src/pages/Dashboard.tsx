@@ -31,6 +31,7 @@ import {
   CheckCircle,
   MessageSquare,
   Star,
+  EyeIcon,
 } from "lucide-react";
 import { ServiceRequest } from "@shared/schema";
 import { cn } from "@/lib/utils";
@@ -648,98 +649,15 @@ export default function Dashboard() {
                                     </div>
 
                                     {/* Footer Button */}
-                                      <div className="mt-auto pt-4 border-t flex items-center justify-between">
-
-                                      {/* Left Icons */}
-                                      <div className="flex items-center gap-3">
-
-                                        
-
-                                        {/* Cancel */}
-                                        <button
-                                          disabled={request.status === "cancelled" || request.status === "completed"}
-                                          className={cn(
-                                            "p-2 rounded-lg transition-colors",
-                                            request.status === "cancelled" || request.status === "completed"
-                                              ? "bg-gray-100 cursor-not-allowed opacity-50"
-                                              : "bg-red-100 hover:bg-red-200"
-                                          )}
-                                          onClick={() =>
-                                            setConfirmAction({
-                                              id: request.id,
-                                              status: "cancelled",
-                                            })
-                                          }
-                                        >
-                                          <X className="w-4 h-4 text-red-600" />
-                                        </button>
-
-                                        {/* Complete */}
-                                        <button
-                                          disabled={request.status !== "delivered"}
-                                          className={cn(
-                                            "p-2 rounded-lg transition-colors",
-                                            request.status !== "delivered"
-                                              ? "bg-gray-100 cursor-not-allowed opacity-50"
-                                              : "bg-green-100 hover:bg-green-200"
-                                          )}
-                                          onClick={() => {
-                                            if (request.status !== "delivered") return;
-                                            setConfirmAction({
-                                              id: request.id,
-                                              status: "completed",
-                                            });
-                                          }}
-
-                                        >
-                                          <CheckCircle className="w-4 h-4 text-green-600" />
-                                        </button>
-                                        <button
-                                          disabled={
-                                            request.status !== "completed" ||
-                                            hasReviewed(request.id, currentUserId)
-                                          }
-                                          className={cn(
-                                            "p-2 rounded-lg transition-colors",
-                                            request.status !== "completed" ||
-                                              hasReviewed(request.id, currentUserId)
-                                              ? "bg-gray-100 cursor-not-allowed opacity-50"
-                                              : "bg-yellow-100 hover:bg-yellow-200"
-                                          )}
-                                          onClick={() => {
-
-                                            if (hasReviewed(request.id, currentUserId)) return;
-
-                                            setReviewModal({
-                                              serviceRequestId: request.id,
-
-                                              // FIX reviewee logic also (important)
-                                              revieweeId:
-                                                request.vendorId === currentUserId
-                                                  ? request.contractorId
-                                                  : request.vendorId,
-                                            });
-
-                                            setRating(0);
-                                            setComment("");
-
-                                          }}
-                                        >
-                                          <Star className="w-4 h-4 text-yellow-600" />
-                                        </button>
-
-
-
-                                      </div>
-                                    {/* Message Button */}
-                                    <Button
-                                      className="rounded-lg bg-primary hover:bg-primary/90"
-                                      onClick={() => openConversation(request.id)}
-                                    >
-                                      <MessageSquare className="w-4 h-4 mr-2" />
-                                      Message
-                                    </Button>
-                                  </div>
+                                    <div className="mt-auto pt-4 border-t text-end">
+                                      <Button
+                                        className="rounded-lg bg-primary hover:bg-primary/90"
+                                        onClick={() => setLocation(`/vendor/requests/${request.id}`)}
+                                      >
+                                        <EyeIcon className="w-4 h-4 mr-2" />
+                                        View Details
+                                      </Button>
+                                    </div>
 
                                   </CardContent>
                                 </Card>
