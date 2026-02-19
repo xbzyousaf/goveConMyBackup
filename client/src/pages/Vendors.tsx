@@ -250,7 +250,7 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
                         name={vendor.title}
                         title={vendor.companyName || vendor.title}
                         category={vendor.categories?.[0] || "General"}
-                        rating={Number(vendor.rating) || 0}
+                        rating={Number(vendor.rating).toFixed(2) || 0}
                         reviewCount={vendor.reviewCount || 0}
                         location={vendor.location || "Remote"}
                         responseTime={vendor.responseTime || "N/A"}

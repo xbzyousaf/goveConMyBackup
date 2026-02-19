@@ -16,7 +16,7 @@ export const sessions = pgTable(
 
 // Enums
 export const userTypeEnum = pgEnum("user_type", ["contractor", "vendor", 'admin']);
-export const serviceRequestStatusEnum = pgEnum("service_request_status", ["pending", "matched", "in_progress", "completed", "cancelled"]);
+export const serviceRequestStatusEnum = pgEnum("service_request_status", ["pending", "matched", "in_progress", "delivered", "completed", "cancelled"]);
 export const serviceCategoryEnum = pgEnum("service_category", ["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools"]);
 export const maturityStageEnum = pgEnum("maturity_stage", ["startup", "growth", "scale"]);
 export const coreProcessEnum = pgEnum("core_process", ["business_structure", "business_strategy", "execution"]);
@@ -134,7 +134,7 @@ export const serviceTiers = pgTable("service_tiers", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-
+// service_requests
   export const serviceRequests = pgTable("service_requests", {
     id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
     contractorId: varchar("contractor_id").references(() => users.id).notNull(),
@@ -150,6 +150,32 @@ export const serviceTiers = pgTable("service_tiers", {
     estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
     actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
     estimatedDuration: text("estimated_duration"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  });
+  // deliveries
+  export const deliveries = pgTable("deliveries", {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    serviceRequestId: varchar("service_request_id")
+      .references(() => serviceRequests.id, { onDelete: "cascade" })
+      .notNull(),
+    deliveredBy: varchar("delivered_by")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    message: text("message").notNull(),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  });
+  // deliveryAttachments
+  export const deliveryAttachments = pgTable("delivery_attachments", {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    deliveryId: varchar("delivery_id")
+      .references(() => deliveries.id, { onDelete: "cascade" })
+      .notNull(),
+    filePath: text("file_path").notNull(),
+    fileName: text("file_name").notNull(),
+    fileSize: integer("file_size"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   });
@@ -276,6 +302,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "request_completed",
   "request_cancelled",
   "new_message",
+  "delivery",
   "new_review",
   "payment_update"
 ]);

@@ -8,16 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { Building, MapPin, DollarSign, Clock, Star, Edit, Plus, CheckCircle, AlertCircle, Users, TrendingUp, User, CalendarDays, ArrowRight, MessageCircle, MessageSquare, Check, X, FileText } from "lucide-react";
+import { Building, MapPin, DollarSign, Clock, Star, Edit, Plus, CheckCircle, AlertCircle, Users, TrendingUp, User, CalendarDays, ArrowRight, MessageCircle, MessageSquare, Check, X, FileText, EyeIcon } from "lucide-react";
 import { useLocation } from "wouter";
 import { calculateMonthlyMetric } from "@/services/servicesStats.service";
 import { cn } from "@/lib/utils";
 import { isCurrentMonth } from "@/helpers/dateHelper";
-import { useMessages } from "@/components/ui/MessageContext";
 import { useToast } from "@/hooks/use-toast";
 
 export default function VendorDashboard() {
-  const { openConversation } = useMessages();
   const queryClient = useQueryClient();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const { user } = useAuth();
@@ -62,80 +60,6 @@ export default function VendorDashboard() {
     setLocation("/login");
     return null;
   }
-
-  const updateStatus = useMutation({
-    mutationFn: async ({
-      id,
-      status,
-    }: {
-      id: string;
-      status: string;
-    }) => {
-      const res = await fetch(`/api/service-requests/${id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-
-      if (!res.ok) throw new Error("Failed to update status");
-
-      return res.json();
-    },
-    onSuccess: (updatedRequest, variables) => {
-      setConfirmAction(null);
-      toast({
-        title: "Service Request Update",
-        description: "Service Request Updated Sucessfuly",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
-       if (variables.status === "completed") {
-      setReviewModal({
-        serviceRequestId: updatedRequest.id,
-        revieweeId: updatedRequest.vendorId,
-      });
-    }
-    },
-  });
-  const hasReviewed = (serviceRequestId: string) => {
-    return reviews.some(
-      (review: any) => review.serviceRequestId === serviceRequestId
-    );
-  };
-  const [reviewModal, setReviewModal] = useState<{
-    serviceRequestId: string;
-    revieweeId: string;
-  } | null>(null);
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState("");
-
-  const submitReview = useMutation({
-  mutationFn: async () => {
-    const res = await fetch("/api/reviews", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        serviceRequestId: reviewModal?.serviceRequestId,
-        rating,
-        comment,
-      }),
-    });
-
-    if (!res.ok) throw new Error("Failed to submit review");
-    return res.json();
-  },
-  onSuccess: () => {
-    toast({
-      title: "Review Submitted",
-      description: "Thank you for your feedback.",
-    });
-
-    setReviewModal(null);
-    setRating(0);
-    setComment("");
-    queryClient.invalidateQueries();
-  },
-});
-
 
   // vendor must complete onboarding
   if (user.userType === "vendor" && !user.hasCompletedOnboarding) {
@@ -468,108 +392,16 @@ export default function VendorDashboard() {
 
                           </div>
 
-                          {/* Footer Button */}
-                          <div className="mt-auto pt-4 border-t flex items-center justify-between">
-
-                          {/* Left Icons */}
-                          <div className="flex items-center gap-3">
-
-                            {/* Approve */}
-                            <button
-                              disabled={request.status === "in_progress" || request.status === "completed"}
-                              className={cn(
-                                "p-2 rounded-lg transition-colors",
-                                request.status === "in_progress" || request.status === "completed"
-                                  ? "bg-gray-100 cursor-not-allowed opacity-50"
-                                  : "bg-primary/10 hover:bg-primary/20"
-                              )}
-                              onClick={() =>
-                                setConfirmAction({
-                                  id: request.id,
-                                  status: "in_progress",
-                                })
-                              }
+                          <div className="mt-auto pt-4 border-t text-end">
+                            <Button
+                              className="rounded-lg bg-primary hover:bg-primary/90"
+                              onClick={() => setLocation(`/vendor/requests/${request.id}`)}
                             >
-                              <Check className="w-4 h-4 text-primary" />
-                            </button>
-
-                            {/* Cancel */}
-                            <button
-                              disabled={request.status === "cancelled" || request.status === "completed"}
-                              className={cn(
-                                "p-2 rounded-lg transition-colors",
-                                request.status === "cancelled" || request.status === "completed"
-                                  ? "bg-gray-100 cursor-not-allowed opacity-50"
-                                  : "bg-red-100 hover:bg-red-200"
-                              )}
-                              onClick={() =>
-                                setConfirmAction({
-                                  id: request.id,
-                                  status: "cancelled",
-                                })
-                              }
-                            >
-                              <X className="w-4 h-4 text-red-600" />
-                            </button>
-
-                            {/* Complete */}
-                            <button
-                              disabled={request.status !== "in_progress"}
-                              className={cn(
-                                "p-2 rounded-lg transition-colors",
-                                request.status !== "in_progress"
-                                  ? "bg-gray-100 cursor-not-allowed opacity-50"
-                                  : "bg-green-100 hover:bg-green-200"
-                              )}
-                              onClick={() => {
-                                if (request.status !== "in_progress") return;
-                                setConfirmAction({
-                                  id: request.id,
-                                  status: "completed",
-                                });
-                              }}
-
-                            >
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                            </button>
-                            <button
-                              disabled={
-                                request.status !== "completed" ||
-                                hasReviewed(request.id)
-                              }
-                              className={cn(
-                                "p-2 rounded-lg transition-colors",
-                                request.status !== "completed" || hasReviewed(request.id)
-                                  ? "bg-gray-100 cursor-not-allowed opacity-50"
-                                  : "bg-yellow-100 hover:bg-yellow-200"
-                              )}
-                              onClick={() => {
-
-                                if (hasReviewed(request.id)) return;
-
-                                setReviewModal({
-                                  serviceRequestId: request.id,
-                                  revieweeId: request.vendorId,
-                                });
-
-                                setRating(0);
-                                setComment("");
-
-                              }}
-                            >
-                              <Star className="w-4 h-4 text-yellow-600" />
-                            </button>
+                              <EyeIcon className="w-4 h-4 mr-2" />
+                              View Details
+                            </Button>
                           </div>
 
-                          {/* Message Button */}
-                          <Button
-                            className="rounded-lg bg-primary hover:bg-primary/90"
-                            onClick={() => openConversation(request.id)}
-                          >
-                            <MessageSquare className="w-4 h-4 mr-2" />
-                            Message
-                          </Button>
-                        </div>
 
                         </CardContent>
                       </Card>
@@ -870,109 +702,6 @@ export default function VendorDashboard() {
           </Tabs>
         )}
       </main>
-      {confirmAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          
-          {/* backdrop */}
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setConfirmAction(null)}
-          />
-
-          {/* dialog */}
-          <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
-            
-            <h3 className="text-lg font-semibold mb-2">
-              Confirm Action
-            </h3>
-
-            <p className="text-sm text-muted-foreground mb-6">
-              Are you sure you want to mark this request as{" "}
-              <span className="font-medium capitalize">
-                {confirmAction.status.replace("_", " ")}
-              </span>
-              ?
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setConfirmAction(null)}
-              >
-                Cancel
-              </Button>
-
-              <Button
-                disabled={updateStatus.isPending}
-                onClick={async () => {
-                  updateStatus.mutate(
-                    {
-                      id: confirmAction.id,
-                      status: confirmAction.status,
-                    }
-                  );
-                }}
-              >
-                Confirm
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-      {reviewModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center">
-              <div
-                className="absolute inset-0 bg-black/40"
-                onClick={() => setReviewModal(null)}
-              />
-
-              <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-                <h3 className="text-lg font-semibold mb-4">
-                  Leave Feedback
-                </h3>
-
-                {/* Star Rating */}
-                <div className="flex items-center gap-2 mb-4">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      onClick={() => setRating(i + 1)}
-                      className={`w-6 h-6 cursor-pointer ${
-                        i < rating
-                          ? "text-yellow-400 fill-current"
-                          : "text-muted-foreground"
-                      }`}
-                    />
-                  ))}
-                </div>
-
-                {/* Comment */}
-                <textarea
-                  className="w-full border rounded-lg p-2 text-sm mb-4"
-                  rows={4}
-                  placeholder="Write your feedback..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                />
-
-                <div className="flex justify-end gap-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => setReviewModal(null)}
-                  >
-                    Cancel
-                  </Button>
-
-                  <Button
-                    disabled={rating === 0 || submitReview.isPending}
-                    onClick={() => submitReview.mutate()}
-                  >
-                    Submit Review
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
 
     </div>
   );

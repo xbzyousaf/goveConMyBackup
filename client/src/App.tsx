@@ -31,6 +31,7 @@ import { MessageProvider, useMessages } from "./components/ui/MessageContext";
 import ServiceMessages from "./pages/ServiceMessages";
 import ServiceDetails from "./pages/ServiceDetails";
 import ContractorDetail from "./pages/ContractorDetail";
+import RequestDetails from "./pages/vendor/RequestDetails";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -97,6 +98,7 @@ function Router() {
           <Route path="/vendor-onboarding" component={VendorOnboarding} />
           <Route path="/request" component={RequestService} />
           <Route path="/services/:serviceId" component={ServiceDetails} />
+          <Route path="/vendor/requests/:id" component={RequestDetails} />
           <Route component={NotFound} />
         </>
       ) : (
