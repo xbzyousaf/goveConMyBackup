@@ -525,8 +525,6 @@ const handleDeliver = async () => {
                     <Button
                         variant="destructive"
                         disabled={
-                            request.status === "cancelled" ||
-                            request.status === "pending" ||
                             request.status === "completed" 
                         }
                         className="w-full"

@@ -8,8 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Scale, Users, DollarSign, Shield, Megaphone, Settings, CheckCircle, ArrowRight, Clock, TrendingUp, Lock, Star, Search } from "lucide-react";
-
+import { Scale, Users, DollarSign, Shield, Megaphone, Settings, CheckCircle, ArrowRight, Clock, TrendingUp, Lock, Star, Search, Zap, Briefcase, Package, Award } from "lucide-react";
+const categoryIconMap: Record<string, React.ElementType> = {
+  legal: Scale,
+  cybersecurity: Zap,
+  marketing: TrendingUp,
+  finance: Briefcase,
+  hr: Package,
+  business_tools: Award,
+};
 export default function Services() {
   const [location, setLocation] = useLocation();
   const searchParams = new URLSearchParams(location.split('?')[1]);
@@ -253,55 +260,58 @@ export default function Services() {
         </Card>
 
         {/* Results Count */}
-<div className="mb-6">
-  <p className="text-sm text-muted-foreground" data-testid="text-results-count">
-    Showing {filteredServices.length}{" "}
-    {filteredServices.length === 1 ? "service" : "services"}
-  </p>
-</div>
+        <div className="mb-6">
+          <p className="text-sm text-muted-foreground" data-testid="text-results-count">
+            Showing {filteredServices.length}{" "}
+            {filteredServices.length === 1 ? "service" : "services"}
+          </p>
+        </div>
 
-{/* Service Cards */}
-{filteredServices.length > 0 ? (
-  <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-16">
-    {filteredServices.map((service: any) => (
-      <Card
-        key={service.id}
-        className="hover-elevate active-elevate-2 transition-all flex flex-col"
-        data-testid={`card-service-${service.id}`}
-      >
-        <CardHeader>
-          <CardTitle className="text-lg">
-            {service.name ?? "Untitled Service"}
-          </CardTitle>
-
-          <CardDescription>
-            {service.description ?? "No description available"}
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="flex-1 flex flex-col">
-          <div className="space-y-3 mb-4">
-            <div className="flex items-center gap-2 text-sm">
-              <DollarSign className="w-4 h-4 text-muted-foreground" />
-              <span className="font-medium">
-                {service.priceMin && service.priceMax
-                  ? `$${service.priceMin}-${service.priceMax}`
-                  : "Contact vendor"}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    ))}
-  </div>
-) : (
-  <div className="text-center py-12">
-    <p className="text-lg text-muted-foreground mb-4">
-      No services found matching your search
-    </p>
-  </div>
-)}
-
+        {/* Service Cards */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {filteredServices.map((service) => {
+            const Icon = categoryIconMap[service.category] ?? Package;
+            return (
+            <Card key={service.id} className="hover-elevate active-elevate-2 transition-all" data-testid={`card-service-${service.id}`}>
+              <CardHeader>
+                <div className="flex items-start justify-between mb-2">
+                  <div className="p-3 rounded-lg bg-primary/10">
+                    <Icon className="w-6 h-6 text-primary" />
+                  </div>
+                  {service.trending && (
+                    <Badge variant="default" className="flex items-center gap-1">
+                      <Star className="w-3 h-3" />
+                      Trending
+                    </Badge>
+                  )}
+                </div>
+                <CardTitle className="text-xl">{service.name}</CardTitle>
+                <CardDescription>{service.description}</CardDescription>
+                <div className="flex items-center gap-2 text-lg">
+                <DollarSign className="w-5 h-5 text-muted-foreground" />
+                <span className="font-semibold">
+                  {service.priceMin && service.priceMax
+                    ? `$${service.priceMin} - $${service.priceMax}`
+                    : "Contact vendor"}
+                </span>
+              </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-end pt-4 border-t">
+                  <Link href={`/service/create/${service.id}`}>
+                    <Button
+                      data-testid={`button-view-service-${service.id}`}
+                      className="flex items-center gap-2"
+                    >
+                      Edit Service
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          )})}
+        </div>
 
 
         {/* Process Flow */}

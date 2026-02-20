@@ -92,6 +92,7 @@ function Router() {
           <Route path="/skip-assessment" component={SkipAssessment} />
           <Route path="/admin-dashboard" component={AdminDashboard} />
           <Route path="/service/create" component={CreateService} />
+          <Route path="/service/create/:id" component={CreateService} />
           <Route path="/admin/vendors" component={AdminVendors} />
           <Route path="/admin/escrow" component={AdminVendors} />
           <Route path="/vendor-profile/edit" component={VendorProfileEditPage} />

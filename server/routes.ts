@@ -1308,7 +1308,23 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to fetch service" });
     }
   });
+  app.put("/api/services/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const serviceId = req.params.id;
+      const service = await storage.updateService(req.params.id, req.body, userId);
+      res.json(service);
+    } catch (error) {
+      console.error("Error updating service:", error);
+      res.status(500).json({
+        message: "Failed to update service"
+      });
 
+    }
+  });
   app.get("/api/services", isAuthenticated, async (req: any, res) => {
     try {
       const vendorId = getUserId(req);
