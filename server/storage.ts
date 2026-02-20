@@ -833,7 +833,29 @@ export class DatabaseStorage implements IStorage {
       return service;
     });
   }
+  async updateService(id: string, data: any, vendorId: string) {
+    return await db.transaction(async tx => {
+      const [service] = await tx
+        .update(services)
+        .set({
+          name: data.name,
+          description: data.description,
+          category: data.category,
+          pricingModel: data.pricingModel ?? null,
+          priceMin: data.priceMin != null ? String(data.priceMin) : null,
+          priceMax: data.priceMax != null ? String(data.priceMax) : null,
+        })
+        .where(
+          and(
+            eq(services.id, id),
+            eq(services.vendorId, vendorId)
+          )
+        )
+        .returning();
 
+      return service;
+    });
+  }
 
   async getAllServices() {
     return await db.query.services.findMany({

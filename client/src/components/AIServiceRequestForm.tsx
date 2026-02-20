@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -108,7 +108,16 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value);
   };
+  
+  const { data: service } = useQuery<any>({
+    queryKey: [`/api/services/${serviceId}`],
+  });
 
+  useEffect(() => {
+    if (service?.category) {
+      setSelectedCategory(service.category);
+    }
+  }, [service]);
   const serviceCategories = [
     { id: "legal", label: "Legal & Compliance" },
     { id: "hr", label: "HR & Talent" },
@@ -145,7 +154,7 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
         {/* Category Dropdown */}
         <div>
           <label className="text-sm font-medium mb-2 block">Category</label>
-          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
+          <Select value={selectedCategory} disabled onValueChange={handleCategoryChange}>
             <SelectTrigger data-testid="select-category" className="w-full">
               <SelectValue placeholder="Select a category" />
             </SelectTrigger>
