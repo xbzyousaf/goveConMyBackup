@@ -14,6 +14,7 @@ import { calculateMonthlyMetric } from "@/services/servicesStats.service";
 import { cn } from "@/lib/utils";
 import { isCurrentMonth } from "@/helpers/dateHelper";
 import { useToast } from "@/hooks/use-toast";
+import { ServiceRequestList } from "@/components/service-requests/ServiceRequestList";
 
 export default function VendorDashboard() {
   const queryClient = useQueryClient();
@@ -41,10 +42,6 @@ export default function VendorDashboard() {
       return res.json();
     },
   });
-  const [confirmAction, setConfirmAction] = useState<{
-    id: string;
-    status: "in_progress" | "cancelled" | "completed";
-  } | null>(null);
 
   const averageRating =
   reviews.length === 0
@@ -78,13 +75,21 @@ export default function VendorDashboard() {
     dateKey: "createdAt",
     valueFn: () => 1, // 👈 count each request as 1
   });
-  const recentRequests = serviceRequests.filter(
-    r => r.createdAt && isCurrentMonth(r.createdAt)
-  ).sort(
-    (a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  ).slice(0, 5);
+  const currentVendorId = user?.id;
+    const overviewRequests = serviceRequests.filter((request) => {
+    if (["pending", "in_progress", "delivered"].includes(request.status)) {
+      return true;
+    }
 
+    if (request.status === "completed") {
+      const vendorHasReview = request.reviews?.some(
+        (review) => review.reviewerId === currentVendorId
+      );
+
+      return !vendorHasReview;
+    }
+    return false;
+  });
 
   // Mock data for service requests and stats
   type ServiceRequest = {
@@ -136,9 +141,9 @@ export default function VendorDashboard() {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-8 space-y-8">
+      <main className="max-w-6xl mx-auto p-6 space-y-6">
         {/* Welcome Section */}
-        <div className="flex items-center justify-between">
+        <div className="">
           <div>
             <h1 className="text-3xl font-bold" data-testid="text-welcome-title">
               Welcome, {user?.firstName || "Vendor"}!
@@ -289,123 +294,19 @@ export default function VendorDashboard() {
                   <CardDescription>Latest requests from contractors</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {recentRequests.length === 0 && (
+                  {overviewRequests.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center">
                       No recent service requests
                     </p>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {recentRequests.map((request) => (
-                      <Card
-                        key={request.id}
-                        className="flex flex-col h-full transition-all hover:shadow-xl hover:-translate-y-1 rounded-2xl"
-                      >
-                        {/* Header */}
-                        <CardHeader>
-                          <div className="flex items-start justify-between gap-3">
-                            <CardTitle className="text-lg">
-                              {request.service?.name ?? "Service"}
-                            </CardTitle>
-
-                            <Badge
-                              className={cn(
-                                "capitalize text-xs font-medium",
-                                request.status === "completed" &&
-                                  "bg-green-100 text-green-700 border-green-200",
-                                request.status === "in_progress" &&
-                                  "bg-blue-100 text-blue-700 border-blue-200",
-                                request.status === "pending" &&
-                                  "bg-amber-100 text-amber-700 border-amber-200"
-                              )}
-                            >
-                              {request.status?.replace("_", " ") ?? "Unknown"}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-
-                        {/* Content */}
-                        <CardContent className="flex-1 flex flex-col">
-                          <div className="space-y-3 mb-4">
-                            <div className="space-y-2 mb-6">
-                              {/* Title Row */}
-                              <div className="flex items-start gap-2">
-                                <FileText className="w-4 h-4 mt-1 text-muted-foreground flex-shrink-0" />
-                                <h4 className="font-semibold text-foreground leading-snug">
-                                  {request.title ?? "Untitled Request"}
-                                </h4>
-                              </div>
-
-                              {/* Description */}
-                              <p className="text-sm text-muted-foreground pl-6">
-                                {request.description ?? "No description provided"}
-                              </p>
-                            </div>
-
-                            {/* Contractor */}
-                            <div className="flex justify-between text-sm">
-                              <div className="flex gap-2">
-                                <User className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-muted-foreground">Contractor:</span>
-                              </div>
-                              <div>
-                                <span className="font-medium">
-                                {request.contractor?.firstName
-                                  ? `${request.contractor.firstName} ${request.contractor.lastName ?? ""}`
-                                  : "Not assigned"}
-
-                              </span>
-                              </div>
-                              
-                            </div>
-
-                            {/* Budget */}
-                            <div className="flex justify-between text-sm">
-                              <div className="flex gap-2">
-                                <DollarSign className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-muted-foreground">Budget:</span>
-                              </div>
-                              <div>
-                                <span className="font-medium">
-                                  {request?.budget
-                                    ? `${(request.budget ?? 0).toLocaleString()}`
-                                    : "Not specified"}
-                                </span>
-                              </div>
-                              
-                            </div>
-
-                            {/* Created Date */}
-                            <div className="flex justify-between text-sm">
-                              <div className="flex gap-2">
-                                <CalendarDays className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-muted-foreground">Created:</span>
-                              </div>
-                              <div>
-                                <span className="font-medium">
-                                  {request.createdAt
-                                    ? new Date(request.createdAt).toLocaleDateString()
-                                    : "N/A"}
-                                </span>
-                              </div>
-                            </div>
-
-                          </div>
-
-                          <div className="mt-auto pt-4 border-t text-end">
-                            <Button
-                              className="rounded-lg bg-primary hover:bg-primary/90"
-                              onClick={() => setLocation(`/vendor/requests/${request.id}`)}
-                            >
-                              <EyeIcon className="w-4 h-4 mr-2" />
-                              View Details
-                            </Button>
-                          </div>
-
-
-                        </CardContent>
-                      </Card>
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+                    
+                   <ServiceRequestList
+                      requests={overviewRequests}
+                      userType="vendor"
+                      baseUrl="/vendor/requests"
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -439,10 +340,10 @@ export default function VendorDashboard() {
                       </div>
                     </div>
                     <Button
-  variant="outline"
-  data-testid="button-edit-profile"
-  onClick={() => setLocation("/vendor-profile/edit")}
->
+                        variant="outline"
+                        data-testid="button-edit-profile"
+                        onClick={() => setLocation("/vendor-profile/edit")}
+                      >
                       <Edit className="w-4 h-4 mr-2" />
                       Edit Profile
                     </Button>
@@ -545,7 +446,6 @@ export default function VendorDashboard() {
               <Card data-testid="card-service-requests">
                 {/* Requests Tab */}
                 <TabsContent value="requests" className="space-y-6">
-                  <Card data-testid="card-service-requests">
                     <CardHeader>
                       <CardTitle>Service Requests</CardTitle>
                       <CardDescription>
@@ -561,59 +461,14 @@ export default function VendorDashboard() {
                           </p>
                         )}
 
-                        {serviceRequests.map(request => (
-                          <div
-                            key={request.id}
-                            className="flex items-center justify-between p-4 border rounded-lg"
-                          >
-                            <div className="space-y-1">
-                              <h4 className="font-medium">
-                                {request.title ?? "Service Request"}
-                              </h4>
-                              <p className="text-sm text-muted-foreground">
-                               Contractor: {request.contractorName ?? "Contractor"}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Budget: $
-                                {(request.budget ?? 0).toLocaleString()}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Estimated Cost: $
-                                {Number(request.estimated_cost ?? 0).toLocaleString()}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Cost: $
-                                {Number(request.actualCost ?? 0).toLocaleString()}
-                              </p>
-                            </div>
+                        <ServiceRequestList
+                          requests={serviceRequests}
+                          userType="vendor"
+                          baseUrl="/vendor/requests"
+                        />
 
-                            <div className="text-right space-y-1">
-                              <Badge
-                                className={cn(
-                                  "capitalize",
-                                  request.status === "completed" &&
-                                    "bg-green-100 text-green-700 border-green-200",
-                                  request.status === "in_progress" &&
-                                    "bg-primary text-primary-foreground",
-                                  request.status === "pending" &&
-                                    "bg-red-100 text-red-700 border-red-200"
-                                )}
-                              >
-                                {request.status?.replace("_", " ") ?? "unknown"}
-                              </Badge>
-
-                              {request.createdAt && (
-                                <p className="text-sm text-muted-foreground">
-                                  Created:{" "}
-                                  {new Date(request.createdAt).toLocaleDateString()}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
                       </div>
                     </CardContent>
-                  </Card>
                 </TabsContent>
 
               </Card>

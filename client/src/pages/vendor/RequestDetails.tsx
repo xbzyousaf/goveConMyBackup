@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
 import { Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { ServiceRequestCard } from "@/components/service-requests/ServiceRequestCard";
 
 export default function RequestDetails() {
   const [, params] = useRoute("/vendor/requests/:id");
@@ -26,7 +27,11 @@ export default function RequestDetails() {
     status: "in_progress" | "cancelled";
   } | null>(null);
   const { user } = useAuth();
-
+  const [isExtendOpen, setIsExtendOpen] = useState(false);
+  const [newDeliveryDate, setNewDeliveryDate] = useState(
+    new Date().toISOString().split("T")[0] // today
+  );
+  const [extendReason, setExtendReason] = useState("");
 
   const { data: request, isLoading } = useQuery({
     queryKey: ["service-request", id],
@@ -66,6 +71,49 @@ export default function RequestDetails() {
             queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
         },
     });
+    const extendDelivery = useMutation({
+      mutationFn: async () => {
+        const res = await fetch(
+          `/api/service-requests/${request.id}/extend`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              newDeliveryDate,
+              reason: extendReason,
+            }),
+          }
+        );
+
+        if (!res.ok) {
+          const error = await res.json().catch(() => null);
+          throw new Error(error?.message || "Failed to extend delivery");
+        }
+
+        return res.json();
+      },
+      onSuccess: () => {
+        toast({
+          title: "Delivery Extended",
+          description: "New delivery date submitted successfully.",
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: ["service-request", request.id],
+        });
+
+        setIsExtendOpen(false);
+        setExtendReason("");
+      },
+      onError: (err: any) => {
+        toast({
+          title: "Error",
+          description: err.message,
+          variant: "destructive",
+        });
+      },
+    });
+
     const [reviewModal, setReviewModal] = useState(false);
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState("");
@@ -185,7 +233,7 @@ const handleDeliver = async () => {
   return (
     <div className="min-h-screen bg-background">
             <Header />
-        <div className="max-w-7xl mx-auto py-8 px-4">
+        <div className="max-w-6xl mx-auto p-6 space-y-6">
 
             {/* Back Button */}
             <Button
@@ -204,81 +252,11 @@ const handleDeliver = async () => {
 
             {/* ================= LEFT SIDE (Main Details) ================= */}
             <div className="lg:col-span-2">
-                <Card className="rounded-2xl shadow-md">
-                <CardHeader>
-                    <div className="flex items-start justify-between gap-3">
-                    <CardTitle className="flex items-start gap-2">
-                        <FileText className="w-4 h-4 mt-1 text-muted-foreground flex-shrink-0" />
-                    <h2 className="font-semibold text-lg mb-2">
-                        {request.title ?? "Untitled Request"}
-                    </h2>
-                    </CardTitle>
-
-                    <Badge
-                        className={cn(
-                        "capitalize text-xs font-medium",
-                        request.status === "completed" &&
-                            "bg-green-100 text-green-700",
-                        request.status === "in_progress" &&
-                            "bg-blue-100 text-blue-700",
-                        request.status === "pending" &&
-                            "bg-amber-100 text-amber-700"
-                        )}
-                    >
-                        {request.status?.replace("_", " ") ?? "Unknown"}
-                    </Badge>
-                    </div>
-
-
-                </CardHeader>
-
-                <CardContent className="space-y-6">
-
-                    {/* Title */}
-                    <div>
-                        
-                    <p className="text-muted-foreground">
-                        {request.description ?? "No description provided"}
-                    </p>
-                    </div>
-
-                    {/* Meta Info */}
-                    <div className="space-y-3 border-t pt-4 text-sm">
-
-                        {/* Budget */}
-                        <div className="flex justify-between text-sm">
-                            <div className="flex gap-2">
-                            <DollarSign className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">Budget:</span>
-                            </div>
-                            <div>
-                            <span className="font-medium">
-                                {request?.budget
-                                ? `${(request.budget ?? 0).toLocaleString()}`
-                                : "Not specified"}
-                            </span>
-                            </div>
-                        </div>
-
-                        {/* Created Date */}
-                        <div className="flex justify-between text-sm">
-                            <div className="flex gap-2">
-                            <CalendarDays className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">Created:</span>
-                            </div>
-                            <div>
-                            <span className="font-medium">
-                                {request.createdAt
-                                ? new Date(request.createdAt).toLocaleDateString()
-                                : "N/A"}
-                            </span>
-                            </div>
-                        </div>
-
-                    </div>
-
-                </CardContent>
-                </Card>
+                <ServiceRequestCard
+                  key={request.id}
+                  request={request}
+                  userType={user?.userType}
+                />
                 {/* ================= CONTRACTOR DELIVERY VIEW ================= */}
                 {user?.userType === "contractor" && (
                   <Card className="rounded-2xl shadow-md mt-6">
@@ -365,11 +343,68 @@ const handleDeliver = async () => {
                     </div>
                     </div>
 
-                    <Button variant="outline" className="w-full" disabled={
-                            request.status !== "in_progress" || user?.userType !== "vendor"
-                        }>
-                    Extend delivery date
-                    </Button>
+                    <Dialog open={isExtendOpen} onOpenChange={setIsExtendOpen}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          disabled={
+                            request.status !== "in_progress" ||
+                            user?.userType !== "vendor"
+                          }
+                        >
+                          Extend delivery date
+                        </Button>
+                      </DialogTrigger>
+
+                      <DialogContent className="sm:max-w-lg">
+                        <DialogHeader>
+                          <DialogTitle>Extend Delivery Date</DialogTitle>
+                        </DialogHeader>
+
+                        <div className="space-y-4 mt-4">
+                          
+                          {/* Date Field */}
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">
+                              New Delivery Date
+                            </label>
+                            <Input
+                              type="date"
+                              value={newDeliveryDate}
+                              min={new Date().toISOString().split("T")[0]}
+                              onChange={(e) => setNewDeliveryDate(e.target.value)}
+                            />
+                          </div>
+
+                          {/* Reason Field */}
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">
+                              Reason
+                            </label>
+                            <Textarea
+                              rows={4}
+                              placeholder="Explain why you need to extend the delivery..."
+                              value={extendReason}
+                              onChange={(e) => setExtendReason(e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        <DialogFooter className="mt-6">
+                          <Button variant="outline" onClick={() => setIsExtendOpen(false)}>
+                            Cancel
+                          </Button>
+
+                          <Button
+                            disabled={!extendReason.trim()}
+                            onClick={() => extendDelivery.mutate()}
+                          >
+                            Submit Request
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
 
                     <Dialog open={isDeliverOpen} onOpenChange={setIsDeliverOpen}>
                         <DialogTrigger asChild>
