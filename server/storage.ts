@@ -403,48 +403,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getServiceRequestsByContractor(contractorId: string) {
-    const requests = await db
-      .select({
-        id: serviceRequests.id,
-        title: serviceRequests.title,
-        description: serviceRequests.description,
-        budget: serviceRequests.budget,
-        status: serviceRequests.status,
-        createdAt: serviceRequests.createdAt,
+  return await db.query.serviceRequests.findMany({
+    where: eq(serviceRequests.contractorId, contractorId),
 
-        service: {
-          id: services.id,
-          name: services.name,
+    with: {
+      service: {
+        columns: {
+          id: true,
+          name: true,
         },
+      },
 
-        vendor: {
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
+      vendor: {
+        columns: {
+          id: true,
+          firstName: true,
+          lastName: true,
         },
+      },
 
-      })
-      .from(serviceRequests)
+      reviews: true,
+    },
 
-      // filter contractor requests
-      .where(eq(serviceRequests.contractorId, contractorId))
+    orderBy: (serviceRequests, { desc }) => [
+      desc(serviceRequests.createdAt),
+    ],
+  });
+}
 
-      // join service
-      .leftJoin(
-        services,
-        eq(serviceRequests.serviceId, services.id)
-      )
-
-      // ✅ join vendor using vendorId
-      .leftJoin(
-        users,
-        eq(serviceRequests.vendorId, users.id)
-      )
-
-      .orderBy(desc(serviceRequests.createdAt));
-
-    return requests;
-  }
 
 
   async getServiceRequestsByVendor(vendorId: string) {
@@ -462,6 +448,7 @@ export class DatabaseStorage implements IStorage {
             name: true,
           },
         },
+        reviews: true,
       },
       orderBy: (serviceRequests, { desc }) => [
         desc(serviceRequests.createdAt),
@@ -1331,6 +1318,57 @@ async getRequestLogs(options?: { requestId?: string; page?: number; limit?: numb
   };
 }
 
+async extendServiceRequestDelivery(data: {
+  serviceRequestId: string;
+  newDeliveryDate: Date;
+  reason: string;
+  performedBy?: string;
+}) {
+  // 1️⃣ Get existing request
+  const existing = await db.query.serviceRequests.findFirst({
+    where: (req, { eq }) =>
+      eq(req.id, data.serviceRequestId),
+  });
+
+  if (!existing) {
+    throw new Error("Request not found");
+  }
+
+  const createdAt = new Date(existing?.createdAt);
+  const selectedDate = new Date(data.newDeliveryDate);
+
+  // 2️⃣ Calculate difference in days
+  const diffInMs = selectedDate.getTime() - createdAt.getTime();
+  const diffInDays = Math.ceil(diffInMs / (1000 * 60 * 60 * 24));
+
+  if (diffInDays <= 0) {
+    throw new Error("Delivery date must be after created date");
+  }
+
+  // 3️⃣ Update priority (this controls delivery logic)
+  const updated = await db
+    .update(serviceRequests)
+    .set({
+      priority: diffInDays.toString(),
+      updatedAt: new Date(),
+    })
+    .where(eq(serviceRequests.id, data.serviceRequestId))
+    .returning();
+
+  // 4️⃣ Insert log
+  await this.createRequestLog({
+    serviceRequestId: data.serviceRequestId,
+    action: "delivery_extended",
+    performedBy: data.performedBy || "system",
+    metadata: {
+      previousPriority: existing.priority,
+      newPriority: diffInDays,
+      reason: data.reason,
+    },
+  });
+
+  return updated[0];
+}
 
 
 }

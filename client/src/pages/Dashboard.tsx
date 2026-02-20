@@ -37,6 +37,7 @@ import { ServiceRequest } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { useMessages } from "@/components/ui/MessageContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
+import { ServiceRequestList } from "@/components/service-requests/ServiceRequestList";
 
 interface UserMaturityProfile {
   id: string;
@@ -159,6 +160,19 @@ export default function Dashboard() {
   
   const { data: serviceRequests = [] } = useQuery<ServiceRequest[]>({
     queryKey: ["/api/service-requests"],
+  });
+  const overviewRequests = serviceRequests.filter((request) => {
+    if (request.status === "pending") return true;
+    if (request.status === "in_progress") return true;
+    if (request.status === "delivered") return true;
+    if (
+      request.status === "completed" &&
+      (!request.reviews || request.reviews.length === 0)
+    ) {
+      return true;
+    }
+
+    return false;
   });
   const submitReview = useMutation({
     mutationFn: async () => {
@@ -518,25 +532,25 @@ export default function Dashboard() {
                 </p>
               </CardContent>
             </Card>
-            <Tabs defaultValue="recent" className="space-y-6 col-span-full w-full">
+            <Tabs defaultValue="recent" className="space-y-6 col-span-full mt-4">
 
               {/* Full Width Tabs */}
+            <div className="col-span-3">
               <TabsList
-                  className="w-full grid grid-cols-4"
-                  data-testid="tabs-dashboard"
+                  className="bg-muted py-1 px-1 rounded-sm inline-flex gap-4"
                 >
-                <TabsTrigger value="recent">
+                <TabsTrigger value="recent" className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black">
                   Recent Services
                 </TabsTrigger>
 
-                <TabsTrigger value="reviews">
+                <TabsTrigger value="reviews" className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black">
                   Reviews
                 </TabsTrigger>
               </TabsList>
-
+            </div>
 
               {/* ✅ Recent Services FULL ROW */}
-              <TabsContent value="recent" className="space-y-6 w-full">
+              <TabsContent value="recent" className="col-span-12 space-y-6">
 
                 <Card data-testid="card-recent-requests"
                           className="col-span-full">
@@ -545,123 +559,18 @@ export default function Dashboard() {
                             <CardDescription>Latest requests to vendors</CardDescription>
                           </CardHeader>
                           <CardContent className="w-full">
-                            {serviceRequests.length === 0 && (
+                            {overviewRequests.length === 0 && (
                               <p className="text-sm text-muted-foreground text-center">
                                 No recent service requests
                               </p>
                             )}
 
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                              {serviceRequests.map((request) => (
-                                <Card
-                                  key={request.id}
-                                  className="flex flex-col h-full transition-all hover:shadow-xl hover:-translate-y-1 rounded-2xl"
-                                >
-                                  {/* Header */}
-                                  <CardHeader>
-                                    <div className="flex items-start justify-between gap-3">
-                                      <CardTitle className="text-lg">
-                                        {request.service?.name ?? "Service"}
-                                      </CardTitle>
-
-                                      <Badge
-                                        className={cn(
-                                          "capitalize text-xs font-medium",
-                                          request.status === "completed" &&
-                                            "bg-green-100 text-green-700 border-green-200",
-                                          request.status === "in_progress" &&
-                                            "bg-blue-100 text-blue-700 border-blue-200",
-                                          request.status === "pending" &&
-                                            "bg-amber-100 text-amber-700 border-amber-200"
-                                        )}
-                                      >
-                                        {request.status?.replace("_", " ") ?? "Unknown"}
-                                      </Badge>
-                                    </div>
-                                  </CardHeader>
-
-                                  {/* Content */}
-                                  <CardContent className="flex-1 flex flex-col">
-                                    <div className="space-y-3 mb-4">
-                                      <div className="space-y-2 mb-6">
-                                        {/* Title Row */}
-                                        <div className="flex items-start gap-2">
-                                          <FileText className="w-4 h-4 mt-1 text-muted-foreground flex-shrink-0" />
-                                          <h4 className="font-semibold text-foreground leading-snug">
-                                            {request.title ?? "Untitled Request"}
-                                          </h4>
-                                        </div>
-
-                                        {/* Description */}
-                                        <p className="text-sm text-muted-foreground pl-6">
-                                          {request.description ?? "No description provided"}
-                                        </p>
-                                      </div>
-
-                                      {/* Contractor */}
-                                      <div className="flex justify-between text-sm">
-                                        <div className="flex gap-2">
-                                          <User className="w-4 h-4 text-muted-foreground" />
-                                          <span className="text-muted-foreground">Vendor:</span>
-                                        </div>
-                                        <div>
-                                          <span className="font-medium">
-                                          {request.vendor?.firstName
-                                            ? `${request.vendor.firstName} ${request.vendor.lastName ?? ""}`
-                                            : "Not assigned"}
-
-                                        </span>
-                                        </div>
-                                        
-                                      </div>
-
-                                      {/* Budget */}
-                                      <div className="flex justify-between text-sm">
-                                        <div className="flex gap-2">
-                                          <DollarSign className="w-4 h-4 text-muted-foreground" />
-                                          <span className="text-muted-foreground">Budget:</span>
-                                        </div>
-                                        <div>
-                                          <span className="font-medium">
-                                            {request?.budget
-                                              ? `${(request.budget ?? 0).toLocaleString()}`
-                                              : "Not specified"}
-                                          </span>
-                                        </div>
-                                        
-                                      </div>
-
-                                      {/* Created Date */}
-                                      <div className="flex justify-between text-sm">
-                                        <div className="flex gap-2">
-                                          <CalendarDays className="w-4 h-4 text-muted-foreground" />
-                                          <span className="text-muted-foreground">Created:</span>
-                                        </div>
-                                        <div>
-                                          <span className="font-medium">
-                                            {request.createdAt
-                                              ? new Date(request.createdAt).toLocaleDateString()
-                                              : "N/A"}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                    </div>
-
-                                    {/* Footer Button */}
-                                    <div className="mt-auto pt-4 border-t text-end">
-                                      <Button
-                                        className="rounded-lg bg-primary hover:bg-primary/90"
-                                        onClick={() => setLocation(`/vendor/requests/${request.id}`)}
-                                      >
-                                        <EyeIcon className="w-4 h-4 mr-2" />
-                                        View Details
-                                      </Button>
-                                    </div>
-
-                                  </CardContent>
-                                </Card>
-                              ))}
+                              <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
+                                <ServiceRequestList
+                                  requests={overviewRequests}
+                                  userType="contractor"
+                                  baseUrl="/vendor/requests"
+                                />
                             </div>
                           </CardContent>
                         </Card>
@@ -671,7 +580,7 @@ export default function Dashboard() {
 
 
               {/* ✅ Reviews FULL ROW */}
-              <TabsContent value="reviews" className="space-y-6">
+              <TabsContent value="reviews" className="col-span-12 space-y-6">
               <Card data-testid="card-reviews">
                 <CardHeader>
                   <CardTitle>Reviews & Ratings</CardTitle>

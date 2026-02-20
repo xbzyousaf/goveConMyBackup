@@ -1796,6 +1796,36 @@ Respond in JSON format:
   }
 });
 
+app.post("/api/service-requests/:id/extend", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newDeliveryDate, reason } = req.body;
+     const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+    if (!newDeliveryDate || !reason?.trim()) {
+      return res.status(400).json({
+        message: "New delivery date and reason are required",
+      });
+    }
+
+    const updated = await storage.extendServiceRequestDelivery({
+      serviceRequestId: id,
+      newDeliveryDate: new Date(newDeliveryDate),
+      reason: reason.trim(),
+      performedBy: userId // if you have auth
+    });
+
+    res.status(200).json(updated);
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({
+      message: error.message || "Failed to extend delivery",
+    });
+  }
+});
 
 
 
