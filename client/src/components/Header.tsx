@@ -92,7 +92,13 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center justify-between px-4">
         <div className="flex items-center gap-6">
-          <Link href="/">
+          <Link href={
+              user?.userType === "vendor"
+                ? "/vendor-dashboard"
+                : user?.userType === "admin"
+                  ? "/admin-dashboard"
+                  : "/dashboard"
+            }>
             <div className="flex items-center gap-2 cursor-pointer hover-elevate active-elevate-2 px-2 py-1 rounded-md transition-all">
               <div className="h-8 w-8 rounded-md gradient-bg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-sm">GS</span>
