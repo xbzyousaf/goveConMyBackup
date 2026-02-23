@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -161,19 +161,36 @@ export default function Dashboard() {
   const { data: serviceRequests = [] } = useQuery<ServiceRequest[]>({
     queryKey: ["/api/service-requests"],
   });
-  const overviewRequests = serviceRequests.filter((request) => {
-    if (request.status === "pending") return true;
-    if (request.status === "in_progress") return true;
-    if (request.status === "delivered") return true;
-    if (
-      request.status === "completed" &&
-      (!request.reviews || request.reviews.length === 0)
-    ) {
-      return true;
-    }
+    const [statusFilter, setStatusFilter] = useState("all");
+    const [search, setSearch] = useState("");
+    const applyFilter = (requests: ServiceRequest[]) => {
 
-    return false;
-  });
+      return requests.filter((request) => {
+
+        const statusMatch =
+          statusFilter === "all" ||
+          request.status === statusFilter;
+
+        const searchMatch =
+          search === "" ||
+          request.title?.toLowerCase().includes(search.toLowerCase()) ||
+          request.description?.toLowerCase().includes(search.toLowerCase()) ||
+          request.service?.name?.toLowerCase().includes(search.toLowerCase()) ||
+          request.service?.category?.toLowerCase().includes(search.toLowerCase());
+
+        return statusMatch && searchMatch;
+
+      });
+
+    };
+   const overviewRequests = applyFilter(
+  serviceRequests.filter(
+    (request) =>
+      ["pending", "in_progress", "delivered"].includes(request.status)
+  )
+);
+
+const allRequests = applyFilter(serviceRequests);
   const submitReview = useMutation({
     mutationFn: async () => {
       const res = await fetch("/api/reviews", {
@@ -533,47 +550,116 @@ export default function Dashboard() {
               </CardContent>
             </Card>
             <Tabs defaultValue="recent" className="space-y-6 col-span-full mt-4">
+              <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
 
-              {/* Full Width Tabs */}
-            <div className="col-span-3">
-              <TabsList
-                  className="bg-muted py-1 px-1 rounded-sm inline-flex gap-4"
+              {/* LEFT SIDE → Search + Status */}
+              <div className="flex items-center gap-4">
+
+                <input
+                  placeholder="Search requests..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm"
+                />
+
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm"
                 >
-                <TabsTrigger value="recent" className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black">
+                  <option value="all">All</option>
+                  <option value="pending">Pending</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="completed">Completed</option>
+                </select>
+
+              </div>
+
+
+              {/* RIGHT SIDE → Tabs */}
+              <TabsList className="bg-muted py-1 px-1 rounded-sm inline-flex gap-4">
+
+                <TabsTrigger
+                  value="overview"
+                  className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black"
+                >
+                  Overview
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="recent"
+                  className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black"
+                >
                   Recent Services
                 </TabsTrigger>
 
-                <TabsTrigger value="reviews" className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black">
+                <TabsTrigger
+                  value="reviews"
+                  className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black"
+                >
                   Reviews
                 </TabsTrigger>
-              </TabsList>
-            </div>
 
+              </TabsList>
+
+            </div>
               {/* ✅ Recent Services FULL ROW */}
+              <TabsContent value="overview" className="col-span-12 space-y-6">
+
+                <Card data-testid="card-recent-requests"
+                  className="col-span-full">
+                  <CardHeader>
+                    <CardTitle>Recent Service Requests</CardTitle>
+                    <CardDescription>Latest requests to vendors</CardDescription>
+                  </CardHeader>
+                  <CardContent className="w-full">
+                    {overviewRequests.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center">
+                        No recent service requests
+                      </p>
+                    )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
+                        <ServiceRequestList
+                          requests={overviewRequests}
+                          userType="contractor"
+                          baseUrl="/vendor/requests"
+                        />
+                    </div>
+                  </CardContent>
+                </Card>
+
+              </TabsContent>
+              {/* ✅ Recent all Services FULL ROW */}
               <TabsContent value="recent" className="col-span-12 space-y-6">
 
                 <Card data-testid="card-recent-requests"
-                          className="col-span-full">
-                          <CardHeader>
-                            <CardTitle>Recent Service Requests</CardTitle>
-                            <CardDescription>Latest requests to vendors</CardDescription>
-                          </CardHeader>
-                          <CardContent className="w-full">
-                            {overviewRequests.length === 0 && (
-                              <p className="text-sm text-muted-foreground text-center">
-                                No recent service requests
-                              </p>
-                            )}
+                  className="col-span-full">
+                  <CardHeader>
+                    <CardTitle>Recent Service Requests</CardTitle>
+                    <CardDescription>Latest requests to vendors</CardDescription>
+                  </CardHeader>
+                  <CardContent className="w-full">
 
-                              <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
-                                <ServiceRequestList
-                                  requests={overviewRequests}
-                                  userType="contractor"
-                                  baseUrl="/vendor/requests"
-                                />
-                            </div>
-                          </CardContent>
-                        </Card>
+                    {allRequests.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center">
+                        No recent service requests
+                      </p>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
+
+                      {/* ✅ USE FILTERED REQUESTS */}
+                      <ServiceRequestList
+                        requests={allRequests}
+                        userType="contractor"
+                        baseUrl="/vendor/requests"
+                      />
+
+                    </div>
+
+                  </CardContent>
+                </Card>
 
               </TabsContent>
 
