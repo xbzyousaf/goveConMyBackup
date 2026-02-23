@@ -22,6 +22,8 @@ export default function VendorDashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   // Fetch vendor profile
   const { data: vendorProfile, isLoading: profileLoading } = useQuery({
     queryKey: ["/api/vendor-profile"],
@@ -76,20 +78,7 @@ export default function VendorDashboard() {
     valueFn: () => 1, // 👈 count each request as 1
   });
   const currentVendorId = user?.id;
-    const overviewRequests = serviceRequests.filter((request) => {
-    if (["pending", "in_progress", "delivered"].includes(request.status)) {
-      return true;
-    }
-
-    if (request.status === "completed") {
-      const vendorHasReview = request.reviews?.some(
-        (review) => review.reviewerId === currentVendorId
-      );
-
-      return !vendorHasReview;
-    }
-    return false;
-  });
+    
 
   // Mock data for service requests and stats
   type ServiceRequest = {
@@ -113,13 +102,39 @@ export default function VendorDashboard() {
 
     title?: string; // request title
   };
+  const applyFilter = (requests: ServiceRequest[]) => {
+  
+    return requests.filter((request) => {
 
+      const statusMatch =
+        statusFilter === "all" ||
+        request.status === statusFilter;
 
+      const searchMatch =
+        search === "" ||
+        request.title?.toLowerCase().includes(search.toLowerCase()) ||
+        request.description?.toLowerCase().includes(search.toLowerCase()) ||
+        request.service?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        request.service?.category?.toLowerCase().includes(search.toLowerCase());
+
+      return statusMatch && searchMatch;
+
+    });
+
+  };
+
+const allRequests = applyFilter(serviceRequests);
+const overviewRequests = allRequests.filter((request) => {
+    if (["pending", "in_progress", "delivered"].includes(request.status)) {
+      return true;
+    }
+    return false;
+  });
   const mockStats = {
-    totalRequests: serviceRequests.filter(r => r.createdAt && isCurrentMonth(r.createdAt)).length,
-    completedRequests: serviceRequests.filter(r => r.status === 'completed' && r.createdAt && isCurrentMonth(r.createdAt)).length,
+    totalRequests: allRequests.length,
+    completedRequests: allRequests.filter(r => r.status === 'completed').length,
     averageRating: averageRating,
-    monthlyEarnings: serviceRequests.filter(r =>r.status === "completed" && r.createdAt && isCurrentMonth(r.createdAt))
+    monthlyEarnings: allRequests.filter(r =>r.status === "completed" && r.createdAt && isCurrentMonth(r.createdAt))
     .reduce((sum, r) => sum + Number(r.actualCost ?? 0), 0),
   };
 
@@ -194,6 +209,32 @@ export default function VendorDashboard() {
         ) : vendorProfile && (
           // Profile Exists - Show Dashboard
           <Tabs defaultValue="overview" className="space-y-6">
+            <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+
+            {/* LEFT SIDE → Search + Status */}
+            <div className="flex items-center gap-4">
+
+              <input
+                placeholder="Search requests..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="border rounded-md px-3 py-2 text-sm"
+              />
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="border rounded-md px-3 py-2 text-sm"
+              >
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="delivered">Delivered</option>
+                <option value="completed">Completed</option>
+              </select>
+
+            </div>
+            {/* RIGHT SIDE → Tabs */}
             <TabsList data-testid="tabs-dashboard">
               <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
               <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
@@ -201,6 +242,9 @@ export default function VendorDashboard() {
               <TabsTrigger value="reviews" data-testid="tab-reviews">Reviews</TabsTrigger>
             </TabsList>
 
+
+          </div>
+            
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-6">
               {/* Stats Cards */}
@@ -455,14 +499,14 @@ export default function VendorDashboard() {
 
                     <CardContent>
                       <div className="space-y-4">
-                        {serviceRequests.length === 0 && (
+                        {allRequests.length === 0 && (
                           <p className="text-sm text-muted-foreground text-center">
                             No service requests found
                           </p>
                         )}
 
                         <ServiceRequestList
-                          requests={serviceRequests}
+                          requests={allRequests}
                           userType="vendor"
                           baseUrl="/vendor/requests"
                         />
