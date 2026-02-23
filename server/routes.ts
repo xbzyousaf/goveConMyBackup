@@ -830,7 +830,7 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
         title: "New Review Received",
         message: reviewer? `${reviewer.firstName} left you a ${rating}-star review` : '',
         type: "new_review",
-        referenceId: review.id,
+        relatedRequestId: review.id,
         isRead: false,
       });
 
@@ -1047,7 +1047,7 @@ Respond in JSON format:
         title: "New Service Request",
         message: "You have received a new service request",
         type: "request_submitted", // use correct type
-        referenceId: serviceRequest.id,
+        relatedRequestId: serviceRequest.id,
         isRead: false,
       });
       res.json(serviceRequest);
@@ -1466,8 +1466,8 @@ Respond in JSON format:
         message: content.length > 100 
           ? content.substring(0, 100) + "..." 
           : content,
-        type: "new_review",
-        referenceId: serviceRequestId,
+        type: "new_message",
+        relatedRequestId: serviceRequestId,
         isRead: false,
       });
 
@@ -1580,7 +1580,7 @@ Respond in JSON format:
         title: notification.title,
         message: notification.message,
         type: notification.type,
-        referenceId: serviceRequest.id,
+        relatedRequestId: serviceRequest.id,
         isRead: false,
       });
       res.json(updated);
@@ -1675,11 +1675,13 @@ Respond in JSON format:
   });
   app.get("/api/service-requests/:id", async (req, res) => {
   try {
+      const id = req.params.id;
       const request = await storage.getServiceRequest(req.params.id);
 
       if (!request) {
         return res.status(404).json({ message: "Not found" });
       }
+      const extensions = await storage.getExtensionsByServiceRequestId(id);
       const userId = getUserId(req);
 
       const alreadyReviewed = request.reviews?.some(
@@ -1689,6 +1691,7 @@ Respond in JSON format:
       res.json({
         ...request,
         alreadyReviewed,
+        extensions
       });
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch request" });
@@ -1737,7 +1740,6 @@ Respond in JSON format:
         title: "New Delivery Received",
         message: `Your service request has been delivered.`,
         relatedRequestId: serviceRequestId,
-         isRead: false,
       });
       await storage.createRequestLog({
         serviceRequestId: serviceRequestId,
@@ -1811,19 +1813,91 @@ app.post("/api/service-requests/:id/extend", async (req, res) => {
       });
     }
 
-    const updated = await storage.extendServiceRequestDelivery({
+    const result = await storage.createExtensionRequest({
       serviceRequestId: id,
       newDeliveryDate: new Date(newDeliveryDate),
       reason: reason.trim(),
-      performedBy: userId // if you have auth
+      requestedBy: userId,
+    });
+    const serviceRequest = await storage.getServiceRequest(id);
+    if (!serviceRequest) {
+      return res.status(404).json({ message: "Service request not found" });
+    }
+
+    const contractorId = serviceRequest.contractorId;
+    // 2. notify contractor
+    await storage.createNotification({
+      userId: contractorId,
+      triggeredBy: userId,
+      type: "delivery_extension_request",
+      title: "Delivery Extension Requested",
+      message: "Vendor has requested to extend the delivery date.",
+      relatedRequestId: id,
     });
 
-    res.status(200).json(updated);
+    res.json(result);
   } catch (error: any) {
     console.error(error);
     res.status(500).json({
       message: error.message || "Failed to extend delivery",
     });
+  }
+});
+app.post("/api/extensions/:id/approve", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = getUserId(req);
+
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const extension = await storage.getExtensionById(id);
+    if (!extension) {
+      return res.status(404).json({ message: "Extension not found" });
+    }
+
+    const updated = await storage.approveExtension(id, userId);
+    const vendorId = extension.requestedBy;
+
+    await storage.createNotification({
+      userId: vendorId,
+      triggeredBy: userId, // contractor approving
+      type: "delivery_extension_accepted",
+      title: "Delivery Extension Approved",
+      message: "Your delivery extension request has been approved.",
+      relatedRequestId: extension.serviceRequestId,
+    });
+
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+app.post("/api/extensions/:id/reject", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const extension = await storage.getExtensionById(id);
+      if (!extension) {
+        return res.status(404).json({ message: "Extension not found" });
+      }
+    const updated = await storage.rejectExtension(req.params.id, userId);
+    const vendorId = extension.requestedBy;
+    await storage.createNotification({
+      userId: vendorId,
+      triggeredBy: userId,
+      type: "delivery_extension_rejected",
+      title: "Delivery Extension Rejected",
+      message: "Your delivery extension request has been rejected.",
+      relatedRequestId: extension.serviceRequestId,
+    });
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
   }
 });
 

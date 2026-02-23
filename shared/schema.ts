@@ -25,6 +25,7 @@ export const subscriptionTierEnum = pgEnum("subscription_tier", ["freemium", "st
 export const vendorJourneyStageEnum = pgEnum("vendor_journey_stage", ["awareness", "application", "vetting", "onboarding", "active", "inactive"]);
 export const serviceTierEnum = pgEnum("service_tier", ["free","standard","premium"]);
 export const messageTypeEnum = pgEnum("message_type", ["text", "system", "file", ]);
+export const extentionStatusEnum = pgEnum("status", ["pending", "approved", "rejected", ]);
 
 
 // Users table - custom email/password authentication
@@ -179,6 +180,18 @@ export const serviceTiers = pgTable("service_tiers", {
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   });
+  // delivery extentions
+  export const deliveryExtensions = pgTable("delivery_extensions", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    serviceRequestId: uuid("service_request_id").notNull(),
+    requestedBy: uuid("requested_by").notNull(),
+    newPriority: integer("new_priority").notNull(),
+    reason: text("reason").notNull(),
+    status: extentionStatusEnum("status").default("pending").notNull(),
+    oldDate: timestamp("old_date").notNull(),
+    newDate: timestamp("new_date").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  });
 
 // Messages for contractor-vendor communication
 export const messages = pgTable("messages", {
@@ -304,7 +317,10 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "new_message",
   "delivery",
   "new_review",
-  "payment_update"
+  "payment_update",
+  "delivery_extension_request",
+  "delivery_extension_accepted",
+  "delivery_extension_rejected"
 ]);
 
 export const notifications = pgTable("notifications", {
