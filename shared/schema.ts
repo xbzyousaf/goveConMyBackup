@@ -113,7 +113,51 @@ export const services = pgTable("services", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const portfolios = pgTable("portfolios", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
 
+  vendorId: varchar("vendor_id")
+    .references(() => users.id)
+    .notNull(),
+
+  projectName: text("project_name").notNull(),
+  industry: text("industry").notNull(),
+  duration: text("duration").notNull(),
+  description: text("description").notNull(),
+
+  // Cost of project
+  cost: decimal("cost", { precision: 10, scale: 2 }).notNull(),
+
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+
+  attachmentUrl: text("attachment_url"), // store uploaded file path or S3 URL
+
+  isActive: boolean("is_active").default(false),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+export const certificates = pgTable("certificates", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+
+  vendorId: varchar("vendor_id")
+    .references(() => users.id) // assuming you have a users table
+    .notNull(),
+
+  certificateName: text("certificate_name").notNull(),
+  receivedFrom: text("received_from").notNull(),
+  yearReceived: integer("year_received").notNull(),
+
+  // Optional: store uploaded image path
+  imageUrl: text("image_url"),
+
+  createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+});
 export const serviceTiers = pgTable("service_tiers", {
   id: varchar("id")
     .primaryKey()
@@ -609,6 +653,8 @@ export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert; // For Replit Auth
 export type InsertVendorProfile = z.infer<typeof insertVendorProfileSchema>;
 export type VendorProfile = typeof vendorProfiles.$inferSelect;
+export type Portfolio = typeof portfolios.$inferSelect;
+export type Certificate = typeof certificates.$inferSelect;
 export type InsertServiceRequest = z.infer<typeof insertServiceRequestSchema>;
 export type ServiceRequest = typeof serviceRequests.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
