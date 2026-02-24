@@ -19,6 +19,7 @@ type ServiceRequestPayload = {
   budget: string;
   vendorId?: string;
   serviceId?: string;
+  proposedPrice: number;
 };
 
 interface AIServiceRequestFormProps {
@@ -70,7 +71,17 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
       });
     },
   });
+const parseBudgetToNumber = (budgetRange: string): number => {
+  if (!budgetRange) return 0;
 
+  if (budgetRange.includes("+")) {
+    const num = budgetRange.replace("+", "");
+    return Number(num);
+  }
+
+  const parts = budgetRange.split("-");
+  return Number(parts[1]) || 0;
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,12 +94,15 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
       });
       return;
     }
+        const proposedPrice = parseBudgetToNumber(budget);
+
         aiMatchMutation.mutate({
           title: requesttitle,
           category: selectedCategory,
           description: request,
           priority,
           budget,
+          proposedPrice, // ✅ REQUIRED FOR DB
           serviceId: serviceId || undefined,
           vendorId: vendorId || undefined,
         });
@@ -217,7 +231,13 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
 
         <Button 
           type="submit" 
-          disabled={!request.trim() || aiMatchMutation.isPending}
+          disabled={
+            !request.trim() ||
+            !requesttitle.trim() ||
+            !priority ||
+            !budget ||
+            aiMatchMutation.isPending
+          }
           className="w-full"
           data-testid="button-submit-request"
         >

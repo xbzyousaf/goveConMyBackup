@@ -125,7 +125,7 @@ export default function VendorDashboard() {
 
 const allRequests = applyFilter(serviceRequests);
 const overviewRequests = allRequests.filter((request) => {
-    if (["pending", "in_progress", "delivered"].includes(request.status)) {
+    if (["pending", "in_progress", "delivered", 'accepted'].includes(request.status)) {
       return true;
     }
     return false;

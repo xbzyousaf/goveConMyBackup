@@ -500,7 +500,7 @@ const handleDeliver = async () => {
 
                 <CardContent className="space-y-4 text-sm">
 
-                    {/* Hardcoded Timer */}
+                    {/* Timer */}
                     <div>
                     <p className="text-muted-foreground mb-1">
                         Time left to deliver
@@ -509,6 +509,40 @@ const handleDeliver = async () => {
                           {timeLeft || "Calculating..."}
                     </div>
                     </div>
+                    {request.paymentStatus === "escrow_held" && (
+  <Card className="rounded-xl border border-green-200 bg-green-50">
+    <CardContent className="p-4 space-y-2">
+      <p className="font-semibold text-green-700">
+        Escrow Funded
+      </p>
+
+      <div className="text-sm space-y-1">
+        <div className="flex justify-between">
+          <span>Total Price</span>
+          <span>${request.finalPrice}</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span>Platform Fee</span>
+          <span>${request.platformFee}</span>
+        </div>
+
+        <div className="flex justify-between font-semibold">
+          <span>
+            {user?.userType === "vendor"
+              ? "You Will Receive"
+              : "Vendor Will Receive"}
+          </span>
+          <span>${request.vendorEarning}</span>
+        </div>
+
+        <div className="text-xs text-muted-foreground pt-2">
+          Funded on {new Date(request.paidAt).toLocaleDateString()}
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+)}
 
                     <Dialog open={isExtendOpen} onOpenChange={setIsExtendOpen}>
                       <DialogTrigger asChild>
@@ -706,24 +740,18 @@ const handleDeliver = async () => {
                 <Card className="rounded-2xl shadow-md">
                 <CardContent className="p-5 space-y-3">
     
-                    <Button
-                        disabled={
-                            user?.userType !== "vendor" ||
-                            request.status === "in_progress" ||
-                            request.status === "completed" ||
-                            request.status === "delivered"
-                        }
+                    {/* Vendor Accept Request */}
+                    {request.status === "pending" && (
+                      <Button
                         className="w-full"
-                        onClick={() => {
-                            setConfirmAction({
-                            id: request.id,
-                            status: "in_progress",
-                            });
-                        }}
-                        >
+                        onClick={() =>
+                          updateStatus.mutate({ status: "accepted" })
+                        }
+                      >
                         <Check className="w-4 h-4 mr-2" />
-                        Approve
-                    </Button>
+                        Accept Request
+                      </Button>
+                    )}
                     <Button
                         variant="destructive"
                         disabled={
@@ -746,7 +774,44 @@ const handleDeliver = async () => {
                 </CardContent>
                 </Card>
                 )}
+                {user?.userType === "vendor" &&
+                  request.status === "accepted" &&
+                  request.paymentStatus === "escrow_held" && (
+                    <Button
+                      className="w-full"
+                      onClick={() =>
+                        updateStatus.mutate({ status: "in_progress" })
+                      }
+                    >
+                      Start Work
+                    </Button>
+                )}
+                {/* Contractor Pay Escrow */}
+                {user?.userType === "contractor" &&
+                  request.status === "accepted" && (
+                    <Button
+                      className="w-full mt-3"
+                      onClick={async () => {
+                        const res = await fetch(
+                          `/api/service-requests/${request.id}/pay`,
+                          { method: "POST", credentials: "include" }
+                        );
 
+                        if (res.ok) {
+                          toast({
+                            title: "Escrow Funded",
+                            description: "Payment secured successfully",
+                          });
+
+                          queryClient.invalidateQueries({
+                            queryKey: ["service-request", request.id],
+                          });
+                        }
+                      }}
+                    >
+                      Pay & Fund Escrow
+                    </Button>
+                )}
             </div>
             </div>
         </div>{reviewModal && (
