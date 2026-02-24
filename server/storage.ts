@@ -37,7 +37,8 @@ import {
   services,
   serviceTiers,
   InsertNotification,
-  requestLogs
+  requestLogs,
+  deliveryExtensions
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
@@ -1317,57 +1318,127 @@ async getRequestLogs(options?: { requestId?: string; page?: number; limit?: numb
     },
   };
 }
-
-async extendServiceRequestDelivery(data: {
+async createExtensionRequest(data: {
   serviceRequestId: string;
   newDeliveryDate: Date;
   reason: string;
-  performedBy?: string;
+  requestedBy: string;
 }) {
-  // 1️⃣ Get existing request
-  const existing = await db.query.serviceRequests.findFirst({
-    where: (req, { eq }) =>
-      eq(req.id, data.serviceRequestId),
+  const request = await db.query.serviceRequests.findFirst({
+    where: (r, { eq }) => eq(r.id, data.serviceRequestId),
   });
 
-  if (!existing) {
-    throw new Error("Request not found");
-  }
+  if (!request) throw new Error("Request not found");
 
-  const createdAt = new Date(existing?.createdAt);
-  const selectedDate = new Date(data.newDeliveryDate);
+  // 1️⃣ Calculate OLD delivery date
+  const oldDeliveryDate = new Date(
+    new Date(request.createdAt).getTime() +
+    Number(request.priority) * 24 * 60 * 60 * 1000
+  );
 
-  // 2️⃣ Calculate difference in days
-  const diffInMs = selectedDate.getTime() - createdAt.getTime();
-  const diffInDays = Math.ceil(diffInMs / (1000 * 60 * 60 * 24));
+  // 2️⃣ Calculate difference in days (new priority)
+  const diffMs =
+    data.newDeliveryDate.getTime() - new Date(request.createdAt).getTime();
 
-  if (diffInDays <= 0) {
-    throw new Error("Delivery date must be after created date");
-  }
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-  // 3️⃣ Update priority (this controls delivery logic)
-  const updated = await db
-    .update(serviceRequests)
-    .set({
-      priority: diffInDays.toString(),
-      updatedAt: new Date(),
+  if (diffDays <= 0) throw new Error("Invalid date");
+
+  // 3️⃣ Insert extension
+  const inserted = await db
+    .insert(deliveryExtensions)
+    .values({
+      serviceRequestId: data.serviceRequestId,
+      requestedBy: data.requestedBy,
+      newPriority: diffDays,
+      reason: data.reason,
+      status: "pending",
+      oldDate: oldDeliveryDate,
+      newDate: data.newDeliveryDate,
     })
-    .where(eq(serviceRequests.id, data.serviceRequestId))
     .returning();
 
-  // 4️⃣ Insert log
   await this.createRequestLog({
     serviceRequestId: data.serviceRequestId,
-    action: "delivery_extended",
-    performedBy: data.performedBy || "system",
+    action: "extension_requested",
+    performedBy: data.requestedBy,
     metadata: {
-      previousPriority: existing.priority,
-      newPriority: diffInDays,
+      oldDate: oldDeliveryDate,
+      newDate: data.newDeliveryDate,
       reason: data.reason,
     },
   });
 
-  return updated[0];
+  return inserted[0];
+}
+async approveExtension(extensionId: string, approvedBy: string) {
+  const extension = await db.query.deliveryExtensions.findFirst({
+    where: (e, { eq }) => eq(e.id, extensionId),
+  });
+
+  if (!extension || extension.status !== "pending") {
+    throw new Error("Invalid extension request");
+  }
+
+  // 1️⃣ Update priority
+  await db
+    .update(serviceRequests)
+    .set({
+      priority: extension.newPriority.toString(),
+      updatedAt: new Date(),
+    })
+    .where(eq(serviceRequests.id, extension.serviceRequestId));
+
+  // 2️⃣ Update extension status
+  await db
+    .update(deliveryExtensions)
+    .set({ status: "approved" })
+    .where(eq(deliveryExtensions.id, extensionId));
+
+  await this.createRequestLog({
+    serviceRequestId: extension.serviceRequestId,
+    action: "extension_approved",
+    performedBy: approvedBy,
+  });
+
+  return { success: true };
+}
+async rejectExtension(extensionId: string, rejectedBy: string) {
+  const extension = await db.query.deliveryExtensions.findFirst({
+    where: (e, { eq }) => eq(e.id, extensionId),
+  });
+
+  if (!extension || extension.status !== "pending") {
+    throw new Error("Invalid extension request");
+  }
+
+  await db
+    .update(deliveryExtensions)
+    .set({ status: "rejected" })
+    .where(eq(deliveryExtensions.id, extensionId));
+
+  await this.createRequestLog({
+    serviceRequestId: extension.serviceRequestId,
+    action: "extension_rejected",
+    performedBy: rejectedBy,
+  });
+
+  return { success: true };
+}
+async getExtensionById(id: string) {
+  const result = await db
+    .select()
+    .from(deliveryExtensions)
+    .where(eq(deliveryExtensions.id, id))
+    .limit(1);
+
+  return result[0];
+}
+async getExtensionsByServiceRequestId(serviceRequestId: string) {
+  return await db
+    .select()
+    .from(deliveryExtensions)
+    .where(eq(deliveryExtensions.serviceRequestId, serviceRequestId));
 }
 
 

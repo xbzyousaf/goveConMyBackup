@@ -549,7 +549,7 @@ const allRequests = applyFilter(serviceRequests);
                 </p>
               </CardContent>
             </Card>
-            <Tabs defaultValue="recent" className="space-y-6 col-span-full mt-4">
+            <Tabs defaultValue="overview" className="space-y-6 col-span-full mt-4">
               <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
 
               {/* LEFT SIDE → Search + Status */}
@@ -614,11 +614,6 @@ const allRequests = applyFilter(serviceRequests);
                     <CardDescription>Latest requests to vendors</CardDescription>
                   </CardHeader>
                   <CardContent className="w-full">
-                    {overviewRequests.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center">
-                        No recent service requests
-                      </p>
-                    )}
 
                       <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
                         <ServiceRequestList
@@ -642,11 +637,7 @@ const allRequests = applyFilter(serviceRequests);
                   </CardHeader>
                   <CardContent className="w-full">
 
-                    {allRequests.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center">
-                        No recent service requests
-                      </p>
-                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
 
                       {/* ✅ USE FILTERED REQUESTS */}

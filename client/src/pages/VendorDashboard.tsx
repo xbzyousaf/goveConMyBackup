@@ -338,12 +338,6 @@ const overviewRequests = allRequests.filter((request) => {
                   <CardDescription>Latest requests from contractors</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {overviewRequests.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center">
-                      No recent service requests
-                    </p>
-                  )}
-
                   <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
                     
                    <ServiceRequestList
@@ -499,11 +493,6 @@ const overviewRequests = allRequests.filter((request) => {
 
                     <CardContent>
                       <div className="space-y-4">
-                        {allRequests.length === 0 && (
-                          <p className="text-sm text-muted-foreground text-center">
-                            No service requests found
-                          </p>
-                        )}
 
                         <ServiceRequestList
                           requests={allRequests}
