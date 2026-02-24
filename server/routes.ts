@@ -1697,6 +1697,82 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to fetch request" });
     }
   });
+  app.post(
+    "/api/vendor-portfolio",
+    isAuthenticated,
+    upload.single("attachment"),
+    async (req: any, res) => {
+      try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+        const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+        const portfolio = await storage.createPortfolio(
+          { ...req.body, attachmentUrl: fileUrl },
+          userId
+        );
+
+        res.json(portfolio);
+      } catch (error) {
+        console.error("Error creating portfolio:", error);
+        res.status(500).json({ message: "Failed to create portfolio" });
+      }
+    }
+  );
+  app.get("/api/vendor-portfolio", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+      const portfolios = await storage.getVendorPortfolios(userId);
+
+      res.json(portfolios);
+    } catch (error) {
+      console.error("Error fetching vendor portfolios:", error);
+      res.status(500).json({ message: "Failed to fetch portfolios" });
+    }
+  });
+  
+  // POST /api/vendor-certificate
+  app.post(
+    "/api/vendor-certificate",
+    isAuthenticated,
+    upload.single("image"), // matches front-end FormData
+    async (req: any, res) => {
+      try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+        const certificate = await storage.createCertificate(
+          { ...req.body, imageUrl: imageUrl },
+          userId
+        );
+
+        res.json(certificate);
+      } catch (error) {
+        console.error("Error creating certificate:", error);
+        res.status(500).json({ message: "Failed to create certificate" });
+      }
+    }
+  );
+
+  // GET /api/vendor-certificate
+  app.get("/api/vendor-certificate", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+      const certificates = await storage.getVendorCertificates(userId);
+
+      res.json(certificates);
+    } catch (error) {
+      console.error("Error fetching vendor certificates:", error);
+      res.status(500).json({ message: "Failed to fetch certificates" });
+    }
+  });
   app.post("/api/service-requests/:id/deliver", isAuthenticated, async (req, res) => {
   try {
       const serviceRequestId = req.params.id;

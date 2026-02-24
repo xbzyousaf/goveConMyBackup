@@ -38,7 +38,11 @@ import {
   serviceTiers,
   InsertNotification,
   requestLogs,
-  deliveryExtensions
+  deliveryExtensions,
+  portfolios,
+  Portfolio,
+  certificates,
+  Certificate
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
@@ -176,6 +180,20 @@ export class DatabaseStorage implements IStorage {
   async getVendorProfile(userId: string): Promise<VendorProfile | undefined> {
     const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, userId));
     return profile || undefined;
+  }
+  async getVendorPortfolios(vendorId: string): Promise<Portfolio[]> {
+    return await db
+      .select()
+      .from(portfolios)
+      .where(eq(portfolios.vendorId, vendorId))
+      .orderBy(desc(portfolios.createdAt)); // optional: latest first
+  }
+  async getVendorCertificates(vendorId: string): Promise<Certificate[]> {
+    return await db
+      .select()
+      .from(certificates)
+      .where(eq(certificates.vendorId, vendorId))
+      .orderBy(desc(certificates.createdAt)); // optional: latest first
   }
   async getContractorById(id: string) {
     const result = await db
@@ -878,7 +896,43 @@ export class DatabaseStorage implements IStorage {
 
     return service ?? undefined;
   }
+  async createPortfolio(data: any, vendorId: string) {
+    return await db.transaction(async tx => {
+      const [portfolio] = await tx
+        .insert(portfolios)
+        .values({
+          vendorId,
+          projectName: data.projectName,
+          industry: data.industry,
+          duration: data.duration,
+          description: data.description,
+          cost: data.cost != null ? String(data.cost) : null,
+          startDate: new Date(data.startDate),
+          endDate: new Date(data.endDate),
+          attachmentUrl: data.attachmentUrl || null,
+        })
+        .returning();
 
+      return portfolio;
+    });
+  }
+  async createCertificate(data: any, vendorId: string) {
+    return await db.transaction(async tx => {
+      const [certificate] = await tx
+        .insert(certificates)
+        .values({
+          vendorId,
+          certificateName: data.certificateName,
+          receivedFrom: data.receivedFrom,
+          yearReceived: data.yearReceived,
+
+          imageUrl: data.imageUrl || null,
+        })
+        .returning();
+
+      return certificate;
+    });
+  }
   async findServiceRequestByContractorVendorService({contractorId, vendorId, serviceId, }: {
     contractorId: string;
     vendorId: string;

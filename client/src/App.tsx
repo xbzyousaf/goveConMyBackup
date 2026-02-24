@@ -22,6 +22,8 @@ import NotFound from "@/pages/not-found";
 import SkipAssessment from "@/pages/SkipAssessment";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import VendorProfileEditPage from "./pages/vendor/VendorProfileEditPage";
+import AddPortfolio from "./pages/vendor/AddPortfolio";
+import AddCertificate from "./pages/vendor/AddCertificate";
 import Onboarding from "./pages/Onboarding";
 import VendorOnboarding from "./pages/VendorOnboarding";
 import CreateService from "./pages/services/create";
@@ -96,6 +98,8 @@ function Router() {
           <Route path="/admin/vendors" component={AdminVendors} />
           <Route path="/admin/escrow" component={AdminVendors} />
           <Route path="/vendor-profile/edit" component={VendorProfileEditPage} />
+          <Route path="/vendor/:id/add-portfolio" component={AddPortfolio} />
+          <Route path="/vendor/:id/add-certificate" component={AddCertificate} />
           <Route path="/onboarding" component={Onboarding} />
           <Route path="/vendor-onboarding" component={VendorOnboarding} />
           <Route path="/request" component={RequestService} />
