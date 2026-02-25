@@ -35,6 +35,7 @@ import ServiceDetails from "./pages/ServiceDetails";
 import ContractorDetail from "./pages/ContractorDetail";
 import RequestDetails from "./pages/vendor/RequestDetails";
 import AdminRequestLogs from "./pages/admin/AdminRequestLogs";
+import VendorPayments from "./pages/vendor/payments";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -106,6 +107,7 @@ function Router() {
           <Route path="/services/:serviceId" component={ServiceDetails} />
           <Route path="/vendor/requests/:id" component={RequestDetails} />
           <Route path="/admin/request-logs" component={AdminRequestLogs} />
+          <Route path="/vendors/payment" component={VendorPayments} />
           <Route component={NotFound} />
         </>
       ) : (

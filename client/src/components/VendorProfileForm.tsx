@@ -384,7 +384,7 @@ useEffect(() => {
             </div>
 
             {/* Form Actions */}
-            <div className="flex gap-4 justify-end">
+            <div className="flex gap-4 justify-end mt-4">
               {onCancel && (
                 <Button 
                   type="button" 

@@ -42,7 +42,8 @@ import {
   portfolios,
   Portfolio,
   certificates,
-  Certificate
+  Certificate,
+  escrows
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
@@ -370,6 +371,7 @@ export class DatabaseStorage implements IStorage {
         },
       },
       service: true,      // if relation exists
+      escrow: true,
       messages: true,     // optional
       deliveries: {
         with: {
@@ -1414,7 +1416,7 @@ async createExtensionRequest(data: {
   // 1️⃣ Calculate OLD delivery date
   const oldDeliveryDate = new Date(
     new Date(request.createdAt).getTime() +
-    Number(request.priority) * 24 * 60 * 60 * 1000
+    Number(request.deliveryDays) * 24 * 60 * 60 * 1000
   );
 
   // 2️⃣ Calculate difference in days (new priority)
@@ -1431,7 +1433,6 @@ async createExtensionRequest(data: {
     .values({
       serviceRequestId: data.serviceRequestId,
       requestedBy: data.requestedBy,
-      newPriority: diffDays,
       reason: data.reason,
       status: "pending",
       oldDate: oldDeliveryDate,
@@ -1465,7 +1466,7 @@ async approveExtension(extensionId: string, approvedBy: string) {
   await db
     .update(serviceRequests)
     .set({
-      priority: extension.newPriority.toString(),
+      deliveryDate: extension.newDate,
       updatedAt: new Date(),
     })
     .where(eq(serviceRequests.id, extension.serviceRequestId));
@@ -1473,7 +1474,7 @@ async approveExtension(extensionId: string, approvedBy: string) {
   // 2️⃣ Update extension status
   await db
     .update(deliveryExtensions)
-    .set({ status: "approved" })
+    .set({ status: "accepted" })
     .where(eq(deliveryExtensions.id, extensionId));
 
   await this.createRequestLog({
@@ -1521,7 +1522,55 @@ async getExtensionsByServiceRequestId(serviceRequestId: string) {
     .from(deliveryExtensions)
     .where(eq(deliveryExtensions.serviceRequestId, serviceRequestId));
 }
+async createEscrow(data: {
+  serviceRequestId: string;
+  contractorId: string;
+  vendorId: string;
+  amount: string;
+  platformFee: string;
+  vendorEarning: string;
+}) {
+  return await db.insert(escrows).values({
+    serviceRequestId: data.serviceRequestId,
+    contractorId: data.contractorId,
+    vendorId: data.vendorId,
+    amount: data.amount,
+    platformFee: data.platformFee,
+    vendorEarning: data.vendorEarning,
+    status: "held",
+    heldAt: new Date(),
+  }).returning();
+}
+async releaseEscrowByRequestId(serviceRequestId: string) {
+  const escrow = await db.query.escrows.findFirst({
+    where: (e, { eq }) => eq(e.serviceRequestId, serviceRequestId),
+  });
 
+  if (!escrow) {
+    throw new Error("Escrow not found");
+  }
+
+  if (escrow.status !== "held") {
+    throw new Error("Escrow already processed");
+  }
+
+  await db
+    .update(escrows)
+    .set({
+      status: "released",
+      releasedAt: new Date(),
+    })
+    .where(eq(escrows.id, escrow.id));
+
+  return { success: true };
+}
+async getVendorPayments(vendorId: string) {
+  return db
+    .select()
+    .from(serviceRequests)
+    .where(eq(serviceRequests.vendorId, vendorId))
+    .orderBy(desc(serviceRequests.completedAt));
+}
 
 }
 
