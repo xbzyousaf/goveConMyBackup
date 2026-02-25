@@ -15,6 +15,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { insertVendorProfileSchema } from "@shared/schema";
 import { z } from "zod";
 import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon } from "lucide-react";
+import { AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
+import { Avatar } from "./ui/avatar";
 
 const formSchema = insertVendorProfileSchema
   .omit({ userId: true, responseTime: true })
@@ -63,6 +65,16 @@ export function VendorProfileForm({defaultValues,profileId, mode = "create", onS
       ...defaultValues,
     },
   });
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+  
 useEffect(() => {
   if (defaultValues) {
     form.reset({
@@ -78,23 +90,38 @@ useEffect(() => {
   }
 }, [defaultValues, form]);
   const createProfileMutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      return mode === "edit"
-      ? apiRequest("PUT", `/api/vendor-profile/${profileId}`, data)
-      : apiRequest("POST", "/api/vendor-profile", data);
+    mutationFn: async (formData: FormData) => {
+      const url = mode === "edit" 
+        ? `/api/vendor-profile/${profileId}`
+        : "/api/vendor-profile";
+
+      // Use fetch directly for FormData upload
+      const response = await fetch(url, {
+        method: mode === "edit" ? "PUT" : "POST",
+        body: formData,
+        // IMPORTANT: Do NOT set Content-Type here, browser will set multipart/form-data
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to submit");
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       toast({
         title: "Profile created successfully!",
         description: "Your vendor profile has been submitted for review.",
       });
-      // Invalidate both vendor list and profile queries
       queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vendor-profile"] });
       form.reset();
+      setSelectedFile(null);        // clear file after submit
+      setImagePreview("");           // reset preview
       onSuccess?.();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error creating profile",
         description: error.message,
@@ -104,7 +131,22 @@ useEffect(() => {
   });
 
   const onSubmit = (data: FormData) => {
-    createProfileMutation.mutate(data);
+    const formData = new FormData();
+
+    formData.append("companyName", data.companyName);
+    formData.append("title", data.title);
+    formData.append("description", data.description);
+    formData.append("location", data.location);
+    formData.append("hourlyRate", data.hourlyRate);
+
+    formData.append("skills", JSON.stringify(data.skills));
+    formData.append("categories", JSON.stringify(data.categories));
+
+    if (selectedFile) {
+      formData.append("avatar", selectedFile);
+    }
+
+    createProfileMutation.mutate(formData);
   };
 
   const addSkill = () => {
@@ -126,7 +168,7 @@ useEffect(() => {
   const currentSkills = form.watch("skills");
 
   return (
-    <Card className="max-w-4xl mx-auto" data-testid="card-vendor-profile-form">
+    <Card className="max-w-4xl mx-auto card-vendor-profile" data-testid="card-vendor-profile-form">
       <CardHeader>
         <CardTitle className="flex items-center gap-2" data-testid="text-form-title">
           <BadgeIcon className="w-5 h-5" />
@@ -153,6 +195,28 @@ useEffect(() => {
               }
             )}
           >
+            
+              {/* Headshot Upload */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">
+                Profile Headshot
+              </h3>
+              <div className="flex items-center space-x-4">
+                <Avatar className="w-16 h-16 ">
+                  <AvatarImage className="aspect-square" src={imagePreview || form.watch("avatar") || ""} />
+                  <AvatarFallback className="text-lg">
+                  </AvatarFallback>
+                </Avatar>
+
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                />
+
+              </div>
+
+            </div>
             {/* Company Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-section-company">
@@ -357,7 +421,6 @@ useEffect(() => {
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
-              
               <div className="flex flex-wrap gap-2">
                 {currentSkills.map((skill, index) => (
                   <Badge key={index} variant="secondary" className="flex items-center gap-1" data-testid={`badge-skill-${index}`}>
@@ -375,7 +438,6 @@ useEffect(() => {
                   </Badge>
                 ))}
               </div>
-              
               {form.formState.errors.skills && (
                 <p className="text-sm text-destructive" data-testid="error-skills">
                   {form.formState.errors.skills.message}

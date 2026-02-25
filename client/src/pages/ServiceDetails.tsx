@@ -4,6 +4,8 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, ArrowLeft, ArrowRight } from "lucide-react";
+import { Avatar } from "@radix-ui/react-avatar";
+import { AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function ServiceDetails() {
   const [match, params] = useRoute("/services/:serviceId");
@@ -74,7 +76,25 @@ export default function ServiceDetails() {
                   </ul>
                 </div>
               )}
-
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <Link href={`/vendor/${service.vendorId}`} className="flex items-center gap-3 mt-4 hover:opacity-80 transition">
+                      <Avatar className="h-10 w-10 shrink-0">
+                        {service.vendorProfile?.avatar ? (
+                          <AvatarImage src={service.vendorProfile.avatar} alt={service.vendorProfile.companyName} />
+                        ) : (
+                          <AvatarFallback>
+                            {service.vendorProfile?.companyName?.charAt(0).toUpperCase() || "V"}
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                    <div>
+                      <p className="text-sm font-medium">{service.vendorProfile?.companyName}</p>
+                      <p className="text-xs text-muted-foreground">{service.vendorProfile?.title}</p>
+                    </div>
+                    </Link>
+                </div>
+              </div>
               {/*  Request This Service Button */}
               <Link
                 href={`/request?vendorId=${vendorId}&serviceId=${service.id}`}
