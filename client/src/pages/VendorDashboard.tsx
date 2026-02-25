@@ -547,41 +547,41 @@ const overviewRequests = allRequests.filter((request) => {
                   </Button>
                 </CardHeader>
                 <CardContent>
-  {vendorCertificates?.length > 0 ? (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {vendorCertificates.map(cert => (
-        <Card key={cert.id} className="overflow-hidden">
-          {cert.imageUrl && (
-            <img
-              src={cert.imageUrl} 
-              alt={cert.certificateName}
-              className="w-full h-40 object-cover"
-            />
-          )}
-          <CardContent className="p-4">
-            <h4 className="font-medium">{cert.certificateName}</h4>
-            <p className="text-sm text-muted-foreground">{cert.receivedFrom}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Year Received: {cert.yearReceived}
-            </p>
-            {cert.imageUrl && (
-              <a
-                href={cert.imageUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-primary underline mt-2 inline-block"
-              >
-                View Certificate
-              </a>
-            )}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  ) : (
-    <p className="text-muted-foreground text-sm">No certificates added yet</p>
-  )}
-</CardContent>
+                  {vendorCertificates?.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {vendorCertificates.map(cert => (
+                        <Card key={cert.id} className="overflow-hidden">
+                          {cert.imageUrl && (
+                            <img
+                              src={cert.imageUrl} 
+                              alt={cert.certificateName}
+                              className="w-full h-40 object-cover"
+                            />
+                          )}
+                          <CardContent className="p-4">
+                            <h4 className="font-medium">{cert.certificateName}</h4>
+                            <p className="text-sm text-muted-foreground">{cert.receivedFrom}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Year Received: {cert.yearReceived}
+                            </p>
+                            {cert.imageUrl && (
+                              <a
+                                href={cert.imageUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-primary underline mt-2 inline-block"
+                              >
+                                View Certificate
+                              </a>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No certificates added yet</p>
+                  )}
+                </CardContent>
               </Card>
             </TabsContent>
             {/* Requests Tab */}

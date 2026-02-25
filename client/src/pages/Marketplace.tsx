@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Star, TrendingUp, Package, Briefcase, Scale, Zap, Award, Filter, ArrowRight, CheckCircle } from "lucide-react";
 import type { VendorProfile } from "@shared/schema";
+import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 const categoryIconMap: Record<string, React.ElementType> = {
   legal: Scale,
   cybersecurity: Zap,
@@ -330,53 +331,79 @@ export default function Marketplace() {
             <div className="grid gap-6 md:grid-cols-2">
               {filteredServices.map((service) => {
                 const Icon = categoryIconMap[service.category] ?? Package;
+                const vendor = service.vendorProfile; // our vendorProfile object
+
                 return (
-                <Card key={service.id} className="hover-elevate active-elevate-2 transition-all" data-testid={`card-service-${service.id}`}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="p-3 rounded-lg bg-primary/10">
-                        <Icon className="w-6 h-6 text-primary" />
-                      </div>
-                      {service.trending && (
-                        <Badge variant="default" className="flex items-center gap-1">
-                          <Star className="w-3 h-3" />
-                          Trending
-                        </Badge>
-                      )}
-                    </div>
-                    <CardTitle className="text-xl">{service.title}</CardTitle>
-                    <CardDescription>{service.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <ul className="space-y-2">
-                        {service.outcomes?.map((outcomes, idx) => (
-                          <li key={idx} className="flex items-center gap-2 text-sm">
-                            <CheckCircle className="w-4 h-4 text-primary" />
-                            <span>{outcomes}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      
-                      <div className="flex items-center justify-between pt-4 border-t">
-                        <div>
-                          <span className="text-2xl font-bold">
-                            {getServiceDisplayPrice(service)}
-                          </span>
-
+                  <Card
+                    key={service.serviceId}
+                    className="hover-elevate active-elevate-2 transition-all"
+                    data-testid={`card-service-${service.serviceId}`}
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="p-3 rounded-lg bg-primary/10">
+                          <Icon className="w-6 h-6 text-primary" />
                         </div>
-                        <Link href={`/services/${service.serviceId}`}>
-                        <Button data-testid={`button-view-service-${service.serviceId}`}>
-                          View Service
-                          <ArrowRight className="ml-2 w-4 h-4" />
-                        </Button>
-                      </Link>
-
+                        {service.trending && (
+                          <Badge variant="default" className="flex items-center gap-1">
+                            <Star className="w-3 h-3" />
+                            Trending
+                          </Badge>
+                        )}
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )})}
+
+                      <CardTitle className="text-xl">{service.title}</CardTitle>
+                      <CardDescription>{service.description}</CardDescription>
+
+                      {/* Vendor Info */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            <Link href={`/vendor/${service.vendorId}`} className="flex items-center gap-3 mt-4 hover:opacity-80 transition">
+                              <Avatar className="h-10 w-10 shrink-0">
+                                {vendor?.avatar ? (
+                                  <AvatarImage src={vendor.avatar} alt={vendor.companyName} />
+                                ) : (
+                                  <AvatarFallback>
+                                    {vendor?.companyName?.charAt(0).toUpperCase() || "V"}
+                                  </AvatarFallback>
+                                )}
+                              </Avatar>
+                            <div>
+                              <p className="text-sm font-medium">{vendor?.companyName}</p>
+                              <p className="text-xs text-muted-foreground">{vendor?.title}</p>
+                            </div>
+                            </Link>
+                          </div>
+                        </div>
+                    </CardHeader>
+
+                    <CardContent>
+                      <div className="space-y-4">
+                        <ul className="space-y-2">
+                          {service.outcomes?.map((outcome, idx) => (
+                            <li key={idx} className="flex items-center gap-2 text-sm">
+                              <CheckCircle className="w-4 h-4 text-primary" />
+                              <span>{outcome}</span>
+                            </li>
+                          ))}
+                        </ul>
+
+                        <div className="flex items-center justify-between pt-4 border-t">
+                          <div>
+                            <span className="text-2xl font-bold">{getServiceDisplayPrice(service)}</span>
+                          </div>
+                          <Link href={`/services/${service.serviceId}`}>
+                            <Button data-testid={`button-view-service-${service.serviceId}`}>
+                              View Service
+                              <ArrowRight className="ml-2 w-4 h-4" />
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </TabsContent>
 
