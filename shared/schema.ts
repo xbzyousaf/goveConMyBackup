@@ -502,6 +502,11 @@ export const serviceRequestsRelations = relations(serviceRequests, ({ one, many 
     references: [users.id],
     relationName: "vendorRequests",
   }),
+  vendorProfile: one(vendorProfiles, {
+    fields: [serviceRequests.vendorId],
+    references: [vendorProfiles.userId],
+    relationName: "vendorRequests",
+  }),
   service: one(services, {
     fields: [serviceRequests.serviceId],
     references: [services.id],

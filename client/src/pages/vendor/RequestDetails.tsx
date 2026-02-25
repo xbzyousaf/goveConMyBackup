@@ -16,6 +16,7 @@ import { Header } from "@/components/Header";
 import { Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ServiceRequestCard } from "@/components/service-requests/ServiceRequestCard";
+import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 
 export default function RequestDetails() {
   const [, params] = useRoute("/vendor/requests/:id");
@@ -706,44 +707,57 @@ const handleDeliver = async () => {
                 {/* Contractor Info Card */}
                 <Card className="rounded-2xl shadow-md">
                 <CardContent className="p-5 space-y-4">
+                {(() => {
+                  const isContractor = user?.userType === "contractor"; // adjust based on your auth
+                  const other = isContractor ? request.vendorProfile : request.contractor;
+                  const curuser = isContractor ? request.vendor : request.contractor;
 
+                  return (
                     <div>
-                    <p className="text-sm text-muted-foreground mb-2">
-                        Contractor
-                    </p>
-                    <div className="flex gap-3 items-center">
-                        <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
-                            {request.contractor?.firstName?.charAt(0)?.toUpperCase() ?? "U"}
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {isContractor ? "Vendor" : "Contractor"}
+                      </p>
+                      <div className="flex items-center space-x-4">
+                        {other?.avatar ? (
+                          <Avatar className="w-16 h-16">
+                            <AvatarImage  className="aspect-square rounded-full" src={other.avatar} />
+                            <AvatarFallback className="font-semibold">
+                              {other.firstName?.charAt(0)?.toUpperCase() ?? "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
+                            {curuser?.firstName?.charAt(0)?.toUpperCase() ?? "U"}
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium">
+                            {curuser?.firstName
+                              ? `${curuser.firstName} ${curuser.lastName ?? ""}`
+                              : "Not assigned"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            @{curuser?.username ?? "Not assigned"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Last Seen: 5 sec ago
+                          </p>
                         </div>
-                        <div className="">
-                            <p className="font-medium">
-                                {request.contractor?.firstName
-                                ? `${request.contractor.firstName} ${request.contractor.lastName ?? ""}`
-                                : "Not assigned"}
-                            </p>
-                            <p className="text-sm text-muted-foreground">@
-                                {request.contractor?.username
-                                ? `${request.contractor.username}`
-                                : "Not assigned"}
-                            </p>
-                            <p className="text-sm text-muted-foreground">Last Seen:
-                                5 sec ago
-                            </p>
-                        </div>
-                        
+                      </div>
                     </div>
-                        
-                    </div>
+                  );
+                })()}
 
-                    {/* Message Button */}
-                    <Button variant="secondary" className="w-full"
-                        onClick={() => openConversation(request.id)}
-                        >
-                        <MessageSquare className="w-4 h-4 mr-2" />
-                        Message
-                    </Button>
-
-                </CardContent>
+                {/* Message Button */}
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => openConversation(request.id)}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Message
+                </Button>
+              </CardContent>
                 </Card>
 
 

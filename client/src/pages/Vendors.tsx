@@ -39,7 +39,6 @@ export default function Vendors() {
   queryFn: async () => {
     const res = await fetch("/api/vendors");
     const data = await res.json();
-      debugger
 
     if (data?.message === "Access denied") {
       throw new Error("ACCESS_DENIED");

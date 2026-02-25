@@ -872,7 +872,11 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
     }
   });
 
-  app.put('/api/vendor-profile/:id', isAuthenticated, async (req: any, res) => {
+  app.put(
+    "/api/vendor-profile/:id",
+    isAuthenticated,
+    upload.single("avatar"), // handle avatar upload
+    async (req: any, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) {
@@ -885,7 +889,10 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
       if (!existingProfile || existingProfile.id !== profileId) {
         return res.status(403).json({ message: "Unauthorized to edit this profile" });
       }
-      
+      const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
+      if (fileUrl) {
+        req.body.avatar = fileUrl;
+      }
       const profile = await storage.updateVendorProfile(profileId, req.body);
       res.json(profile);
     } catch (error) {

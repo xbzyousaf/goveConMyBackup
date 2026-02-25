@@ -277,10 +277,33 @@ export class DatabaseStorage implements IStorage {
     return vendorProfile;
   }
 
-  async updateVendorProfile(id: string, updates: Partial<InsertVendorProfile>): Promise<VendorProfile> {
+  async updateVendorProfile(
+    id: string,
+    updates: Partial<InsertVendorProfile> & { skills?: any; categories?: any; avatar?: string }
+  ): Promise<VendorProfile> {
+    const sanitizedUpdates: Partial<InsertVendorProfile> = { ...updates };
+    // Parse skills/categories if they are strings
+    if (typeof sanitizedUpdates.skills === "string") {
+      try {
+        sanitizedUpdates.skills = JSON.parse(sanitizedUpdates.skills);
+      } catch (e) {
+        console.warn("Failed to parse skills:", sanitizedUpdates.skills);
+        sanitizedUpdates.skills = [];
+      }
+    }
+    if (typeof sanitizedUpdates.categories === "string") {
+      try {
+        sanitizedUpdates.categories = JSON.parse(sanitizedUpdates.categories);
+      } catch (e) {
+        console.warn("Failed to parse categories:", sanitizedUpdates.categories);
+        sanitizedUpdates.categories = [];
+      }
+    }
+    // Only set updatedAt automatically
+    sanitizedUpdates.updatedAt = new Date();
     const [profile] = await db
       .update(vendorProfiles)
-      .set({ ...updates, updatedAt: new Date() })
+      .set(sanitizedUpdates)
       .where(eq(vendorProfiles.id, id))
       .returning();
     return profile;
@@ -354,6 +377,12 @@ export class DatabaseStorage implements IStorage {
   return await db.query.serviceRequests.findFirst({
     where: eq(serviceRequests.id, id),
     with: {
+      vendorProfile: {
+        columns: {
+          id: true,
+          avatar: true,
+        },
+      },
       vendor: {
         columns: {
           id: true,
@@ -902,12 +931,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getServiceById(serviceId: string) {
-    // Fetch only the parent service, no tiers
+    // Fetch the service
     const service = await db.query.services.findFirst({
       where: eq(services.id, serviceId),
     });
 
-    return service || null;
+    if (!service) return null;
+
+    // Fetch the vendor profile (only specific fields)
+    const vendorProfile = await db.query.vendorProfiles.findFirst({
+      where: eq(vendorProfiles.userId, service.vendorId),
+      columns: {
+        companyName: true,
+        title: true,
+        avatar: true,
+      },
+    });
+
+    return {
+      ...service,
+      vendorProfile: vendorProfile || null,
+    };
   }
 
   async getServicesByVendorId(vendorId: string) {
@@ -1010,11 +1054,20 @@ export class DatabaseStorage implements IStorage {
         description: services.description,
         category: services.category,
         vendorId: services.vendorId,
+        vendorProfile: {
+          companyName: vendorProfiles.companyName,
+          title: vendorProfiles.title,
+          avatar: vendorProfiles.avatar,
+        },
       })
       .from(services)
+      .leftJoin(
+        vendorProfiles,
+        eq(vendorProfiles.userId, services.vendorId)
+      )
       .where(eq(services.isActive, true))
       .orderBy(desc(services.createdAt));
-  }
+}
 
   async advanceUserStage(userId: string, nextStage: "startup" | "growth" | "scale") {
     const [updated] = await db
