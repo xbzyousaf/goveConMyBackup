@@ -29,6 +29,14 @@ export default function VendorDashboard() {
     queryKey: ["/api/vendor-profile"],
     retry: false,
   });
+  const { data: vendorPortfolios, isLoading: portfoliosLoading } = useQuery({
+    queryKey: ["/api/vendor-portfolio"],
+    retry: false,
+  });
+  const { data: vendorCertificates, isLoading: certificatesLoading } = useQuery({
+    queryKey: ["/api/vendor-certificate"],
+    retry: false,
+  });
   const { data: reviews = [] } = useQuery<{
     rating: number;
     comment: string;
@@ -477,8 +485,105 @@ const overviewRequests = allRequests.filter((request) => {
                   )}
                 </CardContent>
               </Card>
+              {/* Portfolio Card */}
+              <Card data-testid="card-vendor-portfolio">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Portfolio</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLocation(`/vendor/${vendorProfile?.id}/add-portfolio`)}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Portfolio
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {vendorPortfolios?.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {vendorPortfolios.map((item, index) => (
+                        <Card key={index} className="overflow-hidden">
+                          {item.attachmentUrl && (
+                            <img
+                              src={item.attachmentUrl} // correct field
+                              alt={item.projectName}   // correct field
+                              className="w-full h-40 object-cover"
+                            />
+                          )}
+                          <CardContent className="p-4">
+                            <h4 className="font-medium">
+                              {item.projectName} {/* correct field */}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              {item.description}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Industry: {item.industry} | Duration: {item.duration} | Cost: ${item.cost}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">
+                      No portfolio added yet
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+              {/* Certificates Card */}
+              <Card data-testid="card-vendor-certificates">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>
+                    Certificates
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLocation(`/vendor/${vendorProfile?.id}/add-certificate`)}
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Certificate
+                  </Button>
+                </CardHeader>
+                <CardContent>
+  {vendorCertificates?.length > 0 ? (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {vendorCertificates.map(cert => (
+        <Card key={cert.id} className="overflow-hidden">
+          {cert.imageUrl && (
+            <img
+              src={cert.imageUrl} 
+              alt={cert.certificateName}
+              className="w-full h-40 object-cover"
+            />
+          )}
+          <CardContent className="p-4">
+            <h4 className="font-medium">{cert.certificateName}</h4>
+            <p className="text-sm text-muted-foreground">{cert.receivedFrom}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Year Received: {cert.yearReceived}
+            </p>
+            {cert.imageUrl && (
+              <a
+                href={cert.imageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-primary underline mt-2 inline-block"
+              >
+                View Certificate
+              </a>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  ) : (
+    <p className="text-muted-foreground text-sm">No certificates added yet</p>
+  )}
+</CardContent>
+              </Card>
             </TabsContent>
-
             {/* Requests Tab */}
             <TabsContent value="requests" className="space-y-6">
               <Card data-testid="card-service-requests">
