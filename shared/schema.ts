@@ -16,7 +16,7 @@ export const sessions = pgTable(
 
 // Enums
 export const userTypeEnum = pgEnum("user_type", ["contractor", "vendor", 'admin']);
-export const serviceRequestStatusEnum = pgEnum("service_request_status", ["pending", "matched", "in_progress", "delivered", "completed", "cancelled"]);
+export const serviceRequestStatusEnum = pgEnum("service_request_status", ["pending", "accepted", "paid", "in_progress", "delivered", "completed", "cancelled"]);
 export const serviceCategoryEnum = pgEnum("service_category", ["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools"]);
 export const maturityStageEnum = pgEnum("maturity_stage", ["startup", "growth", "scale"]);
 export const coreProcessEnum = pgEnum("core_process", ["business_structure", "business_strategy", "execution"]);
@@ -26,7 +26,7 @@ export const vendorJourneyStageEnum = pgEnum("vendor_journey_stage", ["awareness
 export const serviceTierEnum = pgEnum("service_tier", ["free","standard","premium"]);
 export const messageTypeEnum = pgEnum("message_type", ["text", "system", "file", ]);
 export const extentionStatusEnum = pgEnum("status", ["pending", "approved", "rejected", ]);
-
+export const paymentStatus = pgEnum("payment_status", ["unpaid", "payment_pending", "payment_received", "escrow_held", "released", "refunded", "failed"]);
 
 // Users table - custom email/password authentication
 export const users = pgTable("users", {
@@ -190,7 +190,32 @@ export const serviceTiers = pgTable("service_tiers", {
     category: serviceCategoryEnum("category").notNull(),
     priority: text("priority").notNull(),
     budget: text("budget"),
+    // --------------------------
+    // PRICING
+    // --------------------------
+    proposedPrice: decimal("proposed_price", { precision: 10, scale: 2 }).notNull(),
+    counterPrice: decimal("counter_price", { precision: 10, scale: 2 }),
+    finalPrice: decimal("final_price", { precision: 10, scale: 2 }),
+    platformFee: decimal("platform_fee", { precision: 10, scale: 2 }),
+    vendorEarning: decimal("vendor_earning", { precision: 10, scale: 2 }),
+    // --------------------------
+    // STATUS
+    // --------------------------
     status: serviceRequestStatusEnum("status").default("pending"),
+    paymentStatus: paymentStatus("payment_status").default("payment_pending"),
+    // --------------------------
+    // PAYMENT TIMESTAMPS
+    // --------------------------
+    paidAt: timestamp("paid_at"),
+    releasedAt: timestamp("released_at"),
+    refundedAt: timestamp("refunded_at"),
+    // --------------------------
+    // DELIVERY / SLA
+    // --------------------------
+    deliveryDeadline: timestamp("delivery_deadline"),
+    deliveredAt: timestamp("delivered_at"),
+    completedAt: timestamp("completed_at"),
+    
     aiAnalysis: text("ai_analysis"),
     estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
     actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
@@ -358,6 +383,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "request_in_progress",
   "request_completed",
   "request_cancelled",
+  "request_accepted",
   "new_message",
   "delivery",
   "new_review",

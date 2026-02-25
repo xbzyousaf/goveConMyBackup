@@ -186,7 +186,7 @@ export default function Dashboard() {
    const overviewRequests = applyFilter(
   serviceRequests.filter(
     (request) =>
-      ["pending", "in_progress", "delivered"].includes(request.status)
+      ["pending", "in_progress", "accepted", "delivered"].includes(request.status)
   )
 );
 

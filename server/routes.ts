@@ -1539,8 +1539,10 @@ Respond in JSON format:
 
       const allowedStatuses = [
         "pending",
-        "matched",
+        "accepted",
+        "escrow_pending",
         "in_progress",
+        "delivered",
         "completed",
         "cancelled",
       ];
@@ -1554,6 +1556,32 @@ Respond in JSON format:
       if (!serviceRequest) {
         return res.status(404).json({ message: "Service request not found" });
       }
+      if (status === "in_progress") {
+
+        if (serviceRequest.paymentStatus !== "escrow_held") {
+          return res.status(400).json({
+            message: "Escrow must be funded before starting work."
+          });
+        }
+      }
+      const currentStatus = serviceRequest.status;
+      const paymentStatus = serviceRequest.paymentStatus;
+      // STRICT TRANSITION RULES
+      if (status === "in_progress") {
+        if (paymentStatus !== "escrow_held") {
+          return res.status(400).json({
+            message: "Cannot start work until payment is secured in escrow"
+          });
+        }
+      }
+
+      if (status === "completed") {
+        if (paymentStatus !== "escrow_held") {
+          return res.status(400).json({
+            message: "Invalid completion state"
+          });
+        }
+      }
 
       // Only vendor can approve/reject
       if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId) {
@@ -1561,6 +1589,13 @@ Respond in JSON format:
       }
       const previousStatus = serviceRequest.status ?? 'pending';
       const updated = await storage.updateServiceRequestStatus(id, status);
+      if (status === "completed") {
+        await storage.updateServiceRequest(id, {
+          paymentStatus: "released",
+          releasedAt: new Date(),
+          completedAt: new Date(),
+        });
+      }
       await storage.createRequestLog({
         serviceRequestId: id,
         action: "STATUS_UPDATED",
@@ -1585,8 +1620,18 @@ Respond in JSON format:
       });
       res.json(updated);
     } catch (error) {
-      console.error("Update status error:", error);
-      res.status(500).json({ message: "Failed to update status" });
+      console.error("CREATE SERVICE REQUEST FAILED");
+
+      if (error instanceof Error) {
+        console.error(error.message);
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        message: "Internal server error"
+      });
     }
   });
   app.get("/api/conversations", isAuthenticated, async (req, res) => {
@@ -1793,7 +1838,11 @@ Respond in JSON format:
       if (!existingRequest) {
         return res.status(404).json({ message: "Service request not found" });
       }
-
+      if (existingRequest.paymentStatus !== "escrow_held") {
+        return res.status(400).json({
+          message: "Cannot deliver before payment is secured"
+        });
+      }
       // Optional: ensure only vendor can deliver
       if (existingRequest.vendorId !== userId) {
         return res.status(403).json({ message: "Only assigned vendor can deliver" });
@@ -1976,7 +2025,86 @@ app.post("/api/extensions/:id/reject", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
+  try {
+    const contractorId = getUserId(req);
+    const { id } = req.params;
 
+    const request = await storage.getServiceRequest(id);
+
+    if (!request || request.contractorId !== contractorId) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    if (request.status !== "accepted") {
+      return res.status(400).json({ message: "Invalid state for payment" });
+    }
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    if (request.contractorId !== contractorId) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    if (request.status !== "accepted") {
+      return res.status(400).json({ message: "Payment allowed only after acceptance" });
+    }
+
+    const finalPrice = Number(request.finalPrice || request.proposedPrice);
+
+    const platformFee = finalPrice * 0.1;
+    const vendorEarning = finalPrice - platformFee;
+
+    await storage.updateServiceRequest(id, {
+      paymentStatus: "escrow_held",
+      paidAt: new Date(),
+      finalPrice: finalPrice.toString(),
+      platformFee: platformFee.toString(),
+      vendorEarning: vendorEarning.toString(),
+    });
+
+    return res.json({ success: true });
+
+  } catch (error) {
+      console.error("CREATE SERVICE REQUEST FAILED");
+
+      if (error instanceof Error) {
+        console.error(error.message);
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        message: "Internal server error"
+      });
+    }
+});
+app.get("/api/vendor/earnings", isAuthenticated, async (req, res) => {
+  try {
+    const vendorId = getUserId(req);
+    if (!vendorId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    const requests = await storage.getServiceRequestsByVendor(vendorId);
+
+    const released = requests.filter(r => r.paymentStatus === "released");
+
+    const total = released.reduce(
+      (sum, r) => sum + Number(r.vendorEarning || 0),
+      0
+    );
+
+    res.json({
+      totalEarnings: total,
+      transactions: released
+    });
+
+  } catch (err) {
+    res.status(500).json({ message: "Failed to load earnings" });
+  }
+});
 
 
   const httpServer = createServer(app);

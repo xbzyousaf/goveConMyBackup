@@ -403,23 +403,50 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateServiceRequest(id: string, updates: Partial<ServiceRequest>): Promise<ServiceRequest> {
-    // Only allow updating specific fields to prevent unauthorized changes
-    const allowedUpdates: Partial<ServiceRequest> = {};
-    
-    if (updates.vendorId !== undefined) allowedUpdates.vendorId = updates.vendorId;
-    if (updates.status !== undefined) allowedUpdates.status = updates.status;
-    if (updates.aiAnalysis !== undefined) allowedUpdates.aiAnalysis = updates.aiAnalysis;
-    if (updates.estimatedCost !== undefined) allowedUpdates.estimatedCost = updates.estimatedCost;
-    if (updates.actualCost !== undefined) allowedUpdates.actualCost = updates.actualCost;
-    if (updates.estimatedDuration !== undefined) allowedUpdates.estimatedDuration = updates.estimatedDuration;
-    
-    const [request] = await db
-      .update(serviceRequests)
-      .set({ ...allowedUpdates, updatedAt: new Date() })
-      .where(eq(serviceRequests.id, id))
-      .returning();
-    return request;
-  }
+  const allowedUpdates: Partial<ServiceRequest> = {};
+  
+  if (updates.vendorId !== undefined)
+    allowedUpdates.vendorId = updates.vendorId;
+
+  if (updates.status !== undefined)
+    allowedUpdates.status = updates.status;
+
+  if (updates.aiAnalysis !== undefined)
+    allowedUpdates.aiAnalysis = updates.aiAnalysis;
+
+  if (updates.estimatedCost !== undefined)
+    allowedUpdates.estimatedCost = updates.estimatedCost;
+
+  if (updates.actualCost !== undefined)
+    allowedUpdates.actualCost = updates.actualCost;
+
+  if (updates.estimatedDuration !== undefined)
+    allowedUpdates.estimatedDuration = updates.estimatedDuration;
+
+  // 🔥 ADD THESE PAYMENT FIELDS HERE
+  if (updates.paymentStatus !== undefined)
+    allowedUpdates.paymentStatus = updates.paymentStatus;
+
+  if (updates.paidAt !== undefined)
+    allowedUpdates.paidAt = updates.paidAt;
+
+  if (updates.finalPrice !== undefined)
+    allowedUpdates.finalPrice = updates.finalPrice;
+
+  if (updates.platformFee !== undefined)
+    allowedUpdates.platformFee = updates.platformFee;
+
+  if (updates.vendorEarning !== undefined)
+    allowedUpdates.vendorEarning = updates.vendorEarning;
+
+  const [request] = await db
+    .update(serviceRequests)
+    .set({ ...allowedUpdates, updatedAt: new Date() })
+    .where(eq(serviceRequests.id, id))
+    .returning();
+
+  return request;
+}
 
   async getServiceRequestsByContractor(contractorId: string) {
   return await db.query.serviceRequests.findMany({
