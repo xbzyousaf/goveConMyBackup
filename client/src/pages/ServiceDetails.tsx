@@ -99,7 +99,7 @@ export default function ServiceDetails() {
               <Link
                 href={`/request?vendorId=${vendorId}&serviceId=${service.id}`}
               >
-                <Button className="w-full">
+                <Button className="w-full mt-6">
                   Request This Service
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>

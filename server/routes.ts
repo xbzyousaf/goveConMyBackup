@@ -1,3 +1,4 @@
+import { createDispute } from '@/lib/storage';
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -856,37 +857,37 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
   });
 
   app.post(
-  "/api/vendor-profile",
-  isAuthenticated,
-  upload.single("avatar"), // handle avatar upload
-  async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
+"/api/vendor-profile",
+isAuthenticated,
+upload.single("avatar"), // handle avatar upload
+async (req: any, res) => {
+try {
+const userId = getUserId(req);
+if (!userId) {
+return res.status(401).json({ message: "Not authenticated" });
+}
 
-      const { companyName, title } = req.body;
+const { companyName, title } = req.body;
 
-      if (!companyName || !title) {
-        return res
-          .status(400)
-          .json({ message: "Missing required fields: companyName or title" });
-      }
+if (!companyName || !title) {
+return res
+.status(400)
+.json({ message: "Missing required fields: companyName or title" });
+}
 
-      const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
-      if (fileUrl) {
-        req.body.avatar = fileUrl;
-      }
+const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
+if (fileUrl) {
+req.body.avatar = fileUrl;
+}
 
-      const profile = await storage.createVendorProfile(req.body, userId);
+const profile = await storage.createVendorProfile(req.body, userId);
 
-      res.status(200).json(profile);
-    } catch (error) {
-      console.error("Error creating vendor profile:", error);
-      res.status(500).json({ message: "Failed to create vendor profile" });
-    }
-  }
+res.status(200).json(profile);
+} catch (error) {
+console.error("Error creating vendor profile:", error);
+res.status(500).json({ message: "Failed to create vendor profile" });
+}
+}
 );
 
   app.put(
@@ -1561,7 +1562,6 @@ Respond in JSON format:
   app.patch("/api/service-requests/:id/status", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const user = await storage.getUser(userId);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1572,11 +1572,11 @@ Respond in JSON format:
       const allowedStatuses = [
         "pending",
         "accepted",
-        "escrow_pending",
         "in_progress",
         "delivered",
         "completed",
         "cancelled",
+        "disputed",
       ];
 
       if (!allowedStatuses.includes(status)) {
@@ -1616,7 +1616,7 @@ Respond in JSON format:
       }
 
       // Only vendor can approve/reject
-      if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId && user?.userType !== 'admin') {
+      if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId) {
         return res.status(403).json({ message: "Not authorized" });
       }
       const previousStatus = serviceRequest.status ?? 'pending';
@@ -1753,14 +1753,50 @@ Respond in JSON format:
   });
   app.get("/api/service-requests/:id", async (req, res) => {
   try {
+    const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
       const id = req.params.id;
       const request = await storage.getServiceRequest(req.params.id);
 
       if (!request) {
         return res.status(404).json({ message: "Not found" });
       }
+      if ( request.status === "delivered" ) 
+      {
+        const updatedStatus = await storage.autoCompleteIfExpired(request);
+        if (updatedStatus === "completed") {
+          await storage.createRequestLog({
+            serviceRequestId: id,
+            action: "AUTO_COMPLETED",
+            performedBy: userId,
+            previousStatus: "delivered",
+            newStatus: updatedStatus,
+          });
+          const notification = getNotificationContent("completed");
+          await storage.createNotification({
+            userId: request.vendorId,
+            triggeredBy: request.contractorId,
+            title: "AUTO_COMPLETED",
+            message: "Your service request has been automatically marked as completed as the delivery deadline has passed.",
+            type: notification.type,
+            relatedRequestId: request.id,
+            isRead: false,
+          });
+          await storage.createNotification({
+            userId: request.contractorId,
+            triggeredBy: request.vendorId,
+            title: "AUTO_COMPLETED",
+            message: "Your service request has been automatically marked as completed as the delivery deadline has passed.",
+            type: notification.type,
+            relatedRequestId: request.id,
+            isRead: false,
+          });
+          request.status = "completed";
+        }
+      }
       const extensions = await storage.getExtensionsByServiceRequestId(id);
-      const userId = getUserId(req);
 
       const alreadyReviewed = request.reviews?.some(
         (review) => review.reviewerId === userId
@@ -2102,6 +2138,14 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
       finalPrice: vendorEarning.toString(),
       status: "in_progress"
     });
+    await storage.createNotification({
+      userId: request?.vendorId,
+      triggeredBy: contractorId,
+      type: "payment_created",
+      title: "Payment Created",
+      message: "A payment has been created for your service request.",
+      relatedRequestId: id,
+    });
 
     return res.json({ success: true });
 
@@ -2131,6 +2175,38 @@ app.get("/api/vendor/payments", isAuthenticated, async (req, res) => {
   } catch (error) {
     console.error("FETCH VENDOR PAYMENTS FAILED", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+});
+app.post("/api/disputes", isAuthenticated, async (req, res) => {
+  try {
+    const userId = getUserId(req);
+
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const { serviceRequestId, reason, description } = req.body;
+
+    if (!serviceRequestId || !reason) {
+      return res.status(400).json({
+        message: "Service request ID and reason are required",
+      });
+    }
+
+    const result = await storage.createDispute({
+      serviceRequestId,
+      openedBy: userId,
+      reason,
+      description,
+    });
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("CREATE DISPUTE FAILED", error);
+
+    res.status(400).json({
+      message: error.message || "Failed to create dispute",
+    });
   }
 });
 

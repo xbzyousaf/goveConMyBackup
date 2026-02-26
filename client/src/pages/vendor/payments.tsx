@@ -6,11 +6,12 @@ interface Payment {
   title: string;
   status: string;
   paymentStatus: string;
-  finalPrice?: number;
-  proposedPrice?: number;
-  actualCost?: number;
-  completedAt?: string;
-  createdAt: string;
+  escrowStatus: string;
+  escrowAmount: number;
+  releasedAt?: string;
+  platformFee?: number;
+  vendorEarning?: number;
+  heldAt?: string;
 }
 
 export default function VendorPayments() {
@@ -51,7 +52,7 @@ export default function VendorPayments() {
   const calculateTotal = (items: Payment[]) =>
     items.reduce((sum, p) => {
       const amount =
-        p.actualCost || p.finalPrice || p.proposedPrice || 0;
+        p.vendorEarning || 0;
       return sum + Number(amount);
     }, 0);
 
@@ -59,22 +60,22 @@ export default function VendorPayments() {
   if (error) return <div className="p-6 text-red-500">{error}</div>;
 
   return (
-    <div className="p-6 space-y-10 constainer">
+    <div>
         <Header />
+    <div className="p-6 space-y-10 container mx-auto">
+        
       <h1 className="text-2xl font-bold">Vendor Payments</h1>
-
-      {/* ================= Escrow Held ================= */}
-      <Section
-        title="Escrow Held (Being Cleared)"
-        items={escrowHeld}
-        total={calculateTotal(escrowHeld)}
-      />
-
       {/* ================= Released ================= */}
       <Section
         title="Released (Cleared Payments)"
         items={released}
         total={calculateTotal(released)}
+      />
+      {/* ================= Escrow Held ================= */}
+      <Section
+        title="Escrow Held (Being Cleared)"
+        items={escrowHeld}
+        total={calculateTotal(escrowHeld)}
       />
 
       {/* ================= Pending ================= */}
@@ -83,6 +84,7 @@ export default function VendorPayments() {
         items={pending}
         total={calculateTotal(pending)}
       />
+    </div>
     </div>
   );
 }
@@ -97,10 +99,17 @@ function Section({
   total: number;
 }) {
   return (
-    <div>
-      <h2 className="text-xl font-semibold mb-3">
-        {title} — Total: ₹{total.toFixed(2)}
-      </h2>
+    <div className="bg-white shadow-md rounded-xl p-6 border border-gray-200">
+      
+      {/* Card Header */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold">
+          {title}
+        </h2>
+        <span className="text-lg font-bold">
+          Total: ${total.toFixed(2)}
+        </span>
+      </div>
 
       {items.length === 0 ? (
         <p className="text-gray-500">No records found.</p>
@@ -110,34 +119,41 @@ function Section({
             <tr>
               <th className="p-2 border">Request</th>
               <th className="p-2 border">Status</th>
-              <th className="p-2 border">Amount</th>
+              <th className="p-2 border">Escrow</th>
+              <th className="p-2 border">Platform Fee</th>
+              <th className="p-2 border">Vendor Amount</th>
               <th className="p-2 border">Created</th>
               <th className="p-2 border">Completed</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((p) => {
-              const amount =
-                p.actualCost || p.finalPrice || p.proposedPrice || 0;
+            {items.map((p) => (
+              <tr key={p.id} className="text-center">
+                <td className="p-2 border">{p.title}</td>
+                <td className="p-2 border">{p.status}</td>
+                <td className="p-2 border font-medium">
+                ${Number(p.escrowAmount || 0).toFixed(2)}
+                </td>
 
-              return (
-                <tr key={p.id} className="text-center">
-                  <td className="p-2 border">{p.title}</td>
-                  <td className="p-2 border">{p.status}</td>
-                  <td className="p-2 border font-medium">
-                    ₹{Number(amount).toFixed(2)}
-                  </td>
-                  <td className="p-2 border">
-                    {new Date(p.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="p-2 border">
-                    {p.completedAt
-                      ? new Date(p.completedAt).toLocaleDateString()
-                      : "-"}
-                  </td>
-                </tr>
-              );
-            })}
+                <td className="p-2 border text-red-600">
+                ${Number(p.platformFee || 0).toFixed(2)}
+                </td>
+
+                <td className="p-2 border text-green-600 font-semibold">
+                ${Number(p.vendorEarning || 0).toFixed(2)}
+                </td>
+                <td className="p-2 border">
+                  {p.heldAt
+                    ? new Date(p.heldAt).toLocaleString()
+                    : "-"}
+                </td>
+                <td className="p-2 border">
+                  {p.releasedAt
+                    ? new Date(p.releasedAt).toLocaleString()
+                    : "-"}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       )}

@@ -33,7 +33,54 @@ export default function RequestDetails() {
     new Date().toISOString().split("T")[0] // today
   );
   const [extendReason, setExtendReason] = useState("");
+const [isDisputeOpen, setIsDisputeOpen] = useState(false);
+const [disputeReason, setDisputeReason] = useState("");
+const [disputeDescription, setDisputeDescription] = useState("");
+const [isPayConfirmOpen, setIsPayConfirmOpen] = useState(false);
+const [isPaying, setIsPaying] = useState(false);
+const openDispute = useMutation({
+  mutationFn: async () => {
+    const res = await fetch("/api/disputes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        serviceRequestId: request.id,
+        reason: disputeReason,
+        description: disputeDescription,
+      }),
+    });
 
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to open dispute");
+    }
+
+    return data;
+  },
+  onSuccess: () => {
+    toast({
+      title: "Dispute Opened",
+      description: "Your dispute has been submitted successfully.",
+    });
+
+    queryClient.invalidateQueries({
+      queryKey: ["service-request", request.id],
+    });
+
+    setIsDisputeOpen(false);
+    setDisputeReason("");
+    setDisputeDescription("");
+  },
+  onError: (error: any) => {
+    toast({
+      title: "Error",
+      description: error.message,
+      variant: "destructive",
+    });
+  },
+});
   const { data: request, isLoading } = useQuery({
     queryKey: ["service-request", id],
     queryFn: async () => {
@@ -71,12 +118,17 @@ export default function RequestDetails() {
   : null;
 
   useEffect(() => {
-    if (!finalDeliveryDate) {
+    // STOP TIMER if request is no longer active
+    if (
+      !finalDeliveryDate ||
+      request?.status === "completed" ||
+      request?.status === "cancelled"
+    ) {
       setTimeLeft("");
       return;
     }
 
-    const interval = setInterval(() => {
+  const interval = setInterval(() => {
       const now = Date.now();
       const distance = finalDeliveryDate.getTime() - now;
 
@@ -437,7 +489,7 @@ const handleDeliver = async () => {
                   })
               }
                 {/* ================= CONTRACTOR DELIVERY VIEW ================= */}
-                {user?.userType === "contractor" && request.deliveries.length > 0 && (
+                {request.deliveries.length > 0 && (
                   <Card className="rounded-2xl shadow-md mt-6">
                     <CardHeader>
                       <CardTitle className="text-lg font-semibold">Deliveries</CardTitle>
@@ -470,7 +522,7 @@ const handleDeliver = async () => {
                         <p className="text-muted-foreground">No deliveries yet</p>
                       )}
 
-                      { request.status === "delivered" && (
+                      { request.status === "delivered" && user?.userType === "contractor" && (
                         <Button
                           className="w-full mt-2 bg-green-600 hover:bg-green-700 text-white"
                           onClick={() => {
@@ -618,12 +670,12 @@ const handleDeliver = async () => {
                       </DialogContent>
                     </Dialog>
                   )}
-                  {user?.userType === "vendor" && request.status == "in_progress" && (
+                  {user?.userType === "vendor" && request.status !== "pending" && request.status !== "completed" && (
                     <Dialog open={isDeliverOpen} onOpenChange={setIsDeliverOpen}>
                         <DialogTrigger asChild>
                           <Button
                             className="w-full"
-                            disabled={request.status !== "in_progress" || user?.userType !== "vendor"}
+                            disabled={request.status == "pending" }
                           >
                             {isDelivered ? "Re-Deliver" : "Deliver Now"}
                           </Button>
@@ -764,6 +816,53 @@ const handleDeliver = async () => {
                 {/* Status Action Card */}
                 <Card className="rounded-2xl shadow-md">
                 <CardContent className="p-5 space-y-3">
+                  <Dialog open={isDisputeOpen} onOpenChange={setIsDisputeOpen}>
+  <DialogTrigger asChild>
+    <Button
+      variant="destructive"
+      className="w-full mt-3"
+    >
+      Open Dispute
+    </Button>
+  </DialogTrigger>
+
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Open Dispute</DialogTitle>
+    </DialogHeader>
+
+    <div className="space-y-4">
+      <Input
+        placeholder="Reason"
+        value={disputeReason}
+        onChange={(e) => setDisputeReason(e.target.value)}
+      />
+
+      <Textarea
+        placeholder="Describe the issue..."
+        rows={4}
+        value={disputeDescription}
+        onChange={(e) => setDisputeDescription(e.target.value)}
+      />
+    </div>
+
+    <DialogFooter>
+      <Button
+        variant="outline"
+        onClick={() => setIsDisputeOpen(false)}
+      >
+        Cancel
+      </Button>
+
+      <Button
+        disabled={!disputeReason.trim()}
+        onClick={() => openDispute.mutate()}
+      >
+        Submit Dispute
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
                 {user?.userType === "vendor" && request.status === "pending" && (
                       <Button
                         className="w-full"
@@ -778,7 +877,7 @@ const handleDeliver = async () => {
                         Accept Request
                       </Button>
                     )}
-                    <Button
+                    {/* <Button
                         variant="destructive"
                         disabled={
                             request.status === "completed" 
@@ -793,33 +892,81 @@ const handleDeliver = async () => {
                         >
                         <X className="w-4 h-4 mr-2" />
                         Cancel
-                    </Button>
+                    </Button> */}
                     {/* Contractor Pay Escrow */}
                 {user?.userType === "contractor" &&
-                  request.status === "accepted" && (
-                    <Button
-                      className="w-full mt-3"
-                      onClick={async () => {
-                        const res = await fetch(
-                          `/api/service-requests/${request.id}/pay`,
-                          { method: "POST", credentials: "include" }
-                        );
+  request.status === "accepted" && (
+    <Dialog open={isPayConfirmOpen} onOpenChange={setIsPayConfirmOpen}>
+      <DialogTrigger asChild>
+        <Button className="w-full mt-3">
+          Pay & Fund Escrow
+        </Button>
+      </DialogTrigger>
 
-                        if (res.ok) {
-                          toast({
-                            title: "Escrow Funded",
-                            description: "Payment secured successfully",
-                          });
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirm Escrow Payment</DialogTitle>
+        </DialogHeader>
 
-                          queryClient.invalidateQueries({
-                            queryKey: ["service-request", request.id],
-                          });
-                        }
-                      }}
-                    >
-                      Pay & Fund Escrow
-                    </Button>
-                )}
+        <p className="text-sm text-muted-foreground">
+          This will securely fund the escrow for this service request.
+          The vendor will only receive payment after completion.
+        </p>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setIsPayConfirmOpen(false)}
+            disabled={isPaying}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            disabled={isPaying}
+            onClick={async () => {
+              try {
+                setIsPaying(true);
+
+                const res = await fetch(
+                  `/api/service-requests/${request.id}/pay`,
+                  {
+                    method: "POST",
+                    credentials: "include",
+                  }
+                );
+
+                if (!res.ok) {
+                  throw new Error("Payment failed");
+                }
+
+                toast({
+                  title: "Escrow Funded",
+                  description: "Payment secured successfully",
+                });
+
+                setIsPayConfirmOpen(false);
+
+                queryClient.invalidateQueries({
+                  queryKey: ["service-request", request.id],
+                });
+              } catch (error) {
+                toast({
+                  title: "Payment Failed",
+                  description: "Something went wrong",
+                  variant: "destructive",
+                });
+              } finally {
+                setIsPaying(false);
+              }
+            }}
+          >
+            {isPaying ? "Processing..." : "Confirm Payment"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+)}
                 </CardContent>
                 </Card>
             </div>
