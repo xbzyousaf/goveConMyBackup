@@ -50,6 +50,7 @@ import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
 import { notifications } from "@shared/schema"; // adjust path correctly
 import { deliveries, deliveryAttachments } from "@shared/schema";
+import { Avatar } from "@radix-ui/react-avatar";
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
   // User management
@@ -232,6 +233,7 @@ export class DatabaseStorage implements IStorage {
       companyName: vendorProfiles.companyName,
       description: vendorProfiles.description,
       categories: vendorProfiles.categories,
+      avatar: vendorProfiles.avatar,
       skills: vendorProfiles.skills,
       location: vendorProfiles.location,
       hourlyRate: vendorProfiles.hourlyRate,
@@ -543,6 +545,35 @@ return vendorProfile;
     return await db.query.serviceRequests.findMany({
       where: eq(serviceRequests.vendorId, vendorId),
       with: {
+        contractor: {
+          columns: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        service: {
+          columns: {
+            name: true,
+          },
+        },
+        reviews: true,
+      },
+      orderBy: (serviceRequests, { desc }) => [
+        desc(serviceRequests.createdAt),
+      ],
+    });
+  }
+  async getAllServiceRequestsWithDisputes() {
+    return await db.query.serviceRequests.findMany({
+      where: eq(serviceRequests.status, "disputed"), 
+      with: {
+        vendor: {
+          columns: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
         contractor: {
           columns: {
             firstName: true,

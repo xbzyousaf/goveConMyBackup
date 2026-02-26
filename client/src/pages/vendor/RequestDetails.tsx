@@ -36,6 +36,8 @@ export default function RequestDetails() {
 const [isDisputeOpen, setIsDisputeOpen] = useState(false);
 const [disputeReason, setDisputeReason] = useState("");
 const [disputeDescription, setDisputeDescription] = useState("");
+const [isPayConfirmOpen, setIsPayConfirmOpen] = useState(false);
+const [isPaying, setIsPaying] = useState(false);
 const openDispute = useMutation({
   mutationFn: async () => {
     const res = await fetch("/api/disputes", {
@@ -864,9 +866,12 @@ const handleDeliver = async () => {
                 {user?.userType === "vendor" && request.status === "pending" && (
                       <Button
                         className="w-full"
-                        onClick={() =>
-                          updateStatus.mutate({ status: "accepted" })
-                        }
+                        onClick={() => {
+                            setConfirmAction({
+                            id: request.id,
+                            status: "accepted",
+                            });
+                        }}
                       >
                         <Check className="w-4 h-4 mr-2" />
                         Accept Request
@@ -890,30 +895,78 @@ const handleDeliver = async () => {
                     </Button> */}
                     {/* Contractor Pay Escrow */}
                 {user?.userType === "contractor" &&
-                  request.status === "accepted" && (
-                    <Button
-                      className="w-full mt-3"
-                      onClick={async () => {
-                        const res = await fetch(
-                          `/api/service-requests/${request.id}/pay`,
-                          { method: "POST", credentials: "include" }
-                        );
+  request.status === "accepted" && (
+    <Dialog open={isPayConfirmOpen} onOpenChange={setIsPayConfirmOpen}>
+      <DialogTrigger asChild>
+        <Button className="w-full mt-3">
+          Pay & Fund Escrow
+        </Button>
+      </DialogTrigger>
 
-                        if (res.ok) {
-                          toast({
-                            title: "Escrow Funded",
-                            description: "Payment secured successfully",
-                          });
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Confirm Escrow Payment</DialogTitle>
+        </DialogHeader>
 
-                          queryClient.invalidateQueries({
-                            queryKey: ["service-request", request.id],
-                          });
-                        }
-                      }}
-                    >
-                      Pay & Fund Escrow
-                    </Button>
-                )}
+        <p className="text-sm text-muted-foreground">
+          This will securely fund the escrow for this service request.
+          The vendor will only receive payment after completion.
+        </p>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => setIsPayConfirmOpen(false)}
+            disabled={isPaying}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            disabled={isPaying}
+            onClick={async () => {
+              try {
+                setIsPaying(true);
+
+                const res = await fetch(
+                  `/api/service-requests/${request.id}/pay`,
+                  {
+                    method: "POST",
+                    credentials: "include",
+                  }
+                );
+
+                if (!res.ok) {
+                  throw new Error("Payment failed");
+                }
+
+                toast({
+                  title: "Escrow Funded",
+                  description: "Payment secured successfully",
+                });
+
+                setIsPayConfirmOpen(false);
+
+                queryClient.invalidateQueries({
+                  queryKey: ["service-request", request.id],
+                });
+              } catch (error) {
+                toast({
+                  title: "Payment Failed",
+                  description: "Something went wrong",
+                  variant: "destructive",
+                });
+              } finally {
+                setIsPaying(false);
+              }
+            }}
+          >
+            {isPaying ? "Processing..." : "Confirm Payment"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+)}
                 </CardContent>
                 </Card>
             </div>
