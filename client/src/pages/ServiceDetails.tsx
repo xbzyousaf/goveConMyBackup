@@ -61,7 +61,7 @@ export default function ServiceDetails() {
                 <DollarSign className="w-5 h-5 text-muted-foreground" />
                 <span className="font-semibold">
                   {service.priceMin && service.priceMax
-                    ? `$${service.priceMin} - $${service.priceMax}`
+                    ? `${service.priceMin} - ${service.priceMax}`
                     : "Contact vendor"}
                 </span>
               </div>
@@ -81,7 +81,7 @@ export default function ServiceDetails() {
                   <Link href={`/vendor/${service.vendorId}`} className="flex items-center gap-3 mt-4 hover:opacity-80 transition">
                       <Avatar className="h-10 w-10 shrink-0">
                         {service.vendorProfile?.avatar ? (
-                          <AvatarImage src={service.vendorProfile.avatar} alt={service.vendorProfile.companyName} />
+                          <AvatarImage className="aspect-square rounded-full" src={service.vendorProfile.avatar} alt={service.vendorProfile.companyName} />
                         ) : (
                           <AvatarFallback>
                             {service.vendorProfile?.companyName?.charAt(0).toUpperCase() || "V"}

@@ -359,9 +359,9 @@ export default function Marketplace() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
                             <Link href={`/vendor/${service.vendorId}`} className="flex items-center gap-3 mt-4 hover:opacity-80 transition">
-                              <Avatar className="h-10 w-10 shrink-0">
+                              <Avatar className="h-16 w-16">
                                 {vendor?.avatar ? (
-                                  <AvatarImage src={vendor.avatar} alt={vendor.companyName} />
+                                  <AvatarImage className="aspect-square rounded-full" src={vendor.avatar} alt={vendor.companyName} />
                                 ) : (
                                   <AvatarFallback>
                                     {vendor?.companyName?.charAt(0).toUpperCase() || "V"}

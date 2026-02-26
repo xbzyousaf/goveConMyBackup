@@ -259,6 +259,7 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
                         certifications={vendor.certifications || []}
                         availability={vendor.availability || "Available"}
                         skills={vendor.skills || []}
+                        avatar={vendor.avatar || undefined}
                       />
                     </div>
                   </Link>

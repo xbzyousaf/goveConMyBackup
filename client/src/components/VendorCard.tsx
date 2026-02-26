@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Star, MapPin, Clock, CheckCircle, Award, TrendingUp, Shield } from "lucide-react";
+import { name } from "node_modules/postcss/lib/document";
 
 interface VendorCardProps {
   name: string;
@@ -56,9 +57,14 @@ export function VendorCard({
       )}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <Avatar className="h-12 w-12">
-            <AvatarImage src={avatar} alt={name} />
-            <AvatarFallback>{initials}</AvatarFallback>
+          <Avatar className="h-10 w-10 shrink-0">
+            {avatar ? (
+              <AvatarImage src={avatar} alt={name} />
+            ) : (
+              <AvatarFallback>
+                {name?.charAt(0).toUpperCase() || "V"}
+              </AvatarFallback>
+            )}
           </Avatar>
           <div>
             <div className="flex items-center gap-2 flex-wrap">

@@ -1088,6 +1088,8 @@ Respond in JSON format:
         requests = await storage.getServiceRequestsByContractor(userId);
       } else if (user?.userType === 'vendor') {
         requests = await storage.getServiceRequestsByVendor(userId);
+      }else if (user?.userType === 'admin') {
+        requests = await storage.getAllServiceRequests();
       }
       
       res.json(requests);
