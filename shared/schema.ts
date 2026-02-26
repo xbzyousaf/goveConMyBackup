@@ -16,7 +16,7 @@ export const sessions = pgTable(
 
 // Enums
 export const userTypeEnum = pgEnum("user_type", ["contractor", "vendor", 'admin']);
-export const serviceRequestStatusEnum = pgEnum("service_request_status", ["pending", "accepted", "in_progress", "delivered", "completed", "cancelled"]);
+export const serviceRequestStatusEnum = pgEnum("service_request_status", ["pending", "accepted", "in_progress", "delivered", "completed", "cancelled", 'disputed']);
 export const serviceCategoryEnum = pgEnum("service_category", ["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools"]);
 export const maturityStageEnum = pgEnum("maturity_stage", ["startup", "growth", "scale"]);
 export const coreProcessEnum = pgEnum("core_process", ["business_structure", "business_strategy", "execution"]);
@@ -401,7 +401,8 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "payment_update",
   "delivery_extension_request",
   "delivery_extension_accepted",
-  "delivery_extension_rejected"
+  "delivery_extension_rejected",
+  "payment_created",
 ]);
 
 export const notifications = pgTable("notifications", {
@@ -428,6 +429,32 @@ export const notifications = pgTable("notifications", {
   isRead: boolean("is_read").default(false),
 
   createdAt: timestamp("created_at").defaultNow(),
+});
+export const disputes = pgTable("disputes", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  serviceRequestId: uuid("service_request_id")
+    .references(() => serviceRequests.id)
+    .notNull(),
+
+  openedBy: uuid("opened_by")
+    .references(() => users.id)
+    .notNull(),
+
+  reason: varchar("reason", { length: 255 }).notNull(),
+
+  description: text("description"),
+
+  status: varchar("status", { length: 20 })
+    .notNull()
+    .default("open"), // open | resolved
+
+  resolution: varchar("resolution", { length: 30 }), 
+  // vendor_won | contractor_won
+
+  createdAt: timestamp("created_at").defaultNow(),
+
+  resolvedAt: timestamp("resolved_at"),
 });
 export const insertNotificationSchema =
   createInsertSchema(notifications).omit({

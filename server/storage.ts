@@ -43,7 +43,8 @@ import {
   Portfolio,
   certificates,
   Certificate,
-  escrows
+  escrows,
+  disputes
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
@@ -265,17 +266,45 @@ export class DatabaseStorage implements IStorage {
 }
 
 
-  async createVendorProfile(profile: InsertVendorProfile, userId: string): Promise<VendorProfile> {
-    const [vendorProfile] = await db
-      .insert(vendorProfiles)
-      .values({
-        ...profile,
-        userId: userId,
-        updatedAt: new Date()
-      })
-      .returning();
-    return vendorProfile;
-  }
+  async createVendorProfile(
+profile: InsertVendorProfile,
+userId: string
+): Promise<VendorProfile> {
+
+const sanitizedProfile: InsertVendorProfile = { ...profile };
+
+// Parse skills if string
+if (typeof sanitizedProfile.skills === "string") {
+try {
+sanitizedProfile.skills = JSON.parse(sanitizedProfile.skills);
+} catch (e) {
+console.warn("Failed to parse skills:", sanitizedProfile.skills);
+sanitizedProfile.skills = [];
+}
+}
+
+// Parse categories if string
+if (typeof sanitizedProfile.categories === "string") {
+try {
+sanitizedProfile.categories = JSON.parse(sanitizedProfile.categories);
+} catch (e) {
+console.warn("Failed to parse categories:", sanitizedProfile.categories);
+sanitizedProfile.categories = [];
+}
+}
+
+sanitizedProfile.updatedAt = new Date();
+
+const [vendorProfile] = await db
+.insert(vendorProfiles)
+.values({
+...sanitizedProfile,
+userId: userId
+})
+.returning();
+
+return vendorProfile;
+}
 
   async updateVendorProfile(
     id: string,
@@ -1406,6 +1435,7 @@ async createDelivery(data: {
       .update(serviceRequests)
       .set({
         status: "delivered",
+        deliveredAt: new Date(),
         updatedAt: new Date(),
       })
       .where(eq(serviceRequests.id, data.serviceRequestId));
@@ -1619,10 +1649,128 @@ async releaseEscrowByRequestId(serviceRequestId: string) {
 }
 async getVendorPayments(vendorId: string) {
   return db
-    .select()
-    .from(serviceRequests)
+    .select({
+      id: escrows.id,
+      title: serviceRequests.title,
+      status: serviceRequests.status,
+      paymentStatus: serviceRequests.paymentStatus,
+      finalPrice: serviceRequests.finalPrice,
+      proposedPrice: serviceRequests.proposedPrice,
+      actualCost: serviceRequests.actualCost,
+      completedAt: serviceRequests.completedAt,
+      heldAt: escrows.heldAt,
+      escrowStatus: escrows.status,
+      escrowAmount: escrows.amount,
+      vendorEarning: escrows.vendorEarning,
+      platformFee: escrows.platformFee,
+      releasedAt: escrows.releasedAt,
+    })
+    .from(escrows)
+    .innerJoin(
+      serviceRequests,
+      eq(serviceRequests.id, escrows.serviceRequestId)
+    )
     .where(eq(serviceRequests.vendorId, vendorId))
-    .orderBy(desc(serviceRequests.completedAt));
+    .orderBy(desc(escrows.heldAt));
+}
+async autoCompleteIfExpired(request: any) {
+  if (!request) return null;
+
+  if (
+    request.status !== "delivered" ||
+    !request.deliveredAt ||
+    request.paymentStatus !== "escrow_held"
+  ) {
+    return request.status;
+  }
+
+  const expiryDate = new Date(request.deliveredAt);
+  expiryDate.setDate(expiryDate.getDate() + 1);
+
+  if (new Date() <= expiryDate) {
+    return request.status;
+  }
+
+  // 1️⃣ Update request
+  await db
+    .update(serviceRequests)
+    .set({
+      status: "completed",
+      completedAt: new Date(),
+      updatedAt: new Date(),
+      actualCost: request.finalPrice || request.proposedPrice,
+      paymentStatus: "released",
+    })
+    .where(eq(serviceRequests.id, request.id));
+
+  // 2️⃣ Release escrow ALSO
+  await db
+    .update(escrows)
+    .set({
+      status: "released",
+      releasedAt: new Date(),
+    })
+    .where(eq(escrows.serviceRequestId, request.id));
+
+  return "completed";
+}
+// storage.ts
+
+async createDispute({
+  serviceRequestId,
+  openedBy,
+  reason,
+  description,
+}: {
+  serviceRequestId: string;
+  openedBy: string;
+  reason: string;
+  description?: string;
+}) {
+  const request = await db.query.serviceRequests.findFirst({
+    where: eq(serviceRequests.id, serviceRequestId),
+  });
+
+  if (!request) {
+    throw new Error("Service request not found");
+  }
+
+  // ✅ Authorization check
+  if (
+    request.contractorId !== openedBy &&
+    request.vendorId !== openedBy
+  ) {
+    throw new Error("Not authorized to dispute this request");
+  }
+
+  const existing = await db.query.disputes.findFirst({
+    where: eq(disputes.serviceRequestId, serviceRequestId),
+  });
+
+  if (existing) {
+    throw new Error("Dispute already exists");
+  }
+
+  await db.insert(disputes).values({
+    serviceRequestId,
+    openedBy,
+    reason,
+    description,
+  });
+
+  // Update request
+  await db
+    .update(serviceRequests)
+    .set({ status: "disputed" })
+    .where(eq(serviceRequests.id, serviceRequestId));
+
+  // Freeze escrow
+  await db
+    .update(escrows)
+    .set({ status: "disputed" })
+    .where(eq(escrows.serviceRequestId, serviceRequestId));
+
+  return { success: true };
 }
 
 }
