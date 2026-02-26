@@ -46,18 +46,29 @@ export default function RequestDetails() {
   const [timeLeft, setTimeLeft] = useState("");
 
   const approvedExtension = request?.extensions
-    ?.filter((ext: any) => ext.status === "approved")
+    ?.filter((ext: any) => ext.status === "accepted")
     ?.sort(
       (a: any, b: any) =>
         new Date(b.createdAt).getTime() -
         new Date(a.createdAt).getTime()
     )[0];
+  const currentDeadline = approvedExtension
+  ? new Date(approvedExtension.newDate)
+  : request?.deliveryDeadline
+  ? new Date(request.deliveryDeadline)
+  : null;
+  const minDate = currentDeadline
+  ? currentDeadline.toISOString().split("T")[0]
+  : new Date().toISOString().split("T")[0];
 
   const finalDeliveryDate = approvedExtension
-    ? new Date(approvedExtension.newDate)
-    : request?.deliveryDate
-    ? new Date(request.deliveryDate)
-    : null;
+  ? new Date(approvedExtension.newDate)
+  : request?.createdAt && request?.deliveryDays
+  ? new Date(
+      new Date(request.createdAt).getTime() +
+        request.deliveryDays * 24 * 60 * 60 * 1000
+    )
+  : null;
 
   useEffect(() => {
     if (!finalDeliveryDate) {
@@ -389,7 +400,7 @@ const handleDeliver = async () => {
                           </div>
                           {/* Reason */}
                           <div>
-                            <p className="text-muted-foreground">Reason</p>
+                            <p className="text-muted-foreground">Message</p>
                             <p>{ext.reason}</p>
                           </div>
 
@@ -461,8 +472,7 @@ const handleDeliver = async () => {
 
                       { request.status === "delivered" && (
                         <Button
-                          className="w-full mt-2"
-                          variant="success"
+                          className="w-full mt-2 bg-green-600 hover:bg-green-700 text-white"
                           onClick={() => {
                             setConfirmAction({
                             id: request.id,
@@ -470,7 +480,7 @@ const handleDeliver = async () => {
                             });
                         }}
                         >
-                          <CheckCircle className="w-4 h-4 mr-2" />
+                          <CheckCircle className="w-4 h-4 mr-2 " />
                           Mark as Completed
                         </Button>
                       )}
@@ -510,41 +520,41 @@ const handleDeliver = async () => {
                           {timeLeft || "Calculating..."}
                     </div>
                     </div>
-                    {request.paymentStatus === "escrow_held" && (
-  <Card className="rounded-xl border border-green-200 bg-green-50">
-    <CardContent className="p-4 space-y-2">
-      <p className="font-semibold text-green-700">
-        Escrow Funded
-      </p>
+                    {user?.userType === "vendor" && request.paymentStatus === "escrow_held" && request.escrow && (
+                      <Card className="rounded-xl border border-green-200 bg-green-50">
+                        <CardContent className="p-4 space-y-2">
+                          <p className="font-semibold text-green-700">
+                            Escrow Funded
+                          </p>
 
-      <div className="text-sm space-y-1">
-        <div className="flex justify-between">
-          <span>Total Price</span>
-          <span>${request.finalPrice}</span>
-        </div>
+                          <div className="text-sm space-y-1">
+                            <div className="flex justify-between">
+                              <span>Total Price</span>
+                              <span>${request.escrow?.amount}</span>
+                            </div>
 
-        <div className="flex justify-between">
-          <span>Platform Fee</span>
-          <span>${request.platformFee}</span>
-        </div>
+                            <div className="flex justify-between">
+                              <span>Platform Fee</span>
+                              <span>${request.escrow?.platformFee}</span>
+                            </div>
 
-        <div className="flex justify-between font-semibold">
-          <span>
-            {user?.userType === "vendor"
-              ? "You Will Receive"
-              : "Vendor Will Receive"}
-          </span>
-          <span>${request.vendorEarning}</span>
-        </div>
+                            <div className="flex justify-between font-semibold">
+                              <span>
+                                {user?.userType === "vendor"
+                                  ? "You Will Receive"
+                                  : "Vendor Will Receive"}
+                              </span>
+                              <span>${request.escrow?.vendorEarning}</span>
+                            </div>
 
-        <div className="text-xs text-muted-foreground pt-2">
-          Funded on {new Date(request.paidAt).toLocaleDateString()}
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-)}
-
+                            <div className="text-xs text-muted-foreground pt-2">
+                              Funded on {new Date(request.escrow?.createdAt).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  {user?.userType === "vendor" && (
                     <Dialog open={isExtendOpen} onOpenChange={setIsExtendOpen}>
                       <DialogTrigger asChild>
                         <Button
@@ -573,8 +583,8 @@ const handleDeliver = async () => {
                             </label>
                             <Input
                               type="date"
-                              value={newDeliveryDate}
-                              min={new Date().toISOString().split("T")[0]}
+                              value={minDate}
+                              min={minDate}
                               onChange={(e) => setNewDeliveryDate(e.target.value)}
                             />
                           </div>
@@ -582,7 +592,7 @@ const handleDeliver = async () => {
                           {/* Reason Field */}
                           <div>
                             <label className="text-sm font-medium mb-2 block">
-                              Reason
+                              Message
                             </label>
                             <Textarea
                               rows={4}
@@ -607,7 +617,8 @@ const handleDeliver = async () => {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
-
+                  )}
+                  {user?.userType === "vendor" && request.status == "in_progress" && (
                     <Dialog open={isDeliverOpen} onOpenChange={setIsDeliverOpen}>
                         <DialogTrigger asChild>
                           <Button
@@ -671,6 +682,7 @@ const handleDeliver = async () => {
                             </DialogFooter>
                         </DialogContent>
                         </Dialog>
+                  )}
                         {request.status === "completed" && !alreadyReviewed && (
                             <Button
                                 className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white"
@@ -750,12 +762,9 @@ const handleDeliver = async () => {
 
 
                 {/* Status Action Card */}
-                {user?.userType === "vendor" && (
                 <Card className="rounded-2xl shadow-md">
                 <CardContent className="p-5 space-y-3">
-    
-                    {/* Vendor Accept Request */}
-                    {request.status === "pending" && (
+                {user?.userType === "vendor" && request.status === "pending" && (
                       <Button
                         className="w-full"
                         onClick={() =>
@@ -782,25 +791,7 @@ const handleDeliver = async () => {
                         <X className="w-4 h-4 mr-2" />
                         Cancel
                     </Button>
-
-
-
-                </CardContent>
-                </Card>
-                )}
-                {user?.userType === "vendor" &&
-                  request.status === "accepted" &&
-                  request.paymentStatus === "escrow_held" && (
-                    <Button
-                      className="w-full"
-                      onClick={() =>
-                        updateStatus.mutate({ status: "in_progress" })
-                      }
-                    >
-                      Start Work
-                    </Button>
-                )}
-                {/* Contractor Pay Escrow */}
+                    {/* Contractor Pay Escrow */}
                 {user?.userType === "contractor" &&
                   request.status === "accepted" && (
                     <Button
@@ -826,6 +817,8 @@ const handleDeliver = async () => {
                       Pay & Fund Escrow
                     </Button>
                 )}
+                </CardContent>
+                </Card>
             </div>
             </div>
         </div>{reviewModal && (

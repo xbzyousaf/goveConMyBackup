@@ -16,7 +16,7 @@ export const sessions = pgTable(
 
 // Enums
 export const userTypeEnum = pgEnum("user_type", ["contractor", "vendor", 'admin']);
-export const serviceRequestStatusEnum = pgEnum("service_request_status", ["pending", "accepted", "paid", "in_progress", "delivered", "completed", "cancelled"]);
+export const serviceRequestStatusEnum = pgEnum("service_request_status", ["pending", "accepted", "in_progress", "delivered", "completed", "cancelled"]);
 export const serviceCategoryEnum = pgEnum("service_category", ["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools"]);
 export const maturityStageEnum = pgEnum("maturity_stage", ["startup", "growth", "scale"]);
 export const coreProcessEnum = pgEnum("core_process", ["business_structure", "business_strategy", "execution"]);
@@ -25,12 +25,13 @@ export const subscriptionTierEnum = pgEnum("subscription_tier", ["freemium", "st
 export const vendorJourneyStageEnum = pgEnum("vendor_journey_stage", ["awareness", "application", "vetting", "onboarding", "active", "inactive"]);
 export const serviceTierEnum = pgEnum("service_tier", ["free","standard","premium"]);
 export const messageTypeEnum = pgEnum("message_type", ["text", "system", "file", ]);
-export const extentionStatusEnum = pgEnum("status", ["pending", "approved", "rejected", ]);
-export const paymentStatus = pgEnum("payment_status", ["unpaid", "payment_pending", "payment_received", "escrow_held", "released", "refunded", "failed"]);
+export const extentionStatusEnum = pgEnum("status", ["pending", "accepted", "rejected", ]);
+export const escrowStatusEnum = pgEnum("escrow_status", ["held", "released", "refunded", "disputed"]);
+export const paymentStatus = pgEnum("payment_status", ["payment_pending", "payment_received", "escrow_held", "released", "refunded", "failed"]);
 
 // Users table - custom email/password authentication
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique().notNull(),
   password: text("password").notNull(),
   firstName: varchar("first_name"),
@@ -53,8 +54,8 @@ export const users = pgTable("users", {
 
 // Vendor profiles
 export const vendorProfiles = pgTable("vendor_profiles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
   companyName: text("company_name"),
   title: text("title").notNull(),
   description: text("description"),
@@ -89,11 +90,11 @@ export const vendorProfiles = pgTable("vendor_profiles", {
 
 // Services (what vendor offers)
 export const services = pgTable("services", {
-  id: varchar("id")
+  id: uuid("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
 
-  vendorId: varchar("vendor_id")
+  vendorId: uuid("vendor_id")
     .references(() => users.id)
     .notNull(),
 
@@ -114,11 +115,11 @@ export const services = pgTable("services", {
 });
 
 export const portfolios = pgTable("portfolios", {
-  id: varchar("id")
+  id: uuid("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
 
-  vendorId: varchar("vendor_id")
+  vendorId: uuid("vendor_id")
     .references(() => users.id)
     .notNull(),
 
@@ -141,11 +142,11 @@ export const portfolios = pgTable("portfolios", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 export const certificates = pgTable("certificates", {
-  id: varchar("id")
+  id: uuid("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
 
-  vendorId: varchar("vendor_id")
+  vendorId: uuid("vendor_id")
     .references(() => users.id) // assuming you have a users table
     .notNull(),
 
@@ -159,11 +160,11 @@ export const certificates = pgTable("certificates", {
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
 });
 export const serviceTiers = pgTable("service_tiers", {
-  id: varchar("id")
+  id: uuid("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
 
-  serviceId: varchar("service_id")
+  serviceId: uuid("service_id")
     .references(() => services.id, { onDelete: "cascade" })
     .notNull(),
 
@@ -181,38 +182,29 @@ export const serviceTiers = pgTable("service_tiers", {
 
 // service_requests
   export const serviceRequests = pgTable("service_requests", {
-    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-    contractorId: varchar("contractor_id").references(() => users.id).notNull(),
-    vendorId: varchar("vendor_id").references(() => users.id),
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    contractorId: uuid("contractor_id").references(() => users.id).notNull(),
+    vendorId: uuid("vendor_id").references(() => users.id),
     title: text("title").notNull(),
-    serviceId: varchar("service_id").references(() => services.id, { onDelete: "cascade" }).notNull(),
+    serviceId: uuid("service_id").references(() => services.id, { onDelete: "cascade" }).notNull(),
     description: text("description").notNull(),
     category: serviceCategoryEnum("category").notNull(),
-    priority: text("priority").notNull(),
     budget: text("budget"),
     // --------------------------
     // PRICING
     // --------------------------
     proposedPrice: decimal("proposed_price", { precision: 10, scale: 2 }).notNull(),
-    counterPrice: decimal("counter_price", { precision: 10, scale: 2 }),
     finalPrice: decimal("final_price", { precision: 10, scale: 2 }),
-    platformFee: decimal("platform_fee", { precision: 10, scale: 2 }),
-    vendorEarning: decimal("vendor_earning", { precision: 10, scale: 2 }),
     // --------------------------
     // STATUS
     // --------------------------
     status: serviceRequestStatusEnum("status").default("pending"),
     paymentStatus: paymentStatus("payment_status").default("payment_pending"),
     // --------------------------
-    // PAYMENT TIMESTAMPS
-    // --------------------------
-    paidAt: timestamp("paid_at"),
-    releasedAt: timestamp("released_at"),
-    refundedAt: timestamp("refunded_at"),
-    // --------------------------
     // DELIVERY / SLA
     // --------------------------
     deliveryDeadline: timestamp("delivery_deadline"),
+    deliveryDays: integer("delivery_days").notNull(),
     deliveredAt: timestamp("delivered_at"),
     completedAt: timestamp("completed_at"),
     
@@ -223,13 +215,29 @@ export const serviceTiers = pgTable("service_tiers", {
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   });
+  export const escrows = pgTable("escrows", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  serviceRequestId: uuid("service_request_id")
+    .references(() => serviceRequests.id, { onDelete: "cascade" })
+    .notNull(),
+  contractorId: uuid("contractor_id").notNull(),
+  vendorId: uuid("vendor_id").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  platformFee: decimal("platform_fee", { precision: 10, scale: 2 }).notNull(),
+  vendorEarning: decimal("vendor_earning", { precision: 10, scale: 2 }).notNull(),
+  status: escrowStatusEnum("status").default("held").notNull(),
+  heldAt: timestamp("held_at").defaultNow(),
+  releasedAt: timestamp("released_at"),
+  refundedAt: timestamp("refunded_at"),
+});
   // deliveries
   export const deliveries = pgTable("deliveries", {
-    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-    serviceRequestId: varchar("service_request_id")
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    serviceRequestId: uuid("service_request_id")
       .references(() => serviceRequests.id, { onDelete: "cascade" })
       .notNull(),
-    deliveredBy: varchar("delivered_by")
+    deliveredBy: uuid("delivered_by")
       .references(() => users.id, { onDelete: "cascade" })
       .notNull(),
     message: text("message").notNull(),
@@ -239,8 +247,8 @@ export const serviceTiers = pgTable("service_tiers", {
   });
   // deliveryAttachments
   export const deliveryAttachments = pgTable("delivery_attachments", {
-    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-    deliveryId: varchar("delivery_id")
+    id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+    deliveryId: uuid("delivery_id")
       .references(() => deliveries.id, { onDelete: "cascade" })
       .notNull(),
     filePath: text("file_path").notNull(),
@@ -252,22 +260,25 @@ export const serviceTiers = pgTable("service_tiers", {
   // delivery extentions
   export const deliveryExtensions = pgTable("delivery_extensions", {
     id: uuid("id").defaultRandom().primaryKey(),
-    serviceRequestId: uuid("service_request_id").notNull(),
+    serviceRequestId: uuid("service_request_id")
+      .references(() => serviceRequests.id, { onDelete: "cascade" })
+      .notNull(),
     requestedBy: uuid("requested_by").notNull(),
-    newPriority: integer("new_priority").notNull(),
-    reason: text("reason").notNull(),
-    status: extentionStatusEnum("status").default("pending").notNull(),
+
     oldDate: timestamp("old_date").notNull(),
     newDate: timestamp("new_date").notNull(),
+
+    reason: text("reason").notNull(),
+    status: extentionStatusEnum("status").default("pending").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
   });
 
 // Messages for contractor-vendor communication
 export const messages = pgTable("messages", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  serviceRequestId: varchar("service_request_id").references(() => serviceRequests.id).notNull(),
-  senderId: varchar("sender_id").references(() => users.id).notNull(),
-  receiverId: varchar("receiver_id").references(() => users.id).notNull(),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  serviceRequestId: uuid("service_request_id").references(() => serviceRequests.id).notNull(),
+  senderId: uuid("sender_id").references(() => users.id).notNull(),
+  receiverId: uuid("receiver_id").references(() => users.id).notNull(),
   content: text("content").notNull(),
   attachments: text("attachments").array(),
   isRead: boolean("is_read").default(false),
@@ -277,10 +288,10 @@ export const messages = pgTable("messages", {
 
 // Reviews and ratings
 export const reviews = pgTable("reviews", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  serviceRequestId: varchar("service_request_id").references(() => serviceRequests.id).notNull(),
-  reviewerId: varchar("reviewer_id").references(() => users.id).notNull(),
-  revieweeId: varchar("reviewee_id").references(() => users.id).notNull(),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  serviceRequestId: uuid("service_request_id").references(() => serviceRequests.id).notNull(),
+  reviewerId: uuid("reviewer_id").references(() => users.id).notNull(),
+  revieweeId: uuid("reviewee_id").references(() => users.id).notNull(),
   rating: integer("rating").notNull(),
   comment: text("comment"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -288,10 +299,10 @@ export const reviews = pgTable("reviews", {
 
 // Payment transactions
 export const transactions = pgTable("transactions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  serviceRequestId: varchar("service_request_id").references(() => serviceRequests.id).notNull(),
-  contractorId: varchar("contractor_id").references(() => users.id).notNull(),
-  vendorId: varchar("vendor_id").references(() => users.id).notNull(),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  serviceRequestId: uuid("service_request_id").references(() => serviceRequests.id).notNull(),
+  contractorId: uuid("contractor_id").references(() => users.id).notNull(),
+  vendorId: uuid("vendor_id").references(() => users.id).notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   platformFee: decimal("platform_fee", { precision: 10, scale: 2 }),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
@@ -302,8 +313,8 @@ export const transactions = pgTable("transactions", {
 
 // User maturity profiles - stores assessment results and progress
 export const userMaturityProfiles = pgTable("user_maturity_profiles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull().unique(),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull().unique(),
   maturityStage: maturityStageEnum("maturity_stage").notNull(),
   readinessScore: integer("readiness_score").notNull(), // 0-100
   assessmentData: jsonb("assessment_data"), // Stores AI assessment Q&A
@@ -320,8 +331,8 @@ export const userMaturityProfiles = pgTable("user_maturity_profiles", {
 
 // Assessment history - tracks all assessments and retakes
 export const assessments = pgTable("assessments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
   conversationHistory: jsonb("conversation_history").notNull(), // AI chat messages
   maturityStage: maturityStageEnum("maturity_stage").notNull(),
   readinessScore: integer("readiness_score").notNull(),
@@ -332,7 +343,7 @@ export const assessments = pgTable("assessments", {
 
 // Content library - playbooks, templates, guides, webinars
 export const contentLibrary = pgTable("content_library", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   description: text("description"),
   contentType: contentTypeEnum("content_type").notNull(),
@@ -352,8 +363,8 @@ export const contentLibrary = pgTable("content_library", {
 
 // User journey tracking - milestones and checklist completion
 export const userJourneys = pgTable("user_journeys", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
   coreProcess: coreProcessEnum("core_process").notNull(),
   currentStage: text("current_stage").notNull(),
   completedMilestones: text("completed_milestones").array().default(sql`ARRAY[]::text[]`),
@@ -368,9 +379,9 @@ export const userJourneys = pgTable("user_journeys", {
 
 // User content activity - track what content users engage with
 export const userContentActivity = pgTable("user_content_activity", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  contentId: varchar("content_id").references(() => contentLibrary.id).notNull(),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  contentId: uuid("content_id").references(() => contentLibrary.id).notNull(),
   viewCount: integer("view_count").default(1),
   lastViewedAt: timestamp("last_viewed_at").defaultNow(),
   isBookmarked: boolean("is_bookmarked").default(false),
@@ -394,13 +405,13 @@ export const notificationTypeEnum = pgEnum("notification_type", [
 ]);
 
 export const notifications = pgTable("notifications", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
 
-  userId: varchar("user_id")
+  userId: uuid("user_id")
     .references(() => users.id)
     .notNull(),
 
-  triggeredBy: varchar("triggered_by")
+  triggeredBy: uuid("triggered_by")
     .references(() => users.id),
 
   type: notificationTypeEnum("type").notNull(),
@@ -408,10 +419,10 @@ export const notifications = pgTable("notifications", {
   title: text("title").notNull(),
   message: text("message").notNull(),
 
-  relatedRequestId: varchar("related_request_id")
+  relatedRequestId: uuid("related_request_id")
     .references(() => serviceRequests.id),
 
-  relatedMessageId: varchar("related_message_id")
+  relatedMessageId: uuid("related_message_id")
     .references(() => messages.id),
 
   isRead: boolean("is_read").default(false),
@@ -499,6 +510,10 @@ export const serviceRequestsRelations = relations(serviceRequests, ({ one, many 
   service: one(services, {
     fields: [serviceRequests.serviceId],
     references: [services.id],
+  }),
+  escrow: one(escrows, {
+    fields: [serviceRequests.id],
+    references: [escrows.serviceRequestId],
   }),
   messages: many(messages),
   reviews: many(reviews),

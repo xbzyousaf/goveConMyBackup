@@ -830,7 +830,7 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
         title: "New Review Received",
         message: reviewer? `${reviewer.firstName} left you a ${rating}-star review` : '',
         type: "new_review",
-        relatedRequestId: review.id,
+        relatedRequestId: serviceRequestId,
         isRead: false,
       });
 
@@ -1010,7 +1010,9 @@ Respond in JSON format:
       if (!contractorId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      const { vendorId, serviceId } = req.body;
+      const { vendorId, serviceId, deliveryDays, proposedPrice } = req.body;
+      const deliveryDeadline = new Date();
+      deliveryDeadline.setDate(deliveryDeadline.getDate() + deliveryDays);
       // const existing =
       //   await storage.findServiceRequestByContractorVendorService({
       //     contractorId,
@@ -1027,7 +1029,10 @@ Respond in JSON format:
       const serviceRequest = await storage.createServiceRequest({
         ...req.body,
         contractorId,
+        deliveryDeadline,
+        proposedPrice,
         status: "pending",
+        paymentStatus: "payment_pending",
       });
 
       const existingRequest = await storage.getServiceRequest(serviceRequest?.id);
@@ -1597,9 +1602,10 @@ Respond in JSON format:
       const previousStatus = serviceRequest.status ?? 'pending';
       const updated = await storage.updateServiceRequestStatus(id, status);
       if (status === "completed") {
+        await storage.releaseEscrowByRequestId(id);
         await storage.updateServiceRequest(id, {
           paymentStatus: "released",
-          releasedAt: new Date(),
+          actualCost: serviceRequest.finalPrice || serviceRequest.proposedPrice,
           completedAt: new Date(),
         });
       }
@@ -2054,28 +2060,32 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
       return res.status(403).json({ message: "Unauthorized" });
     }
 
-    if (request.status !== "accepted") {
-      return res.status(400).json({ message: "Payment allowed only after acceptance" });
-    }
-
     const finalPrice = Number(request.finalPrice || request.proposedPrice);
 
     const platformFee = finalPrice * 0.1;
     const vendorEarning = finalPrice - platformFee;
 
-    await storage.updateServiceRequest(id, {
-      paymentStatus: "escrow_held",
-      paidAt: new Date(),
-      finalPrice: finalPrice.toString(),
+    // 1️⃣ Create escrow
+    await storage.createEscrow({
+      serviceRequestId: id,
+      contractorId,
+      vendorId: request.vendorId,
+      amount: finalPrice.toString(),
       platformFee: platformFee.toString(),
       vendorEarning: vendorEarning.toString(),
+      status: "held"
+    });
+
+    // 2️⃣ Update service request
+    await storage.updateServiceRequest(id, {
+      paymentStatus: "escrow_held",
+      finalPrice: vendorEarning.toString(),
+      status: "in_progress"
     });
 
     return res.json({ success: true });
 
   } catch (error) {
-      console.error("CREATE SERVICE REQUEST FAILED");
-
       if (error instanceof Error) {
         console.error(error.message);
         return res.status(400).json({
@@ -2088,28 +2098,19 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
       });
     }
 });
-app.get("/api/vendor/earnings", isAuthenticated, async (req, res) => {
+app.get("/api/vendor/payments", isAuthenticated, async (req, res) => {
   try {
-    const vendorId = getUserId(req);
-    if (!vendorId) {
+    const userId = getUserId(req);
+    if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-    const requests = await storage.getServiceRequestsByVendor(vendorId);
 
-    const released = requests.filter(r => r.paymentStatus === "released");
+    const payments = await storage.getVendorPayments(userId);
 
-    const total = released.reduce(
-      (sum, r) => sum + Number(r.vendorEarning || 0),
-      0
-    );
-
-    res.json({
-      totalEarnings: total,
-      transactions: released
-    });
-
-  } catch (err) {
-    res.status(500).json({ message: "Failed to load earnings" });
+    res.json(payments);
+  } catch (error) {
+    console.error("FETCH VENDOR PAYMENTS FAILED", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 
