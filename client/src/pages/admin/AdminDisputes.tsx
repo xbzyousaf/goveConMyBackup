@@ -8,26 +8,24 @@ import type { ServiceRequest } from "@shared/schema";
 export default function AdminDisputes() {
   const queryClient = useQueryClient();
 
-  // Fetch disputes
   const { data: disputes = [], isLoading } = useQuery<ServiceRequest[]>({
-    queryKey: ["/api/service-requests/"],
+    queryKey: ["/api/service-requests"],
     queryFn: async () => {
-      const res = await fetch("/api/service-requests/");
+      const res = await fetch("/api/service-requests");
       if (!res.ok) throw new Error("Failed to fetch disputes");
       return res.json();
     },
   });
 
-  // Mutation to update dispute status
   const updateStatus = useMutation({
     mutationFn: async ({
       id,
       status,
     }: {
       id: string;
-      status: "resolved" | "rejected";
+      status: "completed" | "cancelled";
     }) => {
-      const res = await fetch(`/api/admin/disputes/${id}`, {
+      const res = await fetch(`/api/service-requests/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -37,7 +35,7 @@ export default function AdminDisputes() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/disputes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
     },
   });
 
@@ -72,43 +70,49 @@ export default function AdminDisputes() {
             </thead>
 
             <tbody className="bg-white divide-y divide-gray-200">
+              {disputes.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="text-center py-4">
+                    No disputes found
+                  </td>
+                </tr>
+              )}
+
               {disputes.map((dispute) => (
                 <tr key={dispute.id}>
-                  <td className="px-4 py-2">{dispute.contractor?.firstName} {dispute.contractor?.lastName}</td>
-                  <td className="px-4 py-2">{dispute.vendor?.firstName} {dispute.vendor?.lastName}</td>
-                  <td className="px-4 py-2">{dispute.reason}</td>
+                  <td className="px-4 py-2">
+                    {dispute.contractor?.firstName || "N/A"}{" "}
+                    {dispute.contractor?.lastName || ""}
+                  </td>
 
                   <td className="px-4 py-2">
-                    {dispute.status === "pending" && (
-                      <span className="text-yellow-600 font-medium">
-                        Pending
-                      </span>
-                    )}
-                    {dispute.status === "resolved" && (
-                      <span className="text-green-600 font-medium">
-                        Resolved
-                      </span>
-                    )}
-                    {dispute.status === "rejected" && (
-                      <span className="text-red-600 font-medium">
-                        Rejected
-                      </span>
-                    )}
+                    {dispute.vendor?.firstName || "N/A"}{" "}
+                    {dispute.vendor?.lastName || ""}
+                  </td>
+
+                  <td className="px-4 py-2">
+                    {dispute.reason || "-"}
+                  </td>
+
+                  <td className="px-4 py-2">
+                    <span className="font-medium capitalize">
+                      {dispute.status || "unknown"}
+                    </span>
                   </td>
 
                   <td className="px-4 py-2 space-x-2">
-                    {dispute.status === "pending" && (
+                    {dispute.status === "suspended" && (
                       <>
                         <Button
                           size="sm"
                           onClick={() =>
                             updateStatus.mutate({
                               id: dispute.id,
-                              status: "resolved",
+                              status: "completed",
                             })
                           }
                         >
-                          Resolve
+                          Complete
                         </Button>
 
                         <Button
@@ -117,11 +121,11 @@ export default function AdminDisputes() {
                           onClick={() =>
                             updateStatus.mutate({
                               id: dispute.id,
-                              status: "rejected",
+                              status: "cancelled",
                             })
                           }
                         >
-                          Reject
+                          Cancel
                         </Button>
                       </>
                     )}

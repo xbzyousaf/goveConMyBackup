@@ -8,15 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Send, DollarSign, Star, MapPin } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
 import type { VendorProfile } from "@shared/schema";
 import { Header } from "./Header";
 type ServiceRequestPayload = {
   title: string;
   category: string;
   description: string;
-  priority: string;
-  budget: string;
+  deliveryDays: number;
   vendorId?: string;
   serviceId?: string;
   proposedPrice: number;
@@ -33,10 +31,10 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
   const { toast } = useToast();
   const [requesttitle, setTitle] = useState("");
   const [request, setRequest] = useState("");
-  const [priority, setPriority] = useState("");
   const [budget, setBudget] = useState("");
   const [matches, setMatches] = useState<VendorProfile[]>([]);
   const queryClient = useQueryClient();
+  const [deliveryDays, setDeliveryDays] = useState("");
 
   const aiMatchMutation = useMutation({
     mutationFn: async (payload: ServiceRequestPayload) => {
@@ -100,9 +98,8 @@ const parseBudgetToNumber = (budgetRange: string): number => {
           title: requesttitle,
           category: selectedCategory,
           description: request,
-          priority,
-          budget,
-          proposedPrice, // ✅ REQUIRED FOR DB
+          proposedPrice,
+          deliveryDays: Number(deliveryDays),
           serviceId: serviceId || undefined,
           vendorId: vendorId || undefined,
         });
@@ -198,18 +195,16 @@ const parseBudgetToNumber = (budgetRange: string): number => {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="text-sm font-medium mb-2 block">Priority</label>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger data-testid="select-priority">
-                <SelectValue placeholder="Select priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="urgent">Urgent (1-2 days)</SelectItem>
-                <SelectItem value="high">High (3-7 days)</SelectItem>
-                <SelectItem value="normal">Normal (1-2 weeks)</SelectItem>
-                <SelectItem value="low">Low (Flexible)</SelectItem>
-              </SelectContent>
-            </Select>
+            <label className="text-sm font-medium mb-2 block">Delivery in Days</label>
+            <input
+              type="number"
+              min={1}
+              placeholder="Delivery in days"
+              value={deliveryDays}
+              onChange={(e) => setDeliveryDays(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+              data-testid="input-delivery-days"
+            />
           </div>
 
           <div>
@@ -234,7 +229,7 @@ const parseBudgetToNumber = (budgetRange: string): number => {
           disabled={
             !request.trim() ||
             !requesttitle.trim() ||
-            !priority ||
+            !deliveryDays ||
             !budget ||
             aiMatchMutation.isPending
           }

@@ -9,9 +9,10 @@ type ServiceRequest = {
   id: string;
   createdAt?: string;
   status?: string;
-  budget?: string;
+  budget?: number;
   description?: string;
   title?: string;
+  deliveryDays?: number;
 
   contractor?: {
     firstName?: string | null;
@@ -43,14 +44,8 @@ export function ServiceRequestCard({ request, userType, detailsUrl }: Props) {
     : userType === "contractor"
     ? request.vendor
     : undefined;
-const rawPriority = Number(request?.priority);
-const daysToAdd = isNaN(rawPriority) ? 5 : rawPriority;
-const deliveryDate =
-  request.createdAt && request.priority != null
-    ? new Date(
-        new Date(request.createdAt).getTime() +
-          Number(daysToAdd) * 24 * 60 * 60 * 1000
-      )
+  const deliveryDate = request.deliveryDeadline
+    ? new Date(request.deliveryDeadline)
     : null;
 
 
@@ -120,8 +115,8 @@ const deliveryDate =
             </div>
 
             <span className="font-medium">
-                {request?.budget
-                ? `${(request.budget ?? 0).toLocaleString()}`
+                {request?.proposedPrice
+                ? `${(request.proposedPrice ?? 0).toLocaleString()}`
                 : "Not specified"}
             </span>
           </div>
