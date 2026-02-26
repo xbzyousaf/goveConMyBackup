@@ -767,9 +767,12 @@ const handleDeliver = async () => {
                 {user?.userType === "vendor" && request.status === "pending" && (
                       <Button
                         className="w-full"
-                        onClick={() =>
-                          updateStatus.mutate({ status: "accepted" })
-                        }
+                        onClick={() => {
+                            setConfirmAction({
+                            id: request.id,
+                            status: "accepted",
+                            });
+                        }}
                       >
                         <Check className="w-4 h-4 mr-2" />
                         Accept Request

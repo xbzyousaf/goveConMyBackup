@@ -92,10 +92,13 @@ export default function VendorDetail() {
               <CardContent className="p-8">
                 <div className="flex items-start gap-6">
                   <Avatar className="w-24 h-24">
-                    <AvatarImage src={vendor.avatar || ""} />
-                    <AvatarFallback className="text-2xl">
-                      {vendor.title?.[0] || "V"}
-                    </AvatarFallback>
+                    {vendor?.avatar ? (
+                      <AvatarImage src={vendor.avatar} alt={vendor.companyName} />
+                    ) : (
+                      <AvatarFallback className="text-2xl">
+                        {vendor?.companyName?.charAt(0).toUpperCase() || "V"}
+                      </AvatarFallback>
+                    )}
                   </Avatar>
                   
                   <div className="flex-1">
@@ -288,7 +291,7 @@ export default function VendorDetail() {
                                   <span className="text-muted-foreground">Pricing:</span>
                                   <span className="font-medium">
                                     {service.priceMin && service.priceMax
-                                      ? `$${service.priceMin} – $${service.priceMax}`
+                                      ? `${service.priceMin} – ${service.priceMax}`
                                       : "Contact vendor"}
                                   </span>
                                 </div>
@@ -487,7 +490,7 @@ export default function VendorDetail() {
                       <span>Hourly Rate</span>
                     </div>
                     <span className="font-semibold" data-testid="text-hourly-rate">
-                      ${vendor.hourlyRate}/hr
+                      {vendor.hourlyRate}/hr
                     </span>
                   </div>
                 )}

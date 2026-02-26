@@ -49,6 +49,7 @@ import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
 import { notifications } from "@shared/schema"; // adjust path correctly
 import { deliveries, deliveryAttachments } from "@shared/schema";
+import { Avatar } from "@radix-ui/react-avatar";
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
   // User management
@@ -231,6 +232,7 @@ export class DatabaseStorage implements IStorage {
       companyName: vendorProfiles.companyName,
       description: vendorProfiles.description,
       categories: vendorProfiles.categories,
+      avatar: vendorProfiles.avatar,
       skills: vendorProfiles.skills,
       location: vendorProfiles.location,
       hourlyRate: vendorProfiles.hourlyRate,
@@ -265,15 +267,43 @@ export class DatabaseStorage implements IStorage {
 }
 
 
-  async createVendorProfile(profile: InsertVendorProfile, userId: string): Promise<VendorProfile> {
+  async createVendorProfile(
+    profile: InsertVendorProfile,
+    userId: string
+  ): Promise<VendorProfile> {
+
+    const sanitizedProfile: InsertVendorProfile = { ...profile };
+
+    // Parse skills if string
+    if (typeof sanitizedProfile.skills === "string") {
+      try {
+        sanitizedProfile.skills = JSON.parse(sanitizedProfile.skills);
+      } catch (e) {
+        console.warn("Failed to parse skills:", sanitizedProfile.skills);
+        sanitizedProfile.skills = [];
+      }
+    }
+
+    // Parse categories if string
+    if (typeof sanitizedProfile.categories === "string") {
+      try {
+        sanitizedProfile.categories = JSON.parse(sanitizedProfile.categories);
+      } catch (e) {
+        console.warn("Failed to parse categories:", sanitizedProfile.categories);
+        sanitizedProfile.categories = [];
+      }
+    }
+
+    sanitizedProfile.updatedAt = new Date();
+
     const [vendorProfile] = await db
       .insert(vendorProfiles)
       .values({
-        ...profile,
-        userId: userId,
-        updatedAt: new Date()
+        ...sanitizedProfile,
+        userId: userId
       })
       .returning();
+
     return vendorProfile;
   }
 
@@ -514,6 +544,35 @@ export class DatabaseStorage implements IStorage {
     return await db.query.serviceRequests.findMany({
       where: eq(serviceRequests.vendorId, vendorId),
       with: {
+        contractor: {
+          columns: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        service: {
+          columns: {
+            name: true,
+          },
+        },
+        reviews: true,
+      },
+      orderBy: (serviceRequests, { desc }) => [
+        desc(serviceRequests.createdAt),
+      ],
+    });
+  }
+  async getAllServiceRequestsWithDisputes() {
+    return await db.query.serviceRequests.findMany({
+      where: eq(serviceRequests.status, "disputed"), 
+      with: {
+        vendor: {
+          columns: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
         contractor: {
           columns: {
             firstName: true,

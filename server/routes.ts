@@ -855,22 +855,39 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
     }
   });
 
-  app.post('/api/vendor-profile', isAuthenticated, async (req: any, res) => {
+  app.post(
+  "/api/vendor-profile",
+  isAuthenticated,
+  upload.single("avatar"), // handle avatar upload
+  async (req: any, res) => {
     try {
       const userId = getUserId(req);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      const profile = await storage.createVendorProfile(
-        req.body,
-        userId
-      );
-      res.json(profile);
+
+      const { companyName, title } = req.body;
+
+      if (!companyName || !title) {
+        return res
+          .status(400)
+          .json({ message: "Missing required fields: companyName or title" });
+      }
+
+      const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
+      if (fileUrl) {
+        req.body.avatar = fileUrl;
+      }
+
+      const profile = await storage.createVendorProfile(req.body, userId);
+
+      res.status(200).json(profile);
     } catch (error) {
       console.error("Error creating vendor profile:", error);
       res.status(500).json({ message: "Failed to create vendor profile" });
     }
-  });
+  }
+);
 
   app.put(
     "/api/vendor-profile/:id",
@@ -1093,6 +1110,8 @@ Respond in JSON format:
         requests = await storage.getServiceRequestsByContractor(userId);
       } else if (user?.userType === 'vendor') {
         requests = await storage.getServiceRequestsByVendor(userId);
+      }else if (user?.userType === 'admin') {
+        requests = await storage.getAllServiceRequestsWithDisputes();
       }
       
       res.json(requests);
@@ -1542,6 +1561,7 @@ Respond in JSON format:
   app.patch("/api/service-requests/:id/status", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
+      const user = await storage.getUser(userId);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1596,7 +1616,7 @@ Respond in JSON format:
       }
 
       // Only vendor can approve/reject
-      if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId) {
+      if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId && user?.userType !== 'admin') {
         return res.status(403).json({ message: "Not authorized" });
       }
       const previousStatus = serviceRequest.status ?? 'pending';
