@@ -38,7 +38,6 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
       return res.json();
     },
     enabled: !!user,
-    refetchInterval: 5000, // keep header updated
   });
   const { data: notifications = [] } = useQuery({
     queryKey: ["/api/notifications"],
@@ -48,7 +47,6 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
       return res.json();
     },
     enabled: !!user,
-    refetchInterval: 5000,
   });
 
   const unreadNotifications = notifications.filter(

@@ -817,52 +817,56 @@ const handleDeliver = async () => {
                 <Card className="rounded-2xl shadow-md">
                 <CardContent className="p-5 space-y-3">
                   <Dialog open={isDisputeOpen} onOpenChange={setIsDisputeOpen}>
-  <DialogTrigger asChild>
-    <Button
-      variant="destructive"
-      className="w-full mt-3"
-    >
-      Open Dispute
-    </Button>
-  </DialogTrigger>
+                    <DialogTrigger asChild>
+                    {request.status !== "completed" &&
+                      request.status !== "disputed" &&
+                      request.status !== "cancelled" && (
+                      <Button
+                        variant="destructive"
+                        className="w-full mt-3"
+                      >
+                        Open Dispute
+                      </Button>
+                    )}
+                    </DialogTrigger>
 
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Open Dispute</DialogTitle>
-    </DialogHeader>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Open Dispute</DialogTitle>
+                      </DialogHeader>
 
-    <div className="space-y-4">
-      <Input
-        placeholder="Reason"
-        value={disputeReason}
-        onChange={(e) => setDisputeReason(e.target.value)}
-      />
+                      <div className="space-y-4">
+                        <Input
+                          placeholder="Reason"
+                          value={disputeReason}
+                          onChange={(e) => setDisputeReason(e.target.value)}
+                        />
 
-      <Textarea
-        placeholder="Describe the issue..."
-        rows={4}
-        value={disputeDescription}
-        onChange={(e) => setDisputeDescription(e.target.value)}
-      />
-    </div>
+                        <Textarea
+                          placeholder="Describe the issue..."
+                          rows={4}
+                          value={disputeDescription}
+                          onChange={(e) => setDisputeDescription(e.target.value)}
+                        />
+                      </div>
 
-    <DialogFooter>
-      <Button
-        variant="outline"
-        onClick={() => setIsDisputeOpen(false)}
-      >
-        Cancel
-      </Button>
+                      <DialogFooter>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsDisputeOpen(false)}
+                        >
+                          Cancel
+                        </Button>
 
-      <Button
-        disabled={!disputeReason.trim()}
-        onClick={() => openDispute.mutate()}
-      >
-        Submit Dispute
-      </Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+                        <Button
+                          disabled={!disputeReason.trim()}
+                          onClick={() => openDispute.mutate()}
+                        >
+                          Submit Dispute
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 {user?.userType === "vendor" && request.status === "pending" && (
                       <Button
                         className="w-full"

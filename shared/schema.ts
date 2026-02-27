@@ -84,6 +84,13 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   leadsReceived: integer("leads_received").default(0),
   leadsAccepted: integer("leads_accepted").default(0),
   totalEarnings: decimal("total_earnings", { precision: 10, scale: 2 }).default("0"),
+  // --- PERFORMANCE METRICS ---
+  totalRequests: integer("total_requests").default(0),
+  completedRequests: integer("completed_requests").default(0),
+  onTimeDeliveries: integer("on_time_deliveries").default(0),
+  autoCompletedRequests: integer("auto_completed_requests").default(0),
+  disputesLost: integer("disputes_lost").default(0),
+  vendorScore: decimal("vendor_score", { precision: 5, scale: 2 }).default("0"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -310,6 +317,37 @@ export const transactions = pgTable("transactions", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+export const wallets = pgTable("wallets", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  userId: uuid("user_id")
+    .references(() => users.id)
+    .notNull(),
+
+  balance: decimal("balance", { precision: 12, scale: 2 })
+    .notNull()
+    .default("0.00"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+export const walletTransactions = pgTable("wallet_transactions", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  walletId: uuid("wallet_id")
+    .references(() => wallets.id)
+    .notNull(),
+
+  amount: decimal("amount", { precision: 12, scale: 2 })
+    .notNull(),
+
+  type: text("type").notNull(), 
+  // credit | debit | commission | refund
+
+  referenceId: uuid("reference_id"), // service_request_id
+
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 // User maturity profiles - stores assessment results and progress
 export const userMaturityProfiles = pgTable("user_maturity_profiles", {
@@ -325,6 +363,10 @@ export const userMaturityProfiles = pgTable("user_maturity_profiles", {
   subscriptionTier: subscriptionTierEnum("subscription_tier").default("freemium"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
+  // --- CONTRACTOR PERFORMANCE ---
+  contractorScore: decimal("contractor_score", { precision: 5, scale: 2 }).default("0"),
+  disputesLost: integer("disputes_lost").default(0),
+  autoCompletionPenalty: integer("auto_completion_penalty").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

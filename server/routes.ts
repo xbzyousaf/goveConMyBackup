@@ -1,4 +1,3 @@
-import { createDispute } from '@/lib/storage';
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -15,6 +14,7 @@ import type { Request } from "express";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { scoringService } from "./services/scoring.service";
 
 // recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -162,6 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userType: intent,
         isEmailVerified: false,
       });
+      await storage.createWallet(user.id);
       
       // Send verification email
       await EmailService.sendVerificationEmail(
@@ -825,6 +826,9 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
         rating,
         comment,
       });
+      if (serviceRequest.vendorId) {
+        await scoringService.recalculateVendorScore(serviceRequest?.vendorId);
+      }
       await storage.createNotification({
         userId: revieweeId,
         triggeredBy: userId, 
@@ -1588,15 +1592,6 @@ Respond in JSON format:
       if (!serviceRequest) {
         return res.status(404).json({ message: "Service request not found" });
       }
-      if (status === "in_progress") {
-
-        if (serviceRequest.paymentStatus !== "escrow_held") {
-          return res.status(400).json({
-            message: "Escrow must be funded before starting work."
-          });
-        }
-      }
-      const currentStatus = serviceRequest.status;
       const paymentStatus = serviceRequest.paymentStatus;
       // STRICT TRANSITION RULES
       if (status === "in_progress") {
@@ -1622,12 +1617,16 @@ Respond in JSON format:
       const previousStatus = serviceRequest.status ?? 'pending';
       const updated = await storage.updateServiceRequestStatus(id, status);
       if (status === "completed") {
-        await storage.releaseEscrowByRequestId(id);
-        await storage.updateServiceRequest(id, {
-          paymentStatus: "released",
-          actualCost: serviceRequest.finalPrice || serviceRequest.proposedPrice,
-          completedAt: new Date(),
-        });
+        if (previousStatus !== "completed") {
+          await storage.releaseEscrowByRequestId(id);
+
+          await storage.updateServiceRequest(id, {
+            paymentStatus: "released",
+            actualCost: serviceRequest.finalPrice || serviceRequest.proposedPrice,
+            completedAt: new Date(),
+          });
+          await scoringService.handleRequestCompletion(serviceRequest);
+        }
       }
       await storage.createRequestLog({
         serviceRequestId: id,
@@ -2207,6 +2206,48 @@ app.post("/api/disputes", isAuthenticated, async (req, res) => {
     res.status(400).json({
       message: error.message || "Failed to create dispute",
     });
+  }
+});
+app.get("/api/vendors/:vendorId/performance", isAuthenticated, async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const profile = await storage.getVendorProfile(vendorId);
+    if (!profile) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const {
+      totalRequests = 0,
+      completedRequests = 0,
+      onTimeDeliveries = 0,
+      autoCompletedRequests = 0,
+      disputesLost = 0,
+      rating = 0,
+      vendorScore = 0,
+    } = profile;
+
+    const completionRate =
+      totalRequests === 0 ? 0 : (completedRequests / totalRequests) * 100;
+
+    const onTimeRate =
+      completedRequests === 0
+        ? 0
+        : (onTimeDeliveries / completedRequests) * 100;
+
+    res.json({
+      vendorScore,
+      rating,
+      totalRequests,
+      completedRequests,
+      autoCompletedRequests,
+      disputesLost,
+      responseTime: profile.responseTime || 0,
+      completionRate: Number(completionRate.toFixed(1)),
+      onTimeRate: Number(onTimeRate.toFixed(1)),
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to load performance" });
   }
 });
 
