@@ -585,6 +585,7 @@ return vendorProfile;
             name: true,
           },
         },
+        disputes:true,
         reviews: true,
       },
       orderBy: (serviceRequests, { desc }) => [
@@ -1664,7 +1665,7 @@ async releaseEscrowByRequestId(serviceRequestId: string) {
     throw new Error("Escrow not found");
   }
 
-  if (escrow.status !== "held") {
+  if (escrow.status !== "held" && escrow.status !== "disputed") {
     throw new Error("Escrow already processed");
   }
 
@@ -1703,6 +1704,37 @@ async getVendorPayments(vendorId: string) {
     )
     .where(eq(serviceRequests.vendorId, vendorId))
     .orderBy(desc(escrows.heldAt));
+}
+async updateDisputeResolution(
+  disputeId: string,
+  resolution: string
+) {
+  const dispute = await db.query.disputes.findFirst({
+    where: eq(disputes.id, disputeId),
+  });
+
+  if (!dispute) {
+    throw new Error("Dispute not found");
+  }
+
+  // Determine final status
+  const finalStatus =
+    resolution === "vendor"
+      ? "vendor_won"
+      : "contractor_won";
+
+  const [updatedDispute] = await db
+    .update(disputes)
+    .set({
+      status: "resolved",
+      resolution: finalStatus,
+      resolvedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(disputes.id, disputeId))
+    .returning();
+
+  return updatedDispute;
 }
 async autoCompleteIfExpired(request: any) {
   if (!request) return null;
