@@ -580,6 +580,10 @@ export const serviceRequestsRelations = relations(serviceRequests, ({ one, many 
     fields: [serviceRequests.serviceId],
     references: [services.id],
   }),
+  disputes: one(disputes, {
+    fields: [serviceRequests.id],
+    references: [disputes.serviceRequestId],
+  }),
   escrow: one(escrows, {
     fields: [serviceRequests.id],
     references: [escrows.serviceRequestId],

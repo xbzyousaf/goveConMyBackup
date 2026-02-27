@@ -1566,6 +1566,7 @@ Respond in JSON format:
   app.patch("/api/service-requests/:id/status", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
+      const user = await storage.getUser(userId);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
@@ -1611,7 +1612,7 @@ Respond in JSON format:
       }
 
       // Only vendor can approve/reject
-      if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId) {
+      if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId && user?.userType !== 'admin') {
         return res.status(403).json({ message: "Not authorized" });
       }
       const previousStatus = serviceRequest.status ?? 'pending';
@@ -1627,6 +1628,11 @@ Respond in JSON format:
           });
           await scoringService.handleRequestCompletion(serviceRequest);
         }
+      }
+      if(user?.userType === 'admin') {
+        const disputeStatus = req.body.winner;
+        const disputeId = req.body.disputeId;
+        const resolution = storage.updateDisputeResolution(disputeId, disputeStatus);
       }
       await storage.createRequestLog({
         serviceRequestId: id,
