@@ -12,9 +12,9 @@ async function seed() {
 
   // --- 1. Seed Users ---
   const seedUsers: UserInsert[] = [
-    { email: "admin@gmail.com", password: passwordHash, userType: "admin", isEmailVerified: true },
-    { email: "vendor@gmail.com", password: passwordHash, userType: "vendor", isEmailVerified: true },
-    { email: "contractor@gmail.com", password: passwordHash, userType: "contractor", isEmailVerified: true },
+    { email: "admin@gmail.com", firstName: "Super",lastName: "Admin", password: passwordHash, userType: "admin", isEmailVerified: true },
+    { email: "vendor@gmail.com", firstName: "Vendor", lastName: "1",password: passwordHash, userType: "vendor", isEmailVerified: true },
+    { email: "contractor@gmail.com", firstName: "Contractor", lastName: "1", password: passwordHash, userType: "contractor", isEmailVerified: true },
   ];
 
   for (const user of seedUsers) {

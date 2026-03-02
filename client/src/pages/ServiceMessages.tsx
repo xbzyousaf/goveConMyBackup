@@ -82,6 +82,7 @@ export default function ServiceMessages({
     const totalUnread = conversationsQuery.data?.totalUnread ?? 0;
     
     const serviceId = messagesQuery.data?.service?.id;
+    const serviceRequest = messagesQuery.data?.serviceRequest ?? [];
     const serviceTitle = messagesQuery.data?.service?.title;
     const requestTitle = messagesQuery.data?.serviceRequest?.title;
     const vendorName = messagesQuery.data?.participants?.vendorName;
@@ -276,30 +277,71 @@ useEffect(() => {
 
             {/* Service Card Click → Show Messages */}
             {activeConversationId && (
-                <>
-                    {messages.map((m: any) => (
-                    <div
-                        key={m.id}
-                        className={`p-2 rounded-md max-w-[70%] ${
-                        m.senderId === user?.id
-                            ? "ml-auto bg-primary text-white"
-                            : "bg-muted"
-                        }`}
-                    >
-                        {m.content}
-                    </div>
-                    ))}
+            <>
+            {messages.map((m: any) => {
+                let isRightSide = false;
+                let senderName = "";
+                let senderRole = "";
 
-                    {/* Scroll Anchor */}
-                    <div ref={messagesEndRef} />
-                </>
-                )}
+                if (user?.userType === "admin") {
+                    // Admin view: right = vendor, left = contractor
+                    if (m.senderId === serviceRequest.vendorId) {
+                    isRightSide = true;
+                    senderName = serviceRequest.vendorName;
+                    senderRole = `(${vendorName})`;
+                    } else if (m.senderId === serviceRequest.contractorId) {
+                    isRightSide = false;
+                    senderName = serviceRequest.contractorName;
+                    senderRole = `(${contractorName})`;
+                    } else {
+                    senderName = "Admin";
+                    senderRole = "(Admin)";
+                    }
+                } else {
+                    // Non-admin view
+                    isRightSide = m.senderId === user?.id;
+
+                    if (m.senderId === serviceRequest.vendorId) {
+                    senderName = serviceRequest.vendorName;
+                    senderRole = "";
+                    } else if (m.senderId === serviceRequest.contractorId) {
+                    senderName = serviceRequest.contractorName;
+                    senderRole = "";
+                    } else {
+                    senderName = user?.name;
+                    senderRole = user?.userType === "admin"
+                        ? "Admin"
+                        : user?.userType === "vendor"
+                        ? "Vendor"
+                        : "Contractor";
+                    }
+                }
+
+                return (
+                    <div
+                    key={m.id}
+                    className={`p-2 rounded-md max-w-[70%] my-1 ${
+                        isRightSide ? "ml-auto bg-primary text-white" : "bg-muted"
+                    }`}
+                    >
+                    <div className="text-xs font-semibold mb-1">
+                        {senderName} {senderRole}
+                    </div>
+                    <div>{m.content}</div>
+                    </div>
+                );
+                })}
+
+                {/* Scroll Anchor */}
+                <div ref={messagesEndRef} />
+            </>
+            )}
 
             </div>
 
 
         {/* input */}
-        {activeConversationId && (
+        {activeConversationId && user?.userType !== "admin" && (
         <div className="p-3 border-t flex gap-2">
             <Input
                 value={message}
@@ -324,3 +366,4 @@ useEffect(() => {
     </div>
   );
 }
+
