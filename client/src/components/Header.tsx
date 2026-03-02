@@ -39,6 +39,15 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
     },
     enabled: !!user,
   });
+  const { data: walletData } = useQuery({
+    queryKey: ["/api/wallet/balance"],
+    queryFn: async () => {
+      const res = await fetch("/api/wallet/balance");
+      if (!res.ok) throw new Error("Failed to fetch wallet");
+      return res.json();
+    },
+    enabled: !!user,
+  });
   const { data: notifications = [] } = useQuery({
     queryKey: ["/api/notifications"],
     queryFn: async () => {
@@ -302,6 +311,11 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            {user?.userType !== "admin" && (
+              <div className="px-3 py-1 rounded-md bg-muted text-sm font-semibold">
+                ${Number(walletData?.balance ?? 0).toFixed(2)}
+              </div>
+            )}
           </div>
         </div>
       </div>

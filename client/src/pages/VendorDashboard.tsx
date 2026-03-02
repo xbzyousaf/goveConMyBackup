@@ -16,6 +16,7 @@ import { isCurrentMonth } from "@/helpers/dateHelper";
 import { useToast } from "@/hooks/use-toast";
 import { ServiceRequestList } from "@/components/service-requests/ServiceRequestList";
 import VendorPerformanceTab from "@/components/VendorPerformanceTab";
+import WalletPage from "./vendor/WalletPage";
 
 export default function VendorDashboard() {
   const queryClient = useQueryClient();
@@ -250,6 +251,7 @@ const overviewRequests = allRequests.filter((request) => {
               <TabsTrigger value="requests" data-testid="tab-requests">Service Requests</TabsTrigger>
               <TabsTrigger value="reviews" data-testid="tab-reviews">Reviews</TabsTrigger>
               <TabsTrigger value="performance" data-testid="tab-performance">Performance</TabsTrigger>
+              <TabsTrigger value="wallet" data-testid="tab-wallet">Wallet</TabsTrigger>
             </TabsList>
 
 
@@ -362,6 +364,9 @@ const overviewRequests = allRequests.filter((request) => {
             </TabsContent>
             <TabsContent value="performance" className="space-y-6">
               <VendorPerformanceTab vendorId={user.id} />
+            </TabsContent>
+            <TabsContent value="wallet" className="space-y-6">
+              <WalletPage/>
             </TabsContent>
 
             {/* Profile Tab */}

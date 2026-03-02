@@ -60,7 +60,6 @@ export default function ServiceMessages({
             return res.json();
         },
         enabled: open,
-        refetchInterval: 5000, // auto update unread + last message
         });
     const messagesQuery = useQuery({
         queryKey: ["/api/service-requests", activeConversationId, "messages"],
