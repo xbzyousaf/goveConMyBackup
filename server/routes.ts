@@ -15,6 +15,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { scoringService } from "./services/scoring.service";
+import { creditWallet, debitWallet } from "./services/walletService";
 
 // recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -1612,6 +1613,9 @@ Respond in JSON format:
       }
 
       // Only vendor can approve/reject
+      if (!serviceRequest.vendorId) {
+        return res.status(403).json({ message: "Vendor not found" });
+      }
       if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId && user?.userType !== 'admin') {
         return res.status(403).json({ message: "Not authorized" });
       }
@@ -1619,6 +1623,20 @@ Respond in JSON format:
       const updated = await storage.updateServiceRequestStatus(id, status);
       if (status === "completed") {
         if (previousStatus !== "completed") {
+           const escrow = await storage.getEscrowByRequestId(id);
+          if (!escrow || escrow.status !== "held") {
+            return res.status(400).json({
+              message: "Escrow not available for release"
+            });
+          }
+           const vendorWallet = await storage.getWalletByUserId(serviceRequest.vendorId);
+          if (!vendorWallet) {
+            return res.status(400).json({
+              message: "Vendor wallet not found"
+            });
+          }
+
+          await creditWallet(serviceRequest.vendorId, Number(escrow.vendorEarning), "escrow_release", id);
           await storage.releaseEscrowByRequestId(id);
 
           await storage.updateServiceRequest(id, {
@@ -2125,7 +2143,15 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
 
     const platformFee = finalPrice * 0.1;
     const vendorEarning = finalPrice - platformFee;
+    const wallet = await storage.getWalletByUserId(contractorId);
 
+    if (!wallet) {
+      return res.status(400).json({ message: "Wallet not found" });
+    }
+    if (Number(wallet.balance) < finalPrice) {
+      return res.status(400).json({ message: "Insufficient balance" });
+    }
+    await debitWallet(contractorId, finalPrice, "escrow_funding", id);
     // 1️⃣ Create escrow
     await storage.createEscrow({
       serviceRequestId: id,
@@ -2256,7 +2282,21 @@ app.get("/api/vendors/:vendorId/performance", isAuthenticated, async (req, res) 
     res.status(500).json({ message: "Failed to load performance" });
   }
 });
+app.get("/api/wallet/transactions", isAuthenticated, async (req, res) => {
+  try {
+    const userId = (req.session as any)?.userId;
 
+    const transactions =
+      await storage.getWalletTransactionsByUserId(userId);
+
+    res.json(transactions);
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({
+      message: error instanceof Error ? error.message : "Error",
+    });
+  }
+});
 
   const httpServer = createServer(app);
   return httpServer;

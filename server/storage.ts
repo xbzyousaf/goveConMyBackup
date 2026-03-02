@@ -45,7 +45,8 @@ import {
   Certificate,
   escrows,
   disputes,
-  wallets
+  wallets,
+  walletTransactions
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
@@ -158,7 +159,7 @@ export class DatabaseStorage implements IStorage {
   async createWallet(userId: string): Promise<void> {
     await db.insert(wallets).values({
       userId: userId,
-      balance: "0.00",
+      balance: "100000.00",
     });
   }
 
@@ -1878,6 +1879,30 @@ async incrementAutoCompletionPenalty(userId: string) {
       autoCompletionPenalty: sql`auto_completion_penalty + 1`,
     })
     .where(eq(userMaturityProfiles.userId, userId));
+}
+async getWalletByUserId(userId: string) {
+  return await db.query.wallets.findFirst({
+    where: eq(wallets.userId, userId),
+  });
+}
+async getEscrowByRequestId(requestId: string) {
+  return await db.query.escrows.findFirst({
+    where: eq(escrows.serviceRequestId, requestId),
+  });
+}
+async getWalletTransactionsByUserId(userId: string) {
+  const wallet = await db.query.wallets.findFirst({
+    where: eq(wallets.userId, userId),
+  });
+
+  if (!wallet) throw new Error("Wallet not found");
+
+  return await db.query.walletTransactions.findMany({
+    where: eq(walletTransactions.walletId, wallet.id),
+    orderBy: (walletTransactions, { desc }) => [
+      desc(walletTransactions.createdAt),
+    ],
+  });
 }
 
 // end

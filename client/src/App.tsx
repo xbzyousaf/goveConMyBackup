@@ -38,6 +38,7 @@ import AdminRequestLogs from "./pages/admin/AdminRequestLogs";
 import AdminDisputes from "./pages/admin/AdminDisputes";
 
 import VendorPayments from "./pages/vendor/payments";
+import WalletPage from "./pages/vendor/WalletPage";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -111,6 +112,7 @@ function Router() {
           <Route path="/vendor/requests/:id" component={RequestDetails} />
           <Route path="/admin/request-logs" component={AdminRequestLogs} />
           <Route path="/vendors/payment" component={VendorPayments} />
+          <Route path="/vendor/wallet" component={WalletPage} />
           <Route component={NotFound} />
         </>
       ) : (
