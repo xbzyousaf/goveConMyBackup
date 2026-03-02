@@ -879,7 +879,7 @@ return res
 .json({ message: "Missing required fields: companyName or title" });
 }
 
-const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
+const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
 if (fileUrl) {
 req.body.avatar = fileUrl;
 }
@@ -911,7 +911,7 @@ res.status(500).json({ message: "Failed to create vendor profile" });
       if (!existingProfile || existingProfile.id !== profileId) {
         return res.status(403).json({ message: "Unauthorized to edit this profile" });
       }
-      const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
+      const fileUrl = req.file ? `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` : null;
       if (fileUrl) {
         req.body.avatar = fileUrl;
       }
@@ -1519,6 +1519,7 @@ Respond in JSON format:
         if (!userId) {
           return res.status(401).json({ message: "Not authenticated" });
         }
+        const user = await storage.getUser(userId);
 
         const serviceRequestId = req.params.id;
 
@@ -1529,7 +1530,8 @@ Respond in JSON format:
 
         if (
           serviceRequest.vendorId !== userId &&
-          serviceRequest.contractorId !== userId
+          serviceRequest.contractorId !== userId &&
+        user?.userType !== 'admin'
         ) {
           return res.status(403).json({ message: "Not authorized" });
         }
@@ -1825,7 +1827,7 @@ Respond in JSON format:
         const userId = getUserId(req);
         if (!userId) return res.status(401).json({ message: "Not authenticated" });
 
-        const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
+        const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
 
         const portfolio = await storage.createPortfolio(
           { ...req.body, attachmentUrl: fileUrl },
@@ -1863,7 +1865,7 @@ Respond in JSON format:
         const userId = getUserId(req);
         if (!userId) return res.status(401).json({ message: "Not authenticated" });
 
-        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
 
         const certificate = await storage.createCertificate(
           { ...req.body, imageUrl: imageUrl },

@@ -6,10 +6,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import type { ServiceRequest } from "@shared/schema";
+import { useMessages } from "@/components/ui/MessageContext";
+import { MessageSquare } from "lucide-react";
 
 export default function AdminDisputes() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { openConversation } = useMessages();
 
   const [selectedDispute, setSelectedDispute] =
     useState<ServiceRequest | null>(null);
@@ -162,6 +165,14 @@ export default function AdminDisputes() {
                         Resolve
                       </Button>
                     )}
+                <Button
+                    variant="secondary"
+                    className="ml-2"
+                    onClick={() => openConversation(dispute.disputes.serviceRequestId) }
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Message
+                  </Button>
                   </td>
                 </tr>
               ))}
