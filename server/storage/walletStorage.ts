@@ -2,7 +2,8 @@ import { db } from "../db";
 import { wallets, walletTransactions } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
-export async function creditWallet(userId: string, amount: number, type: string, referenceId?: string) {
+export const walletStorage = {
+ async creditWallet(userId: string, amount: number, type: string, referenceId?: string) {
   const wallet = await db.query.wallets.findFirst({
     where: eq(wallets.userId, userId),
   });
@@ -24,9 +25,9 @@ export async function creditWallet(userId: string, amount: number, type: string,
       referenceId,
     });
   });
-}
+},
 
-export async function debitWallet(userId: string, amount: number, type: string, referenceId?: string) {
+async debitWallet(userId: string, amount: number, type: string, referenceId?: string) {
   const wallet = await db.query.wallets.findFirst({
     where: eq(wallets.userId, userId),
   });
@@ -52,4 +53,41 @@ export async function debitWallet(userId: string, amount: number, type: string, 
       referenceId,
     });
   });
+},
+
+async getWalletBalance(userId: string) {
+  const wallet = await db.query.wallets.findFirst({
+    where: eq(wallets.userId, userId),
+  });
+
+  if (!wallet) {
+    throw new Error("Wallet not found");
+  }
+
+  return Number(wallet.balance ?? 0);
+},
+
+async getWalletTransactionsByUserId(userId: string) {
+  const wallet = await db.query.wallets.findFirst({
+    where: eq(wallets.userId, userId),
+  });
+
+  if (!wallet) throw new Error("Wallet not found");
+
+  return await db.query.walletTransactions.findMany({
+    where: eq(walletTransactions.walletId, wallet.id),
+    orderBy: (walletTransactions, { desc }) => [
+      desc(walletTransactions.createdAt),
+    ],
+  });
+},
+async getWalletByUserId(userId: string) {
+  return await db.query.wallets.findFirst({
+    where: eq(wallets.userId, userId),
+  });
+},
+
+
+
+  // end===============================
 }

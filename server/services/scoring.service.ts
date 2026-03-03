@@ -1,4 +1,5 @@
 import { storage } from "../storage";
+import { scoringStorage } from "server/storage/ScoringStorage";
 
 export const scoringService = {
   // ===============================
@@ -11,7 +12,7 @@ export const scoringService = {
     if (!vendorId) return;
 
     // 🔹 Update vendor counters
-    await storage.incrementVendorMetrics(vendorId, {
+    await scoringStorage.incrementVendorMetrics(vendorId, {
       totalRequests: 1,
       completedRequests: 1,
       onTimeDeliveries:
@@ -25,7 +26,7 @@ export const scoringService = {
 
     // 🔹 Update contractor maturity profile
     if (contractorId) {
-      await storage.incrementContractorScore(contractorId, 1);
+      await scoringStorage.incrementContractorScore(contractorId, 1);
     }
 
     // 🔹 Recalculate vendor score
@@ -41,15 +42,15 @@ export const scoringService = {
 
     if (!vendorId) return;
 
-    await storage.incrementVendorMetrics(vendorId, {
+    await scoringStorage.incrementVendorMetrics(vendorId, {
       totalRequests: 1,
       completedRequests: 1,
       autoCompletedRequests: 1,
     });
 
     if (contractorId) {
-      await storage.incrementContractorScore(contractorId, -1);
-      await storage.incrementAutoCompletionPenalty(contractorId);
+      await scoringStorage.incrementContractorScore(contractorId, -1);
+      await scoringStorage.incrementAutoCompletionPenalty(contractorId);
     }
 
     await this.recalculateVendorScore(vendorId);
@@ -69,18 +70,18 @@ export const scoringService = {
 
     if (dispute.resolution === "vendor_won") {
       if (contractorId) {
-        await storage.incrementContractorScore(contractorId, -3);
+        await scoringStorage.incrementContractorScore(contractorId, -3);
       }
     }
 
     if (dispute.resolution === "contractor_won") {
       if (vendorId) {
-        await storage.incrementVendorDisputesLost(vendorId);
+        await scoringStorage.incrementVendorDisputesLost(vendorId);
         await this.recalculateVendorScore(vendorId);
       }
 
       if (contractorId) {
-        await storage.incrementContractorScore(contractorId, 1);
+        await scoringStorage.incrementContractorScore(contractorId, 1);
       }
     }
   },
@@ -102,7 +103,7 @@ export const scoringService = {
     } = profile;
 
     if (totalRequests === 0) {
-      await storage.updateVendorScore(vendorId, 0);
+      await scoringStorage.updateVendorScore(vendorId, 0);
       return;
     }
 
@@ -129,6 +130,6 @@ export const scoringService = {
       responseScore * 10 -
       disputeRate * 10;
 
-    await storage.updateVendorScore(vendorId, Number(finalScore.toFixed(2)));
+    await scoringStorage.updateVendorScore(vendorId, Number(finalScore.toFixed(2)));
   },
 };

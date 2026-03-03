@@ -7,9 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Send, DollarSign, Star, MapPin } from "lucide-react";
+import { Sparkles, Send, DollarSign, Star, MapPin, ArrowLeft } from "lucide-react";
 import type { VendorProfile } from "@shared/schema";
 import { Header } from "./Header";
+import { Link } from "wouter";
+
 type ServiceRequestPayload = {
   title: string;
   category: string;
@@ -140,7 +142,14 @@ const parseBudgetToNumber = (budgetRange: string): number => {
   return (
     <div className="min-h-screen bg-background">
     <Header />
-    <main className="container mx-auto px-4 py-8">
+    <main className="py-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <Link href="/marketplace">
+            <Button variant="outline">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Services
+            </Button>
+          </Link>
     <Card className="p-6">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="h-5 w-5 text-primary" />
@@ -313,6 +322,7 @@ const parseBudgetToNumber = (budgetRange: string): number => {
         </div>
       )}
     </Card>
+    </div>
     </main>
     </div>
   );
