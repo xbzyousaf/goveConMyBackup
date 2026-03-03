@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocation, useRoute } from "wouter";
+import { Link, useLocation, useRoute } from "wouter";
 import { Header } from "@/components/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft } from "lucide-react";
 
 export default function CreateService() {
   const [match, params] = useRoute("/service/create/:id");
@@ -115,9 +116,14 @@ export default function CreateService() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-
-      <main className="container mx-auto max-w-4xl px-4 py-10 space-y-6">
-
+    
+      <main className="max-w-6xl mx-auto max-w-4xl px-4 py-10 space-y-6">
+          <Link href="/marketplace">
+            <Button variant="outline">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Services
+            </Button>
+          </Link>
         <Card>
           <CardContent className="p-6 space-y-4">
 
