@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   BarChart,
   FileText,
+  Receipt,
 } from "lucide-react";
 
 const nav = [
@@ -14,6 +15,7 @@ const nav = [
   { label: "Vendors", href: "/admin/vendors", icon: Users },
   { label: "Matches", href: "/admin/matches", icon: GitMerge },
   { label: "Escrow", href: "/admin/escrow", icon: DollarSign },
+  { label: "Transactions", href: "/admin/transactions", icon: Receipt },
   { label: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart },
   { label: "Request Logs", href: "/admin/request-logs", icon: FileText },

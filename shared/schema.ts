@@ -559,7 +559,28 @@ export const vendorProfilesRelations = relations(vendorProfiles, ({ one }) => ({
     references: [users.id],
   }),
 }));
+export const walletsRelations = relations(wallets, ({ one, many }) => ({
+  user: one(users, {
+    fields: [wallets.userId],
+    references: [users.id],
+  }),
 
+  transactions: many(walletTransactions),
+}));
+export const walletTransactionsRelations = relations(
+  walletTransactions,
+  ({ one }) => ({
+    wallet: one(wallets, {
+      fields: [walletTransactions.walletId],
+      references: [wallets.id],
+    }),
+
+    serviceRequests: one(serviceRequests, {
+      fields: [walletTransactions.referenceId],
+      references: [serviceRequests.id],
+    }),
+  })
+);
 export const serviceRequestsRelations = relations(serviceRequests, ({ one, many }) => ({
   contractor: one(users, {
     fields: [serviceRequests.contractorId],
