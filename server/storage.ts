@@ -1721,12 +1721,17 @@ async updateDisputeResolution(
   if (!dispute) {
     throw new Error("Dispute not found");
   }
+  let finalStatus: string;
 
-  // Determine final status
-  const finalStatus =
-    resolution === "vendor"
-      ? "vendor_won"
-      : "contractor_won";
+  if (resolution === "vendor") {
+    finalStatus = "vendor_won";
+  } else if (resolution === "contractor") {
+    finalStatus = "contractor_won";
+  } else if (resolution === "partial") {
+    finalStatus = "partial_win"; // new status for partial win
+  } else {
+    finalStatus = "unknown";
+  }
 
   const [updatedDispute] = await db
     .update(disputes)
@@ -1840,6 +1845,7 @@ async getEscrowByRequestId(requestId: string) {
     where: eq(escrows.serviceRequestId, requestId),
   });
 }
+
 
 
 // end

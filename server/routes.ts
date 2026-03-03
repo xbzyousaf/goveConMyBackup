@@ -1615,7 +1615,9 @@ Respond in JSON format:
           });
         }
       }
-
+      //only for resolve dispute 
+      const disputeStatus = req.body.winner;
+      const disputeId = req.body.disputeId;
       // Only vendor can approve/reject
       if (!serviceRequest.vendorId) {
         return res.status(403).json({ message: "Vendor not found" });
@@ -1628,9 +1630,9 @@ Respond in JSON format:
       if (status === "completed") {
         if (previousStatus !== "completed") {
            const escrow = await storage.getEscrowByRequestId(id);
-          if (!escrow || escrow.status !== "held") {
+          if (!escrow || (escrow.status !== "held" && escrow.status !== "disputed")) {
             return res.status(400).json({
-              message: "Escrow not available for release"
+              message: "Escrow not available for release "  + id
             });
           }
            const vendorWallet = await walletStorage.getWalletByUserId(serviceRequest.vendorId);
@@ -1639,8 +1641,47 @@ Respond in JSON format:
               message: "Vendor wallet not found"
             });
           }
+          if (disputeStatus === "vendor") {
+            // Full vendor win
+            await walletStorage.creditWallet(
+              serviceRequest.vendorId,
+              Number(escrow.vendorEarning),
+              "escrow_release",
+              serviceRequest.id
+            );
+          } else if (disputeStatus === "contractor") {
+            // Full contractor win
+            await walletStorage.creditWallet(
+              serviceRequest.contractorId,
+              Number(escrow.vendorEarning) + Number(escrow.platformFee),
+              "escrow_release",
+              serviceRequest.id
+            );
+          } else if (disputeStatus === "partial") {
+            // Partial win: split according to percentages
+            const contractorPercent = req.body.contractorPercent;
+            const vendorPercent = req.body.vendorPercent;
+            const contractorAmount = (Number(escrow.vendorEarning) * contractorPercent) / 100;
+            const vendorAmount = (Number(escrow.vendorEarning) * vendorPercent) / 100;
 
-          await walletStorage.creditWallet(serviceRequest.vendorId, Number(escrow.vendorEarning), "escrow_release", id);
+            if (contractorAmount > 0) {
+              await walletStorage.creditWallet(
+                serviceRequest.contractorId,
+                contractorAmount,
+                "escrow_release",
+                serviceRequest.id
+              );
+            }
+
+            if (vendorAmount > 0) {
+              await walletStorage.creditWallet(
+                serviceRequest.vendorId,
+                vendorAmount,
+                "escrow_release",
+                serviceRequest.id
+              );
+            }
+          }
           await storage.releaseEscrowByRequestId(id);
           await storage.createNotification({
             userId: serviceRequest.vendorId,
@@ -1661,8 +1702,6 @@ Respond in JSON format:
         }
       }
       if(user?.userType === 'admin') {
-        const disputeStatus = req.body.winner;
-        const disputeId = req.body.disputeId;
         const resolution = storage.updateDisputeResolution(disputeId, disputeStatus);
         await storage.createNotification({
           userId: serviceRequest.vendorId,

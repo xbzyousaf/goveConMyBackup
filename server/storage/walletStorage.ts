@@ -88,6 +88,44 @@ async getWalletByUserId(userId: string) {
 },
 
 
+async getWalletTransactions() {
+  return await db.query.walletTransactions.findMany({
+    columns: {
+      id: true,
+      amount: true,
+      type: true,
+      referenceId: true,
+      createdAt: true,
+    },
+
+    with: {
+      wallet: {
+        columns: {
+          id: true,
+          balance: true,
+        },
+
+        with: {
+          user: {
+            columns: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      },
+
+      serviceRequests: {
+        columns: {
+          title: true,
+          description: true,
+        },
+      },
+    },
+
+    orderBy: (wt, { desc }) => [desc(wt.createdAt)],
+  });
+}
 
   // end===============================
 }

@@ -38,4 +38,19 @@ router.get("/transactions", isAuthenticated, async (req, res) => {
   }
 });
 
+router.get("/api/transactions", isAuthenticated, async (req, res) => {
+  try {
+    const userId = (req.session as any)?.userId;
+
+    const transactions =
+      await walletStorage.getWalletTransactions();
+
+    res.json(transactions);
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({
+      message: error instanceof Error ? error.message : "Error",
+    });
+  }
+});
 export default router;
