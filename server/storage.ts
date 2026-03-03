@@ -1724,12 +1724,17 @@ async updateDisputeResolution(
   if (!dispute) {
     throw new Error("Dispute not found");
   }
+  let finalStatus: string;
 
-  // Determine final status
-  const finalStatus =
-    resolution === "vendor"
-      ? "vendor_won"
-      : "contractor_won";
+  if (resolution === "vendor") {
+    finalStatus = "vendor_won";
+  } else if (resolution === "contractor") {
+    finalStatus = "contractor_won";
+  } else if (resolution === "partial") {
+    finalStatus = "partial_win"; // new status for partial win
+  } else {
+    finalStatus = "unknown";
+  }
 
   const [updatedDispute] = await db
     .update(disputes)
@@ -1888,6 +1893,45 @@ async getWalletByUserId(userId: string) {
 async getEscrowByRequestId(requestId: string) {
   return await db.query.escrows.findFirst({
     where: eq(escrows.serviceRequestId, requestId),
+  });
+}
+
+async getWalletTransactions() {
+  return await db.query.walletTransactions.findMany({
+    columns: {
+      id: true,
+      amount: true,
+      type: true,
+      referenceId: true,
+      createdAt: true,
+    },
+
+    with: {
+      wallet: {
+        columns: {
+          id: true,
+          balance: true,
+        },
+
+        with: {
+          user: {
+            columns: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      },
+
+      serviceRequests: {
+        columns: {
+          title: true,
+          description: true,
+        },
+      },
+    },
+
+    orderBy: (wt, { desc }) => [desc(wt.createdAt)],
   });
 }
 async getWalletTransactionsByUserId(userId: string) {
