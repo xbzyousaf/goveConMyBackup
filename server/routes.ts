@@ -1,3 +1,4 @@
+import { adminStorage } from './storage/adminStorage';
 import type { Express, RequestHandler } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -15,7 +16,8 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { scoringService } from "./services/scoring.service";
-import { creditWallet, debitWallet } from "./services/walletService";
+import { walletStorage } from "./storage/walletStorage";
+import { adminStorage } from "./storage/adminStorage";
 
 // recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -1633,7 +1635,7 @@ Respond in JSON format:
               message: "Escrow not available for release "  + id
             });
           }
-           const vendorWallet = await storage.getWalletByUserId(serviceRequest.vendorId);
+           const vendorWallet = await walletStorage.getWalletByUserId(serviceRequest.vendorId);
           if (!vendorWallet) {
             return res.status(400).json({
               message: "Vendor wallet not found"
@@ -1641,7 +1643,7 @@ Respond in JSON format:
           }
           if (disputeStatus === "vendor") {
             // Full vendor win
-            await creditWallet(
+            await walletStorage.creditWallet(
               serviceRequest.vendorId,
               Number(escrow.vendorEarning),
               "escrow_release",
@@ -1649,7 +1651,7 @@ Respond in JSON format:
             );
           } else if (disputeStatus === "contractor") {
             // Full contractor win
-            await creditWallet(
+            await walletStorage.creditWallet(
               serviceRequest.contractorId,
               Number(escrow.vendorEarning) + Number(escrow.platformFee),
               "escrow_release",
@@ -1663,7 +1665,7 @@ Respond in JSON format:
             const vendorAmount = (Number(escrow.vendorEarning) * vendorPercent) / 100;
 
             if (contractorAmount > 0) {
-              await creditWallet(
+              await walletStorage.creditWallet(
                 serviceRequest.contractorId,
                 contractorAmount,
                 "escrow_release",
@@ -1672,7 +1674,7 @@ Respond in JSON format:
             }
 
             if (vendorAmount > 0) {
-              await creditWallet(
+              await walletStorage.creditWallet(
                 serviceRequest.vendorId,
                 vendorAmount,
                 "escrow_release",
@@ -1681,6 +1683,15 @@ Respond in JSON format:
             }
           }
           await storage.releaseEscrowByRequestId(id);
+          await storage.createNotification({
+            userId: serviceRequest.vendorId,
+            triggeredBy: serviceRequest.contractorId,
+            type: "escrow_released",
+            title: "Payment Released",
+            message: "Escrow payment has been released to your wallet.",
+            relatedRequestId: id,
+            isRead: false,
+          });
 
           await storage.updateServiceRequest(id, {
             paymentStatus: "released",
@@ -1692,6 +1703,25 @@ Respond in JSON format:
       }
       if(user?.userType === 'admin') {
         const resolution = storage.updateDisputeResolution(disputeId, disputeStatus);
+        await storage.createNotification({
+          userId: serviceRequest.vendorId,
+          triggeredBy: userId,
+          type: "dispute_resolved",
+          title: "Dispute Resolved",
+          message: "Admin has resolved the dispute.",
+          relatedRequestId: id,
+          isRead: false,
+        });
+
+        await storage.createNotification({
+          userId: serviceRequest.contractorId,
+          triggeredBy: userId,
+          type: "dispute_resolved",
+          title: "Dispute Resolved",
+          message: "Admin has resolved the dispute.",
+          relatedRequestId: id,
+          isRead: false,
+        });
       }
       await storage.createRequestLog({
         serviceRequestId: id,
@@ -1787,10 +1817,7 @@ Respond in JSON format:
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      const { id } = req.params;
-
-      const updated = await storage.markNotificationAsRead(id, userId);
-
+      const updated = await storage.markAllNotificationsAsRead(userId);
       if (!updated) {
         return res.status(404).json({ message: "Notification not found" });
       }
@@ -1865,6 +1892,10 @@ Respond in JSON format:
       const alreadyReviewed = request.reviews?.some(
         (review) => review.reviewerId === userId
       );
+
+      if (request.vendorId !== userId && request.contractorId !== userId) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
 
       res.json({
         ...request,
@@ -2184,7 +2215,7 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
 
     const platformFee = finalPrice * 0.1;
     const vendorEarning = finalPrice - platformFee;
-    const wallet = await storage.getWalletByUserId(contractorId);
+    const wallet = await walletStorage.getWalletByUserId(contractorId);
 
     if (!wallet) {
       return res.status(400).json({ message: "Wallet not found" });
@@ -2192,7 +2223,7 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
     if (Number(wallet.balance) < finalPrice) {
       return res.status(400).json({ message: "Insufficient balance" });
     }
-    await debitWallet(contractorId, finalPrice, "escrow_funding", id);
+    await walletStorage.debitWallet(contractorId, finalPrice, "escrow_funding", id);
     // 1️⃣ Create escrow
     await storage.createEscrow({
       serviceRequestId: id,
@@ -2272,6 +2303,35 @@ app.post("/api/disputes", isAuthenticated, async (req, res) => {
       description,
     });
 
+    const serviceRequest = await storage.getServiceRequest(serviceRequestId);
+    const otherParty =
+      serviceRequest?.vendorId === userId
+        ? serviceRequest.contractorId
+        : serviceRequest?.vendorId;
+
+    await storage.createNotification({
+      userId: otherParty,
+      triggeredBy: userId,
+      type: "dispute_opened",
+      title: "Dispute Opened",
+      message: "A dispute has been opened for this service request.",
+      relatedRequestId: serviceRequestId,
+      isRead: false,
+    });
+
+    // Notify admin (optional but recommended)
+    const admins = await adminStorage.getAdmins();
+    for (const admin of admins) {
+      await storage.createNotification({
+        userId: admin.id,
+        triggeredBy: userId,
+        type: "dispute_opened",
+        title: "New Dispute",
+        message: "A new dispute requires review.",
+        relatedRequestId: serviceRequestId,
+      });
+    }
+
     res.json(result);
   } catch (error: any) {
     console.error("CREATE DISPUTE FAILED", error);
@@ -2301,7 +2361,7 @@ app.get("/api/vendors/:vendorId/performance", isAuthenticated, async (req, res) 
     } = profile;
 
     const completionRate =
-      totalRequests === 0 ? 0 : (completedRequests / totalRequests) * 100;
+      totalRequests === 0 ? 0 : ((completedRequests) / totalRequests) * 100;
 
     const onTimeRate =
       completedRequests === 0
@@ -2323,36 +2383,7 @@ app.get("/api/vendors/:vendorId/performance", isAuthenticated, async (req, res) 
     res.status(500).json({ message: "Failed to load performance" });
   }
 });
-app.get("/api/wallet/transactions", isAuthenticated, async (req, res) => {
-  try {
-    const userId = (req.session as any)?.userId;
 
-    const transactions =
-      await storage.getWalletTransactionsByUserId(userId);
-
-    res.json(transactions);
-  } catch (error) {
-    console.error(error);
-    res.status(400).json({
-      message: error instanceof Error ? error.message : "Error",
-    });
-  }
-});
-app.get("/api/transactions", isAuthenticated, async (req, res) => {
-  try {
-    const userId = (req.session as any)?.userId;
-
-    const transactions =
-      await storage.getWalletTransactions();
-
-    res.json(transactions);
-  } catch (error) {
-    console.error(error);
-    res.status(400).json({
-      message: error instanceof Error ? error.message : "Error",
-    });
-  }
-});
 
   const httpServer = createServer(app);
   return httpServer;

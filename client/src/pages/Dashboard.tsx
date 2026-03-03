@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { useMessages } from "@/components/ui/MessageContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 import { ServiceRequestList } from "@/components/service-requests/ServiceRequestList";
+import WalletPage from "./vendor/WalletPage";
 
 interface UserMaturityProfile {
   id: string;
@@ -186,7 +187,7 @@ export default function Dashboard() {
    const overviewRequests = applyFilter(
   serviceRequests.filter(
     (request) =>
-      ["pending", "in_progress", "accepted", "delivered"].includes(request.status)
+      ["pending", "in_progress", "accepted", 'disputed',"delivered"].includes(request.status)
   )
 );
 
@@ -601,6 +602,13 @@ const allRequests = applyFilter(serviceRequests);
                   Reviews
                 </TabsTrigger>
 
+                <TabsTrigger
+                  value="wallet"
+                  className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black"
+                >
+                  Wallet
+                </TabsTrigger>
+
               </TabsList>
 
             </div>
@@ -633,7 +641,7 @@ const allRequests = applyFilter(serviceRequests);
                   className="col-span-full">
                   <CardHeader>
                     <CardTitle>Recent Service Requests</CardTitle>
-                    <CardDescription>Latest requests to vendors</CardDescription>
+                    <CardDescription>All requests to vendors</CardDescription>
                   </CardHeader>
                   <CardContent className="w-full">
 
@@ -735,6 +743,10 @@ const allRequests = applyFilter(serviceRequests);
                 </CardContent>
               </Card>
             </TabsContent>
+
+            <TabsContent value="wallet" className="space-y-6">
+              <WalletPage/>
+            </TabsContent>
 
 
             </Tabs>

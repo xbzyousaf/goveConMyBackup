@@ -4,8 +4,7 @@ import { Header } from "@/components/Header";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DollarSign, ArrowLeft, ArrowRight } from "lucide-react";
-import { Avatar } from "@radix-ui/react-avatar";
-import { AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function ServiceDetails() {
   const [match, params] = useRoute("/services/:serviceId");
@@ -22,11 +21,11 @@ export default function ServiceDetails() {
   });
 
   if (isLoading) {
-    return <div className="p-10 text-center">Loading service...</div>;
+    return <div className="p-12 text-center">Loading service...</div>;
   }
 
   if (!service) {
-    return <div className="p-10 text-center">Service not found</div>;
+    return <div className="p-12 text-center">Service not found</div>;
   }
 
   const vendorId = service.vendorId; // assuming backend returns vendorId
@@ -35,8 +34,8 @@ export default function ServiceDetails() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container mx-auto px-4 py-10">
-        <div className="max-w-3xl mx-auto space-y-6">
+      <main className="py-6">
+        <div className="max-w-6xl mx-auto space-y-6">
 
           <Link href="/marketplace">
             <Button variant="outline">
@@ -79,14 +78,15 @@ export default function ServiceDetails() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                   <Link href={`/vendor/${service.vendorId}`} className="flex items-center gap-3 mt-4 hover:opacity-80 transition">
-                      <Avatar className="h-10 w-10 shrink-0">
-                        {service.vendorProfile?.avatar ? (
-                          <AvatarImage className="aspect-square rounded-full" src={service.vendorProfile.avatar} alt={service.vendorProfile.companyName} />
-                        ) : (
-                          <AvatarFallback>
-                            {service.vendorProfile?.companyName?.charAt(0).toUpperCase() || "V"}
-                          </AvatarFallback>
-                        )}
+                      <Avatar className="h-10 w-10 rounded-full overflow-hidden shrink-0">
+                        <AvatarImage
+                          src={service.vendorProfile?.avatar || ""}
+                          alt={service.vendorProfile?.companyName}
+                          className="h-full w-full object-cover"
+                        />
+                        <AvatarFallback className="flex h-full w-full items-center justify-center bg-primary text-white font-semibold">
+                          {service.vendorProfile?.companyName?.trim()?.[0]?.toUpperCase() || "V"}
+                        </AvatarFallback>
                       </Avatar>
                     <div>
                       <p className="text-sm font-medium">{service.vendorProfile?.companyName}</p>

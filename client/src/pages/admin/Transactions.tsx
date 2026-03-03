@@ -31,9 +31,9 @@ export default function Transactions() {
   const [serviceFilter, setServiceFilter] = useState("");
 
   const { data: transactions = [], isLoading } = useQuery<Transaction[]>({
-    queryKey: ["/api/transactions"],
+    queryKey: ["/api/wallet/admin-transactions"],
     queryFn: async () => {
-      const res = await fetch("/api/transactions");
+      const res = await fetch("/api/wallet/admin-transactions");
       if (!res.ok) throw new Error("Failed to fetch transactions");
       return res.json();
     },

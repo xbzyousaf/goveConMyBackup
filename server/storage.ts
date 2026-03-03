@@ -1230,19 +1230,16 @@ return vendorProfile;
     },
     });
   }
-  async markNotificationAsRead(id: string, userId: string) {
-    const notification = await db.query.notifications.findFirst({
-      where: eq(notifications.id, id),
-    });
-
-    if (!notification || notification.userId !== userId) {
-      return null;
-    }
-
-    await db
+  async markAllNotificationsAsRead(userId: string) {
+    const result = await db
       .update(notifications)
       .set({ isRead: true })
-      .where(eq(notifications.id, id));
+      .where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.isRead, false) // optional optimization
+        )
+      );
 
     return true;
   }
@@ -1842,112 +1839,14 @@ async createDispute({serviceRequestId, openedBy, reason, description, }: {
 
   return { success: true };
 }
-async incrementVendorMetrics(vendorId: string, metrics: any) {
-  await db
-    .update(vendorProfiles)
-    .set({
-      totalRequests: sql`total_requests + ${metrics.totalRequests || 0}`,
-      completedRequests: sql`completed_requests + ${metrics.completedRequests || 0}`,
-      onTimeDeliveries: sql`on_time_deliveries + ${metrics.onTimeDeliveries || 0}`,
-      autoCompletedRequests: sql`auto_completed_requests + ${metrics.autoCompletedRequests || 0}`,
-    })
-    .where(eq(vendorProfiles.userId, vendorId));
-}
-async incrementVendorDisputesLost(vendorId: string) {
-  await db
-    .update(vendorProfiles)
-    .set({
-      disputesLost: sql`disputes_lost + 1`,
-    })
-    .where(eq(vendorProfiles.userId, vendorId));
-}
-async updateVendorScore(vendorId: string, score: number) {
-  await db
-    .update(vendorProfiles)
-    .set({
-      vendorScore: score,
-    })
-    .where(eq(vendorProfiles.userId, vendorId));
-}
-async incrementContractorScore(userId: string, amount: number) {
-  await db
-    .update(userMaturityProfiles)
-    .set({
-      contractorScore: sql`contractor_score + ${amount}`,
-    })
-    .where(eq(userMaturityProfiles.userId, userId));
-}
-async incrementAutoCompletionPenalty(userId: string) {
-  await db
-    .update(userMaturityProfiles)
-    .set({
-      autoCompletionPenalty: sql`auto_completion_penalty + 1`,
-    })
-    .where(eq(userMaturityProfiles.userId, userId));
-}
-async getWalletByUserId(userId: string) {
-  return await db.query.wallets.findFirst({
-    where: eq(wallets.userId, userId),
-  });
-}
+
 async getEscrowByRequestId(requestId: string) {
   return await db.query.escrows.findFirst({
     where: eq(escrows.serviceRequestId, requestId),
   });
 }
 
-async getWalletTransactions() {
-  return await db.query.walletTransactions.findMany({
-    columns: {
-      id: true,
-      amount: true,
-      type: true,
-      referenceId: true,
-      createdAt: true,
-    },
 
-    with: {
-      wallet: {
-        columns: {
-          id: true,
-          balance: true,
-        },
-
-        with: {
-          user: {
-            columns: {
-              firstName: true,
-              lastName: true,
-            },
-          },
-        },
-      },
-
-      serviceRequests: {
-        columns: {
-          title: true,
-          description: true,
-        },
-      },
-    },
-
-    orderBy: (wt, { desc }) => [desc(wt.createdAt)],
-  });
-}
-async getWalletTransactionsByUserId(userId: string) {
-  const wallet = await db.query.wallets.findFirst({
-    where: eq(wallets.userId, userId),
-  });
-
-  if (!wallet) throw new Error("Wallet not found");
-
-  return await db.query.walletTransactions.findMany({
-    where: eq(walletTransactions.walletId, wallet.id),
-    orderBy: (walletTransactions, { desc }) => [
-      desc(walletTransactions.createdAt),
-    ],
-  });
-}
 
 // end
 }

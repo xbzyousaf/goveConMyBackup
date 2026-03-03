@@ -670,7 +670,7 @@ const handleDeliver = async () => {
                       </DialogContent>
                     </Dialog>
                   )}
-                  {user?.userType === "vendor" && request.status !== "pending" && request.status !== "completed" && (
+                  {user?.userType === "vendor" && request.status !== "pending" && request.status !== "disputed" && request.status !== "completed" && (
                     <Dialog open={isDeliverOpen} onOpenChange={setIsDeliverOpen}>
                         <DialogTrigger asChild>
                           <Button
@@ -761,8 +761,9 @@ const handleDeliver = async () => {
                 <CardContent className="p-5 space-y-4">
                 {(() => {
                   const isContractor = user?.userType === "contractor"; // adjust based on your auth
-                  const other = isContractor ? request.vendorProfile : request.contractor;
-                  const curuser = isContractor ? request.vendor : request.contractor;
+                  const otherUser = isContractor
+                        ? request.vendor
+                        : request.contractor;
 
                   return (
                     <div>
@@ -770,26 +771,26 @@ const handleDeliver = async () => {
                         {isContractor ? "Vendor" : "Contractor"}
                       </p>
                       <div className="flex items-center space-x-4">
-                        {other?.avatar ? (
+                        {otherUser?.avatar ? (
                           <Avatar className="w-16 h-16">
-                            <AvatarImage  className="aspect-square rounded-full" src={other.avatar} />
+                            <AvatarImage  className="aspect-square rounded-full" src={otherUser.avatar} />
                             <AvatarFallback className="font-semibold">
-                              {other.firstName?.charAt(0)?.toUpperCase() ?? "U"}
+                              {otherUser.firstName?.charAt(0)?.toUpperCase() ?? "U"}
                             </AvatarFallback>
                           </Avatar>
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
-                            {curuser?.firstName?.charAt(0)?.toUpperCase() ?? "U"}
+                          <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
+                            {otherUser?.firstName?.charAt(0)?.toUpperCase() ?? "U"}
                           </div>
                         )}
                         <div>
                           <p className="font-medium">
-                            {curuser?.firstName
-                              ? `${curuser.firstName} ${curuser.lastName ?? ""}`
+                            {otherUser?.firstName
+                              ? `${otherUser.firstName} ${otherUser.lastName ?? ""}`
                               : "Not assigned"}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            @{curuser?.username ?? "Not assigned"}
+                            @{otherUser?.username ?? "Not assigned"}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             Last Seen: 5 sec ago
@@ -815,11 +816,16 @@ const handleDeliver = async () => {
 
                 {/* Status Action Card */}
                 <Card className="rounded-2xl shadow-md">
+                  
                 <CardContent className="p-5 space-y-3">
+                  <p className="text-muted-foreground mb-1">
+                        Actions
+                    </p>
                   <Dialog open={isDisputeOpen} onOpenChange={setIsDisputeOpen}>
                     <DialogTrigger asChild>
                     {request.status !== "completed" &&
                       request.status !== "disputed" &&
+                      request.status !== "pending" &&
                       request.status !== "cancelled" && (
                       <Button
                         variant="destructive"
@@ -953,6 +959,9 @@ const handleDeliver = async () => {
 
                 queryClient.invalidateQueries({
                   queryKey: ["service-request", request.id],
+                });
+                queryClient.invalidateQueries({
+                  queryKey: ["/api/wallet/balance"],
                 });
               } catch (error) {
                 toast({
