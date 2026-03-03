@@ -38,7 +38,7 @@ router.get("/transactions", isAuthenticated, async (req, res) => {
   }
 });
 
-router.get("/api/transactions", isAuthenticated, async (req, res) => {
+router.get("/admin-transactions", isAuthenticated, async (req, res) => {
   try {
     const userId = (req.session as any)?.userId;
 
