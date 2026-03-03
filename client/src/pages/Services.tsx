@@ -203,7 +203,7 @@ export default function Services() {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Page Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
@@ -315,7 +315,7 @@ export default function Services() {
 
 
         {/* Process Flow */}
-        <div className="mb-16">
+        <div className="mb-16 mt-20">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold mb-2">How It Works</h2>
             <p className="text-muted-foreground">Our streamlined process ensures quality and security</p>

@@ -234,7 +234,7 @@ export default function Marketplace() {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-8 max-w-7xl">
+      <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Hero Section */}
         <div className="mb-12 text-center">
           <Badge variant="outline" className="mb-4">
