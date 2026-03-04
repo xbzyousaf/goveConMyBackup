@@ -4,13 +4,18 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
 import walletRoutes from "./routes/walletRoutes";
+import fs from "fs";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+const uploadsPath = path.resolve(process.cwd(), "server/uploads");
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
 app.use(
   "/uploads",
-  express.static(path.resolve(process.cwd(), "server/uploads"))
+  express.static(uploadsPath)
 );
 app.use((req, res, next) => {
   const start = Date.now();

@@ -309,6 +309,7 @@ const [vendorProfile] = await db
 .insert(vendorProfiles)
 .values({
 ...sanitizedProfile,
+responseTime: '0 min', // default value
 userId: userId
 })
 .returning();
@@ -440,6 +441,7 @@ return vendorProfile;
       },
       service: true,      // if relation exists
       escrow: true,
+      disputes: true,
       messages: true,     // optional
       deliveries: {
         with: {
@@ -1562,7 +1564,7 @@ async createExtensionRequest(data: {
 
   await this.createRequestLog({
     serviceRequestId: data.serviceRequestId,
-    action: "extension_requested",
+    action: "EXTENTION_REQUESTED",
     performedBy: data.requestedBy,
     metadata: {
       oldDate: oldDeliveryDate,
@@ -1599,7 +1601,7 @@ async approveExtension(extensionId: string, approvedBy: string) {
 
   await this.createRequestLog({
     serviceRequestId: extension.serviceRequestId,
-    action: "extension_approved",
+    action: "EXTENSION_APPROVED",
     performedBy: approvedBy,
   });
 
@@ -1621,7 +1623,7 @@ async rejectExtension(extensionId: string, rejectedBy: string) {
 
   await this.createRequestLog({
     serviceRequestId: extension.serviceRequestId,
-    action: "extension_rejected",
+    action: "EXTENSION_REJECTED",
     performedBy: rejectedBy,
   });
 

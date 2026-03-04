@@ -863,11 +863,7 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
     }
   });
 
-  app.post(
-"/api/vendor-profile",
-isAuthenticated,
-upload.single("avatar"), // handle avatar upload
-async (req: any, res) => {
+  app.post("/api/vendor-profile", isAuthenticated, upload.single("avatar"), async (req: any, res) => {
 try {
 const userId = getUserId(req);
 if (!userId) {
@@ -1571,13 +1567,14 @@ Respond in JSON format:
   app.patch("/api/service-requests/:id/status", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
-      const user = await storage.getUser(userId);
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
+      const user = await storage.getUser(userId);
 
       const { id } = req.params;
       const { status } = req.body;
+      let updatedServiceRequestStatus= "completed";
 
       const allowedStatuses = [
         "pending",
@@ -1683,6 +1680,12 @@ Respond in JSON format:
             }
           }
           await storage.releaseEscrowByRequestId(id);
+          await storage.createRequestLog({
+            serviceRequestId: id,
+            action: "ESCROW_RELEASED",
+            performedBy: userId,
+            previousStatus,
+          });
           await storage.createNotification({
             userId: serviceRequest.vendorId,
             triggeredBy: serviceRequest.contractorId,
@@ -1690,14 +1693,14 @@ Respond in JSON format:
             title: "Payment Released",
             message: "Escrow payment has been released to your wallet.",
             relatedRequestId: id,
-            isRead: false,
           });
 
-          await storage.updateServiceRequest(id, {
+          const updatedServiceRequest = await storage.updateServiceRequest(id, {
             paymentStatus: "released",
             actualCost: serviceRequest.finalPrice || serviceRequest.proposedPrice,
             completedAt: new Date(),
           });
+          updatedServiceRequestStatus = updatedServiceRequest.status ?? 'completed';
           await scoringService.handleRequestCompletion(serviceRequest);
         }
       }
@@ -1710,7 +1713,13 @@ Respond in JSON format:
           title: "Dispute Resolved",
           message: "Admin has resolved the dispute.",
           relatedRequestId: id,
-          isRead: false,
+        });
+        await storage.createRequestLog({
+          serviceRequestId: id,
+          action: "DISPUTE_RESOLVED",
+          performedBy: userId,
+          previousStatus: "disputed",
+          newStatus: updatedServiceRequestStatus ?? 'disputed',
         });
 
         await storage.createNotification({
@@ -1720,7 +1729,6 @@ Respond in JSON format:
           title: "Dispute Resolved",
           message: "Admin has resolved the dispute.",
           relatedRequestId: id,
-          isRead: false,
         });
       }
       await storage.createRequestLog({
@@ -1736,15 +1744,17 @@ Respond in JSON format:
         ? serviceRequest.contractorId
         : serviceRequest.vendorId;
       const notification = getNotificationContent(status);
-      await storage.createNotification({
-        userId: receiverId,
-        triggeredBy: userId,
-        title: notification.title,
-        message: notification.message,
-        type: notification.type,
-        relatedRequestId: serviceRequest.id,
-        isRead: false,
-      });
+      if(user?.userType !== 'admin') { 
+        await storage.createNotification({
+          userId: receiverId,
+          triggeredBy: userId,
+          title: notification.title,
+          message: notification.message,
+          type: notification.type,
+          relatedRequestId: serviceRequest.id,
+          isRead: false,
+        });
+      }
       res.json(updated);
     } catch (error) {
       console.error("CREATE SERVICE REQUEST FAILED");
@@ -1906,11 +1916,7 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to fetch request" });
     }
   });
-  app.post(
-    "/api/vendor-portfolio",
-    isAuthenticated,
-    upload.single("attachment"),
-    async (req: any, res) => {
+  app.post("/api/vendor-portfolio", isAuthenticated, upload.single("attachment"), async (req: any, res) => {
       try {
         const userId = getUserId(req);
         if (!userId) return res.status(401).json({ message: "Not authenticated" });
@@ -1944,11 +1950,7 @@ Respond in JSON format:
   });
   
   // POST /api/vendor-certificate
-  app.post(
-    "/api/vendor-certificate",
-    isAuthenticated,
-    upload.single("image"), // matches front-end FormData
-    async (req: any, res) => {
+  app.post("/api/vendor-certificate", isAuthenticated, upload.single("image"), async (req: any, res) => {
       try {
         const userId = getUserId(req);
         if (!userId) return res.status(401).json({ message: "Not authenticated" });
@@ -2241,6 +2243,13 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
       finalPrice: vendorEarning.toString(),
       status: "in_progress"
     });
+    await storage.createRequestLog({
+      serviceRequestId: id,
+      action: "ESCROW_CREATED",
+      performedBy: contractorId,
+      previousStatus: request.status,
+      newStatus: "escrow_held",
+    });
     await storage.createNotification({
       userId: request?.vendorId,
       triggeredBy: contractorId,
@@ -2283,10 +2292,11 @@ app.get("/api/vendor/payments", isAuthenticated, async (req, res) => {
 app.post("/api/disputes", isAuthenticated, async (req, res) => {
   try {
     const userId = getUserId(req);
-
+    
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
+    const user = await storage.getUser(userId);
 
     const { serviceRequestId, reason, description } = req.body;
 
@@ -2331,7 +2341,13 @@ app.post("/api/disputes", isAuthenticated, async (req, res) => {
         relatedRequestId: serviceRequestId,
       });
     }
-
+    await storage.createRequestLog({
+      serviceRequestId: serviceRequestId,
+      action: "DISPUTE_OPENED",
+      performedBy: userId,
+      previousStatus: serviceRequest?.status ?? "unknown",
+      newStatus: "disputed" +  " (" + user?.userType + ")",
+    });
     res.json(result);
   } catch (error: any) {
     console.error("CREATE DISPUTE FAILED", error);
