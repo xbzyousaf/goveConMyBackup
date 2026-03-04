@@ -7,7 +7,7 @@ import { AuthService } from "./auth";
 import { EmailService } from "./email";
 import OpenAI from "openai";
 import { z } from "zod";
-import { insertUserSchema } from "@shared/schema";
+import { insertUserSchema, ServiceRequest } from "@shared/schema";
 import { pool } from "./db";
 import { Description } from "@radix-ui/react-toast";
 import multer from "multer";
@@ -1624,7 +1624,7 @@ Respond in JSON format:
       }
       const previousStatus = serviceRequest.status ?? 'pending';
       const updated = await storage.updateServiceRequestStatus(id, status);
-      if (status === "completed") {
+      if (status === "completed" || status === 'cancelled') {
         if (previousStatus !== "completed") {
            const escrow = await storage.getEscrowByRequestId(id);
           if (!escrow || (escrow.status !== "held" && escrow.status !== "disputed")) {
@@ -1638,6 +1638,7 @@ Respond in JSON format:
               message: "Vendor wallet not found"
             });
           }
+          const vendorPercent = req.body.vendorPercent;
           if (disputeStatus === "vendor") {
             // Full vendor win
             await walletStorage.creditWallet(
@@ -1657,7 +1658,6 @@ Respond in JSON format:
           } else if (disputeStatus === "partial") {
             // Partial win: split according to percentages
             const contractorPercent = req.body.contractorPercent;
-            const vendorPercent = req.body.vendorPercent;
             const contractorAmount = (Number(escrow.vendorEarning) * contractorPercent) / 100;
             const vendorAmount = (Number(escrow.vendorEarning) * vendorPercent) / 100;
 
@@ -1679,13 +1679,13 @@ Respond in JSON format:
               );
             }
           }
-          await storage.releaseEscrowByRequestId(id);
           await storage.createRequestLog({
             serviceRequestId: id,
             action: "ESCROW_RELEASED",
             performedBy: userId,
             previousStatus,
           });
+          await storage.releaseEscrowByRequestId(id,disputeStatus,vendorPercent);
           await storage.createNotification({
             userId: serviceRequest.vendorId,
             triggeredBy: serviceRequest.contractorId,
@@ -1695,12 +1695,37 @@ Respond in JSON format:
             relatedRequestId: id,
           });
 
-          const updatedServiceRequest = await storage.updateServiceRequest(id, {
+           await storage.updateServiceRequest(id, {
             paymentStatus: "released",
             actualCost: serviceRequest.finalPrice || serviceRequest.proposedPrice,
             completedAt: new Date(),
           });
-          updatedServiceRequestStatus = updatedServiceRequest.status ?? 'completed';
+          let updatedServiceRequest: ServiceRequest | null = null;
+
+          if (
+            user?.userType === "admin" &&
+            disputeStatus === "contractor"
+          ) {
+            updatedServiceRequest = await storage.updateServiceRequest(id, {
+              paymentStatus: "refunded",
+              status: "cancelled",
+              actualCost:
+                serviceRequest.finalPrice ||
+                serviceRequest.proposedPrice,
+              completedAt: new Date(),
+            });
+          } else {
+            updatedServiceRequest = await storage.updateServiceRequest(id, {
+              paymentStatus: "released",
+              actualCost:
+                serviceRequest.finalPrice ||
+                serviceRequest.proposedPrice,
+              completedAt: new Date(),
+            });
+          }
+
+          const updatedServiceRequestStatus =
+            updatedServiceRequest?.status ?? "completed";
           await scoringService.handleRequestCompletion(serviceRequest);
         }
       }

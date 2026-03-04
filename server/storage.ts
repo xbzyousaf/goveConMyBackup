@@ -1663,7 +1663,11 @@ async createEscrow(data: {
     heldAt: new Date(),
   }).returning();
 }
-async releaseEscrowByRequestId(serviceRequestId: string) {
+async releaseEscrowByRequestId(
+  serviceRequestId: string,
+  winner: "vendor" | "contractor" | "partial",
+  vendorPercent?: number
+) {
   const escrow = await db.query.escrows.findFirst({
     where: (e, { eq }) => eq(e.serviceRequestId, serviceRequestId),
   });
@@ -1676,10 +1680,30 @@ async releaseEscrowByRequestId(serviceRequestId: string) {
     throw new Error("Escrow already processed");
   }
 
+  const originalVendorEarning = Number(escrow.vendorEarning);
+  let updatedVendorEarning = originalVendorEarning;
+  let status: "released" | "refunded" = "released";
+
+  if (winner === "vendor") {
+    updatedVendorEarning = originalVendorEarning;
+  }else if (winner === "contractor") {
+    updatedVendorEarning = 0;
+    status = 'refunded';
+  }else if (winner === "partial") {
+    if (vendorPercent === undefined) {
+      throw new Error("Vendor percent required for partial win");
+    }
+
+    updatedVendorEarning = Number(
+      ((originalVendorEarning * vendorPercent) / 100).toFixed(2)
+    );
+  }
+
   await db
     .update(escrows)
     .set({
-      status: "released",
+      status: status,
+      vendorEarning: updatedVendorEarning.toFixed(2),
       releasedAt: new Date(),
     })
     .where(eq(escrows.id, escrow.id));
@@ -1730,7 +1754,7 @@ async updateDisputeResolution(
   } else if (resolution === "contractor") {
     finalStatus = "contractor_won";
   } else if (resolution === "partial") {
-    finalStatus = "partial_win"; // new status for partial win
+    finalStatus = "partial_win"; 
   } else {
     finalStatus = "unknown";
   }

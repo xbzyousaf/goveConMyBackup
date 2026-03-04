@@ -44,8 +44,8 @@ export default function VendorPayments() {
     (p) => p.paymentStatus === "released"
   );
 
-  const pending = payments.filter(
-    (p) => p.paymentStatus === "pending"
+  const refund = payments.filter(
+    (p) => p.paymentStatus === "refunded"
   );
 
   // 🔹 Totals
@@ -80,9 +80,9 @@ export default function VendorPayments() {
 
       {/* ================= Pending ================= */}
       <Section
-        title="Pending Payment"
-        items={pending}
-        total={calculateTotal(pending)}
+        title="Cancelled Payments"
+        items={refund}
+        total={calculateTotal(refund)}
       />
     </div>
     </div>
