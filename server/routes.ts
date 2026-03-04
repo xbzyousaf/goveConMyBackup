@@ -1627,7 +1627,7 @@ Respond in JSON format:
       }
       const previousStatus = serviceRequest.status ?? 'pending';
       const updated = await storage.updateServiceRequestStatus(id, status);
-      if (status === "completed") {
+      if (status === "completed" || status === 'cancelled') {
         if (previousStatus !== "completed") {
            const escrow = await storage.getEscrowByRequestId(id);
           if (!escrow || (escrow.status !== "held" && escrow.status !== "disputed")) {
@@ -1641,6 +1641,7 @@ Respond in JSON format:
               message: "Vendor wallet not found"
             });
           }
+          const vendorPercent = req.body.vendorPercent;
           if (disputeStatus === "vendor") {
             // Full vendor win
             await walletStorage.creditWallet(
@@ -1660,7 +1661,6 @@ Respond in JSON format:
           } else if (disputeStatus === "partial") {
             // Partial win: split according to percentages
             const contractorPercent = req.body.contractorPercent;
-            const vendorPercent = req.body.vendorPercent;
             const contractorAmount = (Number(escrow.vendorEarning) * contractorPercent) / 100;
             const vendorAmount = (Number(escrow.vendorEarning) * vendorPercent) / 100;
 
@@ -1682,7 +1682,7 @@ Respond in JSON format:
               );
             }
           }
-          await storage.releaseEscrowByRequestId(id);
+          await storage.releaseEscrowByRequestId(id,disputeStatus,vendorPercent);
           await storage.createNotification({
             userId: serviceRequest.vendorId,
             triggeredBy: serviceRequest.contractorId,
@@ -1692,12 +1692,25 @@ Respond in JSON format:
             relatedRequestId: id,
             isRead: false,
           });
-
-          await storage.updateServiceRequest(id, {
-            paymentStatus: "released",
-            actualCost: serviceRequest.finalPrice || serviceRequest.proposedPrice,
-            completedAt: new Date(),
-          });
+          if (
+            user?.userType === "admin" &&
+            disputeStatus === "contractor"
+          ) {
+            await storage.updateServiceRequest(id, {
+              paymentStatus: "refunded",
+              status: "cancelled",
+              actualCost:
+                serviceRequest.finalPrice ||
+                serviceRequest.proposedPrice,
+              completedAt: new Date(),
+            });
+          }else{
+            await storage.updateServiceRequest(id, {
+              paymentStatus: "released",
+              actualCost: serviceRequest.finalPrice || serviceRequest.proposedPrice,
+              completedAt: new Date(),
+            });
+          }
           await scoringService.handleRequestCompletion(serviceRequest);
         }
       }
