@@ -14,11 +14,15 @@ export default function AdminDisputes() {
   const { toast } = useToast();
   const { openConversation } = useMessages();
 
-  const [selectedDispute, setSelectedDispute] = useState<ServiceRequest | null>(null);
-  const [status, setStatus] = useState<"completed" | "cancelled">("completed");
-  const [winner, setWinner] = useState<"vendor" | "contractor" | "partial">("vendor");
-  const [contractorPercent, setContractorPercent] = useState<number>(50);
+  const [selectedDispute, setSelectedDispute] =
+    useState<ServiceRequest | null>(null);
+
+  const [winner, setWinner] =
+    useState<"vendor" | "contractor" | "partial">("vendor");
+
   const [vendorPercent, setVendorPercent] = useState<number>(50);
+  const [contractorPercent, setContractorPercent] = useState<number>(50);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Fetch disputes
@@ -32,26 +36,32 @@ export default function AdminDisputes() {
   });
 
   // Resolve mutation
-  const updateStatus = useMutation({
+  const resolveDispute = useMutation({
     mutationFn: async ({
       id,
-      status,
       winner,
+      status,
       disputeId,
-      contractorPercent,
       vendorPercent,
+      contractorPercent,
     }: {
       id: string;
-      status: "completed" | "cancelled";
       winner: "vendor" | "contractor" | "partial";
+      status: "completed" | "cancelled";
       disputeId: string;
-      contractorPercent?: number;
       vendorPercent?: number;
+      contractorPercent?: number;
     }) => {
       const res = await fetch(`/api/service-requests/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, winner, disputeId, contractorPercent, vendorPercent }),
+        body: JSON.stringify({
+          winner,
+          status,
+          disputeId,
+          vendorPercent,
+          contractorPercent,
+        }),
       });
 
       if (!res.ok) {
@@ -64,14 +74,10 @@ export default function AdminDisputes() {
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
-      let message = "";
-      if (winner === "vendor") message = "Vendor won the dispute.";
-      else if (winner === "contractor") message = "Contractor won the dispute.";
-      else message = `Partial win: Contractor ${contractorPercent}%, Vendor ${vendorPercent}%`;
 
       toast({
         title: "Dispute Resolved",
-        description: message,
+        description: "Dispute Resolved successfully.",
       });
     },
 
@@ -106,43 +112,50 @@ export default function AdminDisputes() {
             </thead>
 
             <tbody className="bg-white divide-y divide-gray-200">
-              {disputes.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="text-center py-4">
-                    No disputes found
-                  </td>
-                </tr>
-              )}
-
               {disputes.map((dispute) => (
                 <tr key={dispute.id}>
-                  <td className="px-4 py-2">{dispute.contractor?.firstName || "N/A"} {dispute.contractor?.lastName || ""}</td>
-                  <td className="px-4 py-2">{dispute.vendor?.firstName || "N/A"} {dispute.vendor?.lastName || ""}</td>
-                  <td className="px-4 py-2">{dispute.disputes?.reason || "-"}</td>
-                  <td className="px-4 py-2">{dispute.disputes?.description || "-"}</td>
                   <td className="px-4 py-2">
-                    <span className="font-medium capitalize">{dispute.status || "unknown"}</span>
+                    {dispute.contractor?.firstName}{" "}
+                    {dispute.contractor?.lastName}
                   </td>
+
+                  <td className="px-4 py-2">
+                    {dispute.vendor?.firstName}{" "}
+                    {dispute.vendor?.lastName}
+                  </td>
+
+                  <td className="px-4 py-2">
+                    {dispute.disputes?.reason}
+                  </td>
+
+                  <td className="px-4 py-2">
+                    {dispute.disputes?.description}
+                  </td>
+
+                  <td className="px-4 py-2 capitalize">
+                    {dispute.status}
+                  </td>
+
                   <td className="px-4 py-2">
                     {dispute.status === "disputed" && (
                       <Button
                         size="sm"
                         onClick={() => {
                           setSelectedDispute(dispute);
-                          setStatus("completed");
                           setWinner("vendor");
-                          setContractorPercent(50);
-                          setVendorPercent(50);
                           setIsModalOpen(true);
                         }}
                       >
                         Resolve
                       </Button>
                     )}
+
                     <Button
                       variant="secondary"
                       className="ml-2"
-                      onClick={() => openConversation(dispute.disputes.serviceRequestId)}
+                      onClick={() =>
+                        openConversation(dispute.disputes.serviceRequestId)
+                      }
                     >
                       <MessageSquare className="w-4 h-4 mr-2" />
                       Message
@@ -158,86 +171,69 @@ export default function AdminDisputes() {
         {isModalOpen && selectedDispute && (
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
             <div className="bg-white rounded-lg shadow-lg p-6 w-96">
-              <h3 className="text-lg font-semibold mb-4">Resolve Dispute</h3>
+              <h3 className="text-lg font-semibold mb-4">
+                Resolve Dispute
+              </h3>
 
-              {/* Action Selection */}
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">Select Action:</p>
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      checked={status === "completed"}
-                      onChange={() => setStatus("completed")}
-                    />
-                    <span>Approve (Complete)</span>
-                  </label>
-                </div>
+              {/* Options */}
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    checked={winner === "vendor"}
+                    onChange={() => setWinner("vendor")}
+                  />
+                  <span>Approve (Vendor Wins)</span>
+                </label>
+
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    checked={winner === "contractor"}
+                    onChange={() => setWinner("contractor")}
+                  />
+                  <span>Cancel (Contractor Wins)</span>
+                </label>
+
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    checked={winner === "partial"}
+                    onChange={() => setWinner("partial")}
+                  />
+                  <span>Partial</span>
+                </label>
               </div>
 
-              {/* Winner Selection */}
-              <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">Select Winner:</p>
-                <div className="space-y-2">
-                  <label className="flex items-center space-x-2">
+              {winner === "partial" && (
+                <div className="mt-4 space-y-2">
+                  <div>
+                    <label>Vendor %</label>
                     <input
-                      type="radio"
-                      checked={winner === "vendor"}
-                      onChange={() => setWinner("vendor")}
+                      type="number"
+                      value={vendorPercent}
+                      onChange={(e) =>
+                        setVendorPercent(Number(e.target.value))
+                      }
+                      className="w-full border p-2 rounded"
                     />
-                    <span>Vendor</span>
-                  </label>
-
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      checked={winner === "contractor"}
-                      onChange={() => setWinner("contractor")}
-                    />
-                    <span>Contractor</span>
-                  </label>
-
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="radio"
-                      checked={winner === "partial"}
-                      onChange={() => setWinner("partial")}
-                    />
-                    <span>Partial</span>
-                  </label>
-                </div>
-
-                {/* Partial Percent Inputs */}
-                {winner === "partial" && (
-                  <div className="mt-3 space-y-2">
-                    <div>
-                      <label className="text-sm">Contractor %</label>
-                      <input
-                        type="number"
-                        value={contractorPercent}
-                        onChange={(e) => setContractorPercent(Number(e.target.value))}
-                        className="w-full border p-2 rounded"
-                        min={0}
-                        max={100}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm">Vendor %</label>
-                      <input
-                        type="number"
-                        value={vendorPercent}
-                        onChange={(e) => setVendorPercent(Number(e.target.value))}
-                        className="w-full border p-2 rounded"
-                        min={0}
-                        max={100}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-500">Total must equal 100%</p>
                   </div>
-                )}
-              </div>
 
-              <div className="flex justify-end space-x-2">
+                  <div>
+                    <label>Contractor %</label>
+                    <input
+                      type="number"
+                      value={contractorPercent}
+                      onChange={(e) =>
+                        setContractorPercent(Number(e.target.value))
+                      }
+                      className="w-full border p-2 rounded"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-2 mt-6">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -249,11 +245,14 @@ export default function AdminDisputes() {
                 </Button>
 
                 <Button
-                  disabled={updateStatus.isPending}
+                  disabled={resolveDispute.isPending}
                   onClick={() => {
                     if (!selectedDispute?.disputes?.id) return;
 
-                    if (winner === "partial" && contractorPercent + vendorPercent !== 100) {
+                    if (
+                      winner === "partial" &&
+                      vendorPercent + contractorPercent !== 100
+                    ) {
                       toast({
                         title: "Invalid percentage",
                         description: "Total must equal 100%",
@@ -262,20 +261,27 @@ export default function AdminDisputes() {
                       return;
                     }
 
-                    updateStatus.mutate({
+                    const status =
+                      winner === "contractor"
+                        ? "cancelled"
+                        : "completed";
+
+                    resolveDispute.mutate({
                       id: selectedDispute.id,
-                      status,
                       winner,
+                      status,
                       disputeId: selectedDispute.disputes.id,
-                      contractorPercent,
                       vendorPercent,
+                      contractorPercent,
                     });
 
                     setIsModalOpen(false);
                     setSelectedDispute(null);
                   }}
                 >
-                  {updateStatus.isPending ? "Resolving..." : "Confirm"}
+                  {resolveDispute.isPending
+                    ? "Resolving..."
+                    : "Confirm"}
                 </Button>
               </div>
             </div>
