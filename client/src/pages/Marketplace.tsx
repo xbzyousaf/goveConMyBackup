@@ -52,7 +52,7 @@ export default function Marketplace() {
   const { data: vendors = [] } = useQuery<VendorProfile[]>({
     queryKey: ["/api/vendors"],
   });
-
+console.log("Fetched Vendors:", vendors);
   // const featuredServices = [
   //   {
   //     id: "sam-registration",
@@ -97,7 +97,19 @@ export default function Marketplace() {
   const { data: featuredServices = [], isLoading } = useQuery<MarketplaceService[]>({
     queryKey: ["/api/marketplace/services"],
   });
+const approvedVendors = vendors.filter(v => v.isApproved === true);
 
+const approvedVendorIds = approvedVendors.map(v => v.userId);
+
+const servicesFromApprovedVendors = featuredServices.filter(service =>
+  approvedVendorIds.includes(service.vendorId)
+);
+
+const vendorIdsWithServices = servicesFromApprovedVendors.map(s => s.vendorId);
+
+const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
+  vendorIdsWithServices.includes(v.userId)
+);
   const serviceBundles = [
     {
       id: "startup",
@@ -190,7 +202,7 @@ export default function Marketplace() {
     { id: "scaling", label: "Scaling (8+ years)" }
   ];
 
-  const filteredServices = featuredServices.filter(service => {
+  const filteredServices = servicesFromApprovedVendors.filter(service => {
     if (selectedCategory !== "all" && service.category !== selectedCategory) return false;
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
