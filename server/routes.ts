@@ -1343,6 +1343,33 @@ Respond in JSON format:
       res.status(500).json({ message: "Failed to fetch service" });
     }
   });
+  app.patch("/api/admin/services/:id/status", isAuthenticated, async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const { isActive } = req.body;
+    const serviceId = req.params.id;
+
+    if (typeof isActive !== "boolean") {
+      return res.status(400).json({
+        message: "isActive must be true or false",
+      });
+    }
+
+    const service = await storage.updateServiceStatus(serviceId, isActive);
+
+    res.json(service);
+  } catch (error) {
+    console.error("Error updating service status:", error);
+
+    res.status(500).json({
+      message: "Failed to update service status",
+    });
+  }
+});
   app.put("/api/services/:id", isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);
