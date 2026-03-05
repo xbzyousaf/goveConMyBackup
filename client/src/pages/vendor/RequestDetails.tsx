@@ -735,7 +735,7 @@ const handleDeliver = async () => {
                         </DialogContent>
                         </Dialog>
                   )}
-                        {request.status === "completed" && !alreadyReviewed && (
+                        {request.status === "completed" && !request.disputes && !alreadyReviewed && (
                             <Button
                                 className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white"
                                 onClick={() => setReviewModal(true)}
@@ -826,6 +826,7 @@ const handleDeliver = async () => {
                     {request.status !== "completed" &&
                       request.status !== "disputed" &&
                       request.status !== "pending" &&
+                      request.status !== "accepted" &&
                       request.status !== "cancelled" && (
                       <Button
                         variant="destructive"

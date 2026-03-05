@@ -40,6 +40,7 @@ import AdminDisputes from "./pages/admin/AdminDisputes";
 import VendorPayments from "./pages/vendor/payments";
 import WalletPage from "./pages/vendor/WalletPage";
 import Transactions from "./pages/admin/Transactions";
+import AdminServices from "./pages/admin/AdminServices";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -101,6 +102,7 @@ function Router() {
           <Route path="/service/create" component={CreateService} />
           <Route path="/service/create/:id" component={CreateService} />
           <Route path="/admin/vendors" component={AdminVendors} />
+          <Route path="/admin/services" component={AdminServices} />
           <Route path="/admin/escrow" component={AdminVendors} />
           <Route path="/admin/disputes" component={AdminDisputes} />
           <Route path="/vendor-profile/edit" component={VendorProfileEditPage} />
