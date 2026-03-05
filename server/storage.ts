@@ -991,13 +991,31 @@ return vendorProfile;
       return service;
     });
   }
+  async updateServiceStatus(serviceId: string, isActive: boolean) {
+    const [service] = await db
+      .update(services)
+      .set({
+        isActive,
+        updatedAt: new Date(),
+      })
+      .where(eq(services.id, serviceId))
+      .returning();
 
+    return service;
+  }
   async getAllServices() {
     return await db.query.services.findMany({
-      orderBy: desc(services.createdAt),
       with: {
-        tiers: true, // 🔥 loads all related service_tiers
+        vendor: {
+          columns: {
+            id: true,
+            companyName: true,
+            title: true,
+            locations: true,
+          },
+        },
       },
+      orderBy: desc(services.createdAt),
     });
   }
 

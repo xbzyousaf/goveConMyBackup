@@ -584,6 +584,12 @@ export const walletTransactionsRelations = relations(
     }),
   })
 );
+export const serviceRelations = relations(services, ({ one }) => ({
+  vendor: one(vendorProfiles, {
+    fields: [services.vendorId],
+    references: [vendorProfiles.userId],
+  }),
+}));
 export const serviceRequestsRelations = relations(serviceRequests, ({ one, many }) => ({
   contractor: one(users, {
     fields: [serviceRequests.contractorId],
@@ -793,6 +799,7 @@ export const serviceTiersRelations = relations(serviceTiers, ({ one }) => ({
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type Service = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert; // For Replit Auth
 export type InsertVendorProfile = z.infer<typeof insertVendorProfileSchema>;
 export type VendorProfile = typeof vendorProfiles.$inferSelect;
