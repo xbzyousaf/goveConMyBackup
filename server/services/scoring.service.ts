@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { scoringStorage } from "server/storage/ScoringStorage";
+import { scoringStorage } from "server/storage/scoringStorage";
 
 export const scoringService = {
   // ===============================
