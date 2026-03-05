@@ -62,7 +62,7 @@ export default function VendorPayments() {
   return (
     <div>
         <Header />
-    <div className="p-6 space-y-10 container mx-auto">
+    <div className="p-6 space-y-10 max-w-6xl  mx-auto">
         
       <h1 className="text-2xl font-bold">Vendor Payments</h1>
       {/* ================= Released ================= */}

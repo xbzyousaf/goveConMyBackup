@@ -732,12 +732,13 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
         return res.status(403).json({ message: "Access denied" });
       }
 
-      const { category, location, verified } = req.query;
-      const filters: any = {};
+      const { category, location } = req.query;
+      const filters: any = {
+        isApproved: true,
+      };
 
       if (category) filters.category = category as string;
       if (location) filters.location = location as string;
-      if (verified !== undefined) filters.verified = verified === "true";
 
       const vendors = await storage.getVendors(filters);
       res.json(vendors);
@@ -1601,7 +1602,6 @@ Respond in JSON format:
 
       const { id } = req.params;
       const { status } = req.body;
-      let updatedServiceRequestStatus= "completed";
 
       const allowedStatuses = [
         "pending",
@@ -1751,8 +1751,6 @@ Respond in JSON format:
             });
           }
 
-          const updatedServiceRequestStatus =
-            updatedServiceRequest?.status ?? "completed";
           await scoringService.handleRequestCompletion(serviceRequest);
         }
       }
@@ -1765,13 +1763,6 @@ Respond in JSON format:
           title: "Dispute Resolved",
           message: "Admin has resolved the dispute.",
           relatedRequestId: id,
-        });
-        await storage.createRequestLog({
-          serviceRequestId: id,
-          action: "DISPUTE_RESOLVED",
-          performedBy: userId,
-          previousStatus: "disputed",
-          newStatus: updatedServiceRequestStatus ?? 'disputed',
         });
 
         await storage.createNotification({
