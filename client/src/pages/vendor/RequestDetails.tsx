@@ -909,9 +909,14 @@ const handleDeliver = async () => {
   request.status === "accepted" && (
     <Dialog open={isPayConfirmOpen} onOpenChange={setIsPayConfirmOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full mt-3">
+        {/* <Button className="w-full mt-3">
           Pay & Fund Escrow
-        </Button>
+        </Button> */}
+        <Button className="w-full mt-3"
+ onClick={() => setLocation(`/checkout?requestId=${request.id}`)}
+>
+Pay Now
+</Button>
       </DialogTrigger>
 
       <DialogContent>
