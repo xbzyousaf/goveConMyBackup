@@ -348,7 +348,38 @@ export const walletTransactions = pgTable("wallet_transactions", {
 
   createdAt: timestamp("created_at").defaultNow(),
 });
+export const processCategories = pgTable("process_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
 
+  key: text("key").notNull().unique(), // business_structure
+  label: text("label").notNull(),
+  description: text("description"),
+
+  color: text("color"),
+  icon: text("icon"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export const processSteps = pgTable("process_steps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  categoryId: uuid("category_id")
+    .references(() => processCategories.id)
+    .notNull(),
+
+  stage: text("stage").notNull(), // startup | growth | scale
+
+  title: text("title").notNull(),
+  description: text("description"),
+
+  required: boolean("required").default(false),
+
+  resourceTitle: text("resource_title"),
+  resourceUrl: text("resource_url"),
+  resourceType: text("resource_type"), // external | internal
+
+  createdAt: timestamp("created_at").defaultNow(),
+});
 // User maturity profiles - stores assessment results and progress
 export const userMaturityProfiles = pgTable("user_maturity_profiles", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),

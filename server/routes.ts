@@ -1679,7 +1679,7 @@ Respond in JSON format:
             await walletStorage.creditWallet(
               serviceRequest.contractorId,
               Number(escrow.vendorEarning) + Number(escrow.platformFee),
-              "escrow_release",
+              "escrow_refund",
               serviceRequest.id
             );
           } else if (disputeStatus === "partial") {
@@ -1706,12 +1706,21 @@ Respond in JSON format:
               );
             }
           }
-          await storage.createRequestLog({
-            serviceRequestId: id,
-            action: "ESCROW_RELEASED",
-            performedBy: userId,
-            previousStatus,
-          });
+          if (disputeStatus === "contractor") {
+            await storage.createRequestLog({
+              serviceRequestId: id,
+              action: "ESCROW_REFUNDED",
+              performedBy: userId,
+              previousStatus,
+            });
+          }else{
+            await storage.createRequestLog({
+              serviceRequestId: id,
+              action: "ESCROW_RELEASED",
+              performedBy: userId,
+              previousStatus,
+            });
+          }
           await storage.releaseEscrowByRequestId(id,disputeStatus,vendorPercent);
           await storage.createNotification({
             userId: serviceRequest.vendorId,
@@ -2442,7 +2451,21 @@ app.get("/api/vendors/:vendorId/performance", isAuthenticated, async (req, res) 
     res.status(500).json({ message: "Failed to load performance" });
   }
 });
-
+app.get("/api/process-config", async (req, res) => {
+  const data = await storage.getProcesses();
+  res.json(data);
+});
+app.get("/api/process-stages", async (req, res) => {
+  try {
+    const stages = await storage.getProcessConfig();
+    res.json(stages);
+  } catch (error) {
+    console.error("Error fetching stages:", error);
+    res.status(500).json({
+      message: "Failed to fetch process stages",
+    });
+  }
+});
 
   const httpServer = createServer(app);
   return httpServer;

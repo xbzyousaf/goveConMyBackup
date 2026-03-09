@@ -1276,7 +1276,9 @@ return vendorProfile;
 
     return result[0]?.count ?? 0;
   }
-
+  async getProcessConfig() {
+    return await db.query.processCategories.findMany();
+  }
   async markAsRead(conversationId: string, userId: string) {
     const result = await db
       .update(messages)

@@ -41,6 +41,7 @@ import VendorPayments from "./pages/vendor/payments";
 import WalletPage from "./pages/vendor/WalletPage";
 import Transactions from "./pages/admin/Transactions";
 import AdminServices from "./pages/admin/AdminServices";
+import CreateMilestone from "./pages/Content";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -117,6 +118,7 @@ function Router() {
           <Route path="/vendors/payment" component={VendorPayments} />
           <Route path="/vendor/wallet" component={WalletPage} />
           <Route path="/admin/transactions" component={Transactions} />
+          <Route path="/processguideness/create" component={CreateMilestone} />
           <Route component={NotFound} />
         </>
       ) : (
