@@ -42,6 +42,7 @@ import WalletPage from "./pages/vendor/WalletPage";
 import Transactions from "./pages/admin/Transactions";
 import AdminServices from "./pages/admin/AdminServices";
 import CreateMilestone from "./pages/Content";
+import Checkout from "./pages/checkout";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -91,6 +92,7 @@ function Router() {
           <Route path="/assessment" component={Assessment} />
           <Route path="/process/:processId" component={ProcessGuidance} />
           <Route path="/marketplace" component={Marketplace} />
+          <Route path="/checkout" component={Checkout} />
           <Route path="/services" component={Services} />
           <Route path="/search" component={Search} />
           <Route path="/vendor-dashboard" component={VendorDashboard} />

@@ -46,7 +46,7 @@ async function seed() {
     if (!existingWallet.length) {
       await db.insert(wallets).values({
         userId,
-        balance: "0.00",
+        balance: "100000.00",
       });
 
       console.log(`💰 Wallet created for ${user.email}`);

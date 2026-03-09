@@ -17,7 +17,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { scoringService } from "./services/scoring.service";
 import { walletStorage } from "./storage/walletStorage";
-import { adminStorage } from "./storage/adminStorage";
+import { stripe } from "./lib/stripe";
 
 // recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -2466,6 +2466,39 @@ app.get("/api/process-stages", async (req, res) => {
     });
   }
 });
+
+app.post("/api/payments/create-intent", async (req, res) => {
+  try {
+    const { requestId } = req.body;
+
+    const request = await storage.getServiceRequest(requestId);
+
+    if (!request || !request.finalPrice) {
+      return res.status(400).json({
+        message: "Final price not set for this request"
+      });
+    }
+
+    const amount = Number(request.finalPrice) * 100;
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount,
+      currency: "usd",
+      metadata: {
+        requestId
+      },
+    });
+
+    res.json({
+      clientSecret: paymentIntent.client_secret,
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "PaymentIntent creation failed" });
+  }
+});
+
 
   const httpServer = createServer(app);
   return httpServer;
