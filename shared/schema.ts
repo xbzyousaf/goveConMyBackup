@@ -348,36 +348,32 @@ export const walletTransactions = pgTable("wallet_transactions", {
 
   createdAt: timestamp("created_at").defaultNow(),
 });
-export const processCategories = pgTable("process_categories", {
+export const processes = pgTable("processes", {
   id: uuid("id").primaryKey().defaultRandom(),
-
-  key: text("key").notNull().unique(), // business_structure
-  label: text("label").notNull(),
+  key: text("key").notNull().unique(), // business_structure, business_strategy, execution
+  title: text("title").notNull(),      // e.g., "Business Structure"
   description: text("description"),
-
-  color: text("color"),
-  icon: text("icon"),
-
   createdAt: timestamp("created_at").defaultNow(),
 });
-export const processSteps = pgTable("process_steps", {
+
+// 2️⃣ Stages table
+export const stages = pgTable("stages", {
   id: uuid("id").primaryKey().defaultRandom(),
+  processId: uuid("process_id").notNull(),  // FK to processes.id
+  key: text("key").notNull(),               // startup, growth, scale
+  title: text("title").notNull(),           // e.g., "Startup Foundation"
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
-  categoryId: uuid("category_id")
-    .references(() => processCategories.id)
-    .notNull(),
-
-  stage: text("stage").notNull(), // startup | growth | scale
-
+// 3️⃣ Milestones table
+export const milestones = pgTable("milestones", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  stageId: uuid("stage_id").notNull(),
+  key: text("key").notNull().unique(),
   title: text("title").notNull(),
   description: text("description"),
-
   required: boolean("required").default(false),
-
-  resourceTitle: text("resource_title"),
-  resourceUrl: text("resource_url"),
-  resourceType: text("resource_type"), // external | internal
-
+  resources: jsonb("resources").default(sql`'[]'::jsonb`), // <-- new column
   createdAt: timestamp("created_at").defaultNow(),
 });
 // User maturity profiles - stores assessment results and progress
@@ -678,7 +674,29 @@ export const deliveryAttachmentsRelations = relations(deliveryAttachments, ({ on
     relationName: "attachments",  // must match
   }),
 }));
+export const processesRelations = relations(processes, ({ one, many }) => ({
+  // Each process can have multiple stages
+  stages: many(stages),
+}));
 
+export const stagesRelations = relations(stages, ({ one, many }) => ({
+  // Each stage belongs to one process
+  process: one(processes, {
+    fields: [stages.processId],
+    references: [processes.id],
+  }),
+
+  // Each stage can have multiple milestones
+  milestones: many(milestones),
+}));
+
+export const milestonesRelations = relations(milestones, ({ one }) => ({
+  // Each milestone belongs to one stage
+  stage: one(stages, {
+    fields: [milestones.stageId],
+    references: [stages.id],
+  }),
+}));
 export const messagesRelations = relations(messages, ({ one }) => ({
   serviceRequest: one(serviceRequests, {
     fields: [messages.serviceRequestId],
@@ -830,7 +848,8 @@ export const serviceTiersRelations = relations(serviceTiers, ({ one }) => ({
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
-export type Service = typeof users.$inferSelect;
+export type Service = typeof services.$inferSelect;
+export type Milestone = typeof milestones.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert; // For Replit Auth
 export type InsertVendorProfile = z.infer<typeof insertVendorProfileSchema>;
 export type VendorProfile = typeof vendorProfiles.$inferSelect;

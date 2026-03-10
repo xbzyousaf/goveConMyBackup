@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useRoute } from "wouter";
 import { Header } from "@/components/Header";
+import { AdminLayout } from "./AdminLayouts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 
 export default function CreateMilestone() {
-
   const [match, params] = useRoute("/admin/milestones/create/:id");
   const isEdit = !!params?.id;
   const milestoneId = params?.id;
@@ -27,25 +27,16 @@ export default function CreateMilestone() {
   const { toast } = useToast();
 
   const [form, setForm] = useState({
-    stageId: "",
+    key: "",
+    process: "",
+    stage: "",
     title: "",
     description: "",
-    required: "false"
-  });
-
-  /* ---------------- STAGES ---------------- */
-
-  const { data: stages = [] } = useQuery({
-    queryKey: ["/api/process-stages"],
-    queryFn: async () => {
-      const res = await fetch("/api/process-stages");
-      if (!res.ok) throw new Error("Failed to fetch stages");
-      return res.json();
-    }
+    required: "false",
+     resources: "", // <-- add this
   });
 
   /* ---------------- MILESTONE (EDIT) ---------------- */
-
   const { data: milestone, isLoading } = useQuery({
     queryKey: ["milestone", milestoneId],
     queryFn: async () => {
@@ -57,27 +48,30 @@ export default function CreateMilestone() {
   });
 
   useEffect(() => {
-    if (milestone) {
-      setForm({
-        stageId: milestone.stageId || "",
-        title: milestone.title || "",
-        description: milestone.description || "",
-        required: milestone.required ? "true" : "false"
-      });
-    }
-  }, [milestone]);
+  if (milestone) {
+    setForm({
+      key: milestone.key || "",
+      process: milestone.process || "",
+      stage: milestone.stage || "",
+      title: milestone.title || "",
+      description: milestone.description || "",
+      required: milestone.required ? "true" : "false",
+      resources: (milestone.resources || [])
+        .map((r: any) => `${r.title}|${r.url}`)
+        .join("\n"),
+    });
+  }
+}, [milestone]);
 
   const isValid =
-    form.stageId &&
-    form.title.trim() &&
-    form.description.trim();
+    form.key.trim() &&
+    form.process &&
+    form.stage &&
+    form.title.trim();
 
   /* ---------------- SAVE ---------------- */
-
   const mutation = useMutation({
-
     mutationFn: async () => {
-
       const url = isEdit
         ? `/api/admin/milestones/${milestoneId}`
         : `/api/admin/milestones`;
@@ -88,10 +82,19 @@ export default function CreateMilestone() {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          stageId: form.stageId,
+          key: form.key,
+          process: form.process,
+          stage: form.stage,
           title: form.title,
           description: form.description,
-          required: form.required === "true"
+          required: form.required === "true",
+          resources: form.resources
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [title, url] = line.split("|");
+      return { title: title?.trim() || "", url: url?.trim() || "", type: "external" };
+    }),
         })
       });
 
@@ -104,10 +107,7 @@ export default function CreateMilestone() {
     },
 
     onSuccess: () => {
-
-      queryClient.invalidateQueries({
-        queryKey: ["/api/process-config"]
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/milestones"] });
 
       toast({
         title: isEdit
@@ -115,7 +115,7 @@ export default function CreateMilestone() {
           : "Milestone created successfully"
       });
 
-      setLocation("/admin/process");
+      setLocation("/admin/guideness");
     }
   });
 
@@ -124,13 +124,14 @@ export default function CreateMilestone() {
   }
 
   return (
+    
+    
     <div className="min-h-screen bg-background">
-
       <Header />
+          <AdminLayout>
 
       <main className="max-w-4xl mx-auto px-4 py-10 space-y-6">
-
-        <Link href="/admin/process">
+        <Link href="/admin/guideness">
           <Button variant="outline">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -138,36 +139,61 @@ export default function CreateMilestone() {
         </Link>
 
         <Card>
-
           <CardContent className="p-6 space-y-4">
-
             <h1 className="text-xl font-semibold">
               {isEdit ? "Edit Milestone" : "Create Milestone"}
             </h1>
 
-            {/* STAGE */}
+            {/* KEY */}
+            <Input
+              placeholder="Unique key (e.g., ein, sam_gov)"
+              value={form.key}
+              onChange={(e) =>
+                setForm({ ...form, key: e.target.value })
+              }
+            />
 
+            {/* PROCESS */}
             <Select
-              value={form.stageId}
+              value={form.process}
               onValueChange={(v) =>
-                setForm({ ...form, stageId: v })
+                setForm({ ...form, process: v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Process" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="business_structure">
+                  Business Structure
+                </SelectItem>
+                <SelectItem value="business_strategy">
+                  Business Strategy
+                </SelectItem>
+                <SelectItem value="execution">
+                  Execution
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* STAGE */}
+            <Select
+              value={form.stage}
+              onValueChange={(v) =>
+                setForm({ ...form, stage: v })
               }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select Stage" />
               </SelectTrigger>
-
               <SelectContent>
-                {stages.map((stage: any) => (
-                  <SelectItem key={stage.id} value={stage.id}>
-                    {stage.label}
-                  </SelectItem>
-                ))}
+                <SelectItem value="startup">Startup</SelectItem>
+                <SelectItem value="growth">Growth</SelectItem>
+                <SelectItem value="scale">Scale</SelectItem>
               </SelectContent>
             </Select>
 
             {/* TITLE */}
-
             <Input
               placeholder="Milestone title"
               value={form.title}
@@ -177,7 +203,6 @@ export default function CreateMilestone() {
             />
 
             {/* DESCRIPTION */}
-
             <Textarea
               placeholder="Milestone description"
               value={form.description}
@@ -185,9 +210,14 @@ export default function CreateMilestone() {
                 setForm({ ...form, description: e.target.value })
               }
             />
+            {/* RESOURCES */}
+<Textarea
+  placeholder="Resources (one per line, format: title|url)"
+  value={form.resources}
+  onChange={(e) => setForm({ ...form, resources: e.target.value })}
+/>
 
             {/* REQUIRED */}
-
             <Select
               value={form.required}
               onValueChange={(v) =>
@@ -197,15 +227,12 @@ export default function CreateMilestone() {
               <SelectTrigger>
                 <SelectValue placeholder="Required?" />
               </SelectTrigger>
-
               <SelectContent>
                 <SelectItem value="true">Required</SelectItem>
                 <SelectItem value="false">Optional</SelectItem>
               </SelectContent>
             </Select>
-
           </CardContent>
-
         </Card>
 
         <Button
@@ -217,9 +244,8 @@ export default function CreateMilestone() {
             ? isEdit ? "Updating..." : "Creating..."
             : isEdit ? "Update Milestone" : "Create Milestone"}
         </Button>
-
       </main>
-
+      </AdminLayout>
     </div>
   );
 }

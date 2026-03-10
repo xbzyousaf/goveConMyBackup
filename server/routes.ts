@@ -18,7 +18,9 @@ import { fileURLToPath } from "url";
 import { scoringService } from "./services/scoring.service";
 import { walletStorage } from "./storage/walletStorage";
 import { stripe } from "./lib/stripe";
-
+import { eq , and} from "drizzle-orm";
+import { processes, stages, milestones } from '@shared/schema';
+import { db } from "./db";
 // recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2451,22 +2453,79 @@ app.get("/api/vendors/:vendorId/performance", isAuthenticated, async (req, res) 
     res.status(500).json({ message: "Failed to load performance" });
   }
 });
-app.get("/api/process-config", async (req, res) => {
-  const data = await storage.getProcesses();
-  res.json(data);
-});
-app.get("/api/process-stages", async (req, res) => {
+app.get("/api/milestones", async (req, res) => {
   try {
-    const stages = await storage.getProcessConfig();
+    const stages = await storage.getMilestones();
     res.json(stages);
   } catch (error) {
     console.error("Error fetching stages:", error);
     res.status(500).json({
-      message: "Failed to fetch process stages",
+      message: "Failed to fetch Mile Stones",
     });
   }
 });
 
+
+app.post("/api/admin/milestones", async (req, res) => {
+  try {
+    const {
+      key,
+      process: processKey,
+      stage: stageKey,
+      title,
+      description,
+      required,
+      resources
+    } = req.body;
+
+    // 1️⃣ Find process
+    const processRecord = await db
+      .select()
+      .from(processes)
+      .where(eq(processes.key, processKey));
+
+    if (!processRecord.length) {
+      return res.status(400).json({ message: "Process not found" });
+    }
+
+    const processId = processRecord[0].id;
+
+    // 2️⃣ Find stage
+    const stageRecord = await db
+      .select()
+      .from(stages)
+      .where(
+        and(
+          eq(stages.key, stageKey),
+          eq(stages.processId, processId)
+        )
+      );
+
+    if (!stageRecord.length) {
+      return res.status(400).json({ message: "Stage not found" });
+    }
+
+    const stageId = stageRecord[0].id;
+
+    // 3️⃣ Create milestone
+    const [milestone] = await db
+      .insert(milestones)
+      .values({
+        stageId,
+        key,
+        title,
+        description: description ?? null,
+        required: required ?? false,
+        resources: JSON.stringify(resources || [])
+      })
+      .returning();
+
+    res.json(milestone);
+  } catch (err: any) {
+    console.error(err);
+    return res.status(500).json({ message: err.message || "Internal Server Error" });
+  }
+});
 app.post("/api/payments/create-intent", async (req, res) => {
   try {
     const { requestId } = req.body;

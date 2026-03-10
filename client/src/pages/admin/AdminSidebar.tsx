@@ -19,6 +19,7 @@ const nav = [
   { label: "Transactions", href: "/admin/transactions", icon: Receipt },
   { label: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
   { label: "Services", href: "/admin/services", icon: Briefcase },
+  { label: "Growth Checklists", href: "/admin/guideness", icon: Briefcase },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart },
   { label: "Request Logs", href: "/admin/request-logs", icon: FileText },
 
