@@ -46,7 +46,8 @@ import {
   escrows,
   disputes,
   wallets,
-  walletTransactions
+  walletTransactions,
+  milestones
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
@@ -1018,7 +1019,25 @@ return vendorProfile;
       orderBy: desc(services.createdAt),
     });
   }
+  async createMilestone(data: any, userId: string) {
+    return await db.transaction(async (tx) => {
+      const [milestone] = await tx
+        .insert(milestones)
+        .values({
+          process: data.process,
+          stage: data.stage,
+          title: data.title,
+          key: data.key,
+          description: data.description ?? null,
+          required: data.required ?? false,
+          createdBy: userId,
+          createdAt: new Date(), // optional if DB auto-generates
+        })
+        .returning();
 
+      return milestone;
+    });
+  }
   async getServiceById(serviceId: string) {
     // Fetch the service
     const service = await db.query.services.findFirst({
@@ -1276,7 +1295,34 @@ return vendorProfile;
 
     return result[0]?.count ?? 0;
   }
+  async getMilestones() {
+  const data = await db.query.processes.findMany({
+    with: {
+      stages: {
+        with: {
+          milestones: true,
+        },
+      },
+    },
+  });
 
+  const result: any[] = [];
+
+  for (const process of data) {
+    for (const stage of process.stages) {
+      for (const milestone of stage.milestones) {
+        result.push({
+          ...milestone,
+          process: process.key,
+          stage: stage.key,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+  
   async markAsRead(conversationId: string, userId: string) {
     const result = await db
       .update(messages)
