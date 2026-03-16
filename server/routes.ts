@@ -21,6 +21,9 @@ import { stripe } from "./lib/stripe";
 import { releaseEscrow } from './services/escrowService';
 import { canTransition } from './services/statusEngine';
 
+import { eq , and} from "drizzle-orm";
+import { processes, stages, milestones } from '@shared/schema';
+import { db } from "./db";
 // recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1657,6 +1660,44 @@ Respond in JSON format:
       if (!isVendor && !isContractor && !isAdmin) {
         return res.status(403).json({ message: "Not authorized" });
       }
+      const previousStatus = serviceRequest.status ?? 'pending';
+      const updated = await storage.updateServiceRequestStatus(id, status);
+      if (status === "completed" || status === 'cancelled') {
+        if (previousStatus !== "completed") {
+           const escrow = await storage.getEscrowByRequestId(id);
+          if (!escrow || (escrow.status !== "held" && escrow.status !== "disputed")) {
+            return res.status(400).json({
+              message: "Escrow not available for release "  + id
+            });
+          }
+           const vendorWallet = await walletStorage.getWalletByUserId(serviceRequest.vendorId);
+          if (!vendorWallet) {
+            return res.status(400).json({
+              message: "Vendor wallet not found"
+            });
+          }
+          const vendorPercent = req.body.vendorPercent;
+          if (disputeStatus === "vendor") {
+            // Full vendor win
+            await walletStorage.creditWallet(
+              serviceRequest.vendorId,
+              Number(escrow.vendorEarning),
+              "escrow_release",
+              serviceRequest.id
+            );
+          } else if (disputeStatus === "contractor") {
+            // Full contractor win
+            await walletStorage.creditWallet(
+              serviceRequest.contractorId,
+              Number(escrow.vendorEarning) + Number(escrow.platformFee),
+              "escrow_refund",
+              serviceRequest.id
+            );
+          } else if (disputeStatus === "partial") {
+            // Partial win: split according to percentages
+            const contractorPercent = req.body.contractorPercent;
+            const contractorAmount = (Number(escrow.vendorEarning) * contractorPercent) / 100;
+            const vendorAmount = (Number(escrow.vendorEarning) * vendorPercent) / 100;
 
       // Accept request
       if (status === "accepted") {
@@ -1670,6 +1711,70 @@ Respond in JSON format:
           return res.status(400).json({
             message: "Final price required"
           });
+            if (vendorAmount > 0) {
+              await walletStorage.creditWallet(
+                serviceRequest.vendorId,
+                vendorAmount,
+                "escrow_release",
+                serviceRequest.id
+              );
+            }
+          }
+          if (disputeStatus === "contractor") {
+            await storage.createRequestLog({
+              serviceRequestId: id,
+              action: "ESCROW_REFUNDED",
+              performedBy: userId,
+              previousStatus,
+            });
+          }else{
+            await storage.createRequestLog({
+              serviceRequestId: id,
+              action: "ESCROW_RELEASED",
+              performedBy: userId,
+              previousStatus,
+            });
+          }
+          await storage.releaseEscrowByRequestId(id,disputeStatus,vendorPercent);
+          await storage.createNotification({
+            userId: serviceRequest.vendorId,
+            triggeredBy: serviceRequest.contractorId,
+            type: "escrow_released",
+            title: "Payment Released",
+            message: "Escrow payment has been released to your wallet.",
+            relatedRequestId: id,
+          });
+
+           await storage.updateServiceRequest(id, {
+            paymentStatus: "released",
+            actualCost: serviceRequest.finalPrice || serviceRequest.proposedPrice,
+            completedAt: new Date(),
+          });
+          let updatedServiceRequest: ServiceRequest | null = null;
+
+          if (
+            user?.userType === "admin" &&
+            disputeStatus === "contractor"
+          ) {
+            updatedServiceRequest = await storage.updateServiceRequest(id, {
+              paymentStatus: "refunded",
+              status: "cancelled",
+              actualCost:
+                serviceRequest.finalPrice ||
+                serviceRequest.proposedPrice,
+              completedAt: new Date(),
+            });
+          } else {
+            updatedServiceRequest = await storage.updateServiceRequest(id, {
+              paymentStatus: "released",
+              actualCost:
+                serviceRequest.finalPrice ||
+                serviceRequest.proposedPrice,
+              completedAt: new Date(),
+            });
+          }
+
+          await scoringService.handleRequestCompletion(serviceRequest);
         }
 
         await storage.updateServiceRequest(id, {
@@ -2304,6 +2409,79 @@ app.get("/api/vendors/:vendorId/performance", isAuthenticated, async (req, res) 
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to load performance" });
+  }
+});
+app.get("/api/milestones", async (req, res) => {
+  try {
+    const stages = await storage.getMilestones();
+    res.json(stages);
+  } catch (error) {
+    console.error("Error fetching stages:", error);
+    res.status(500).json({
+      message: "Failed to fetch Mile Stones",
+    });
+  }
+});
+
+
+app.post("/api/admin/milestones", async (req, res) => {
+  try {
+    const {
+      key,
+      process: processKey,
+      stage: stageKey,
+      title,
+      description,
+      required,
+      resources
+    } = req.body;
+
+    // 1️⃣ Find process
+    const processRecord = await db
+      .select()
+      .from(processes)
+      .where(eq(processes.key, processKey));
+
+    if (!processRecord.length) {
+      return res.status(400).json({ message: "Process not found" });
+    }
+
+    const processId = processRecord[0].id;
+
+    // 2️⃣ Find stage
+    const stageRecord = await db
+      .select()
+      .from(stages)
+      .where(
+        and(
+          eq(stages.key, stageKey),
+          eq(stages.processId, processId)
+        )
+      );
+
+    if (!stageRecord.length) {
+      return res.status(400).json({ message: "Stage not found" });
+    }
+
+    const stageId = stageRecord[0].id;
+
+    // 3️⃣ Create milestone
+    const [milestone] = await db
+      .insert(milestones)
+      .values({
+        stageId,
+        key,
+        title,
+        description: description ?? null,
+        required: required ?? false,
+        resources: JSON.stringify(resources || [])
+      })
+      .returning();
+
+    res.json(milestone);
+  } catch (err: any) {
+    console.error(err);
+    return res.status(500).json({ message: err.message || "Internal Server Error" });
   }
 });
 app.post("/api/payments/create-intent", async (req, res) => {
