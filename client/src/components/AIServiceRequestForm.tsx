@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Send, DollarSign, Star, MapPin, ArrowLeft } from "lucide-react";
+import { Sparkles, Send, Star, MapPin, ArrowLeft } from "lucide-react";
 import type { VendorProfile } from "@shared/schema";
 import { Header } from "./Header";
 import { Link } from "wouter";
@@ -16,10 +16,9 @@ type ServiceRequestPayload = {
   title: string;
   category: string;
   description: string;
-  deliveryDays: number;
+  proposedPrice?: number;
   vendorId?: string;
   serviceId?: string;
-  proposedPrice: number;
 };
 
 interface AIServiceRequestFormProps {
@@ -33,10 +32,8 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
   const { toast } = useToast();
   const [requesttitle, setTitle] = useState("");
   const [request, setRequest] = useState("");
-  const [budget, setBudget] = useState("");
   const [matches, setMatches] = useState<VendorProfile[]>([]);
   const queryClient = useQueryClient();
-  const [deliveryDays, setDeliveryDays] = useState("");
 
   const aiMatchMutation = useMutation({
     mutationFn: async (payload: ServiceRequestPayload) => {
@@ -71,17 +68,6 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
       });
     },
   });
-const parseBudgetToNumber = (budgetRange: string): number => {
-  if (!budgetRange) return 0;
-
-  if (budgetRange.includes("+")) {
-    const num = budgetRange.replace("+", "");
-    return Number(num);
-  }
-
-  const parts = budgetRange.split("-");
-  return Number(parts[1]) || 0;
-};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,23 +80,18 @@ const parseBudgetToNumber = (budgetRange: string): number => {
       });
       return;
     }
-        const proposedPrice = parseBudgetToNumber(budget);
 
         aiMatchMutation.mutate({
           title: requesttitle,
           category: selectedCategory,
           description: request,
-          proposedPrice,
-          deliveryDays: Number(deliveryDays),
           serviceId: serviceId || undefined,
           vendorId: vendorId || undefined,
         });
-    setMatches(aiMatchMutation.data?.matchedVendors || []);
     toast({
       title: "AI is processing your request",
       description: "We are finding the best vendor matches for you.",
     });
-    onSubmit?.(request);
   };
 
   const handleViewVendor = (vendorId: string) => {
@@ -153,7 +134,7 @@ const parseBudgetToNumber = (budgetRange: string): number => {
     <Card className="p-6">
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="h-5 w-5 text-primary" />
-        <h2 className="text-lg font-semibold">AI Service Request</h2>
+        <h2 className="text-lg font-semibold">Service Request</h2>
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -174,7 +155,7 @@ const parseBudgetToNumber = (budgetRange: string): number => {
         {/* Category Dropdown */}
         <div>
           <label className="text-sm font-medium mb-2 block">Category</label>
-          <Select value={selectedCategory} disabled onValueChange={handleCategoryChange}>
+          <Select value={selectedCategory}  disabled={!!serviceId} onValueChange={handleCategoryChange}>
             <SelectTrigger data-testid="select-category" className="w-full">
               <SelectValue placeholder="Select a category" />
             </SelectTrigger>
@@ -202,44 +183,11 @@ const parseBudgetToNumber = (budgetRange: string): number => {
           />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="text-sm font-medium mb-2 block">Delivery in Days</label>
-            <input
-              type="number"
-              min={1}
-              placeholder="Delivery in days"
-              value={deliveryDays}
-              onChange={(e) => setDeliveryDays(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-              data-testid="input-delivery-days"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium mb-2 block">Budget Range</label>
-            <Select value={budget} onValueChange={setBudget}>
-              <SelectTrigger data-testid="select-budget">
-                <SelectValue placeholder="Select budget" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0-1000">Under $1,000</SelectItem>
-                <SelectItem value="1000-5000">$1,000 - $5,000</SelectItem>
-                <SelectItem value="5000-10000">$5,000 - $10,000</SelectItem>
-                <SelectItem value="10000-25000">$10,000 - $25,000</SelectItem>
-                <SelectItem value="25000-50000">$25,000+</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
         <Button 
           type="submit" 
           disabled={
             !request.trim() ||
             !requesttitle.trim() ||
-            !deliveryDays ||
-            !budget ||
             aiMatchMutation.isPending
           }
           className="w-full"
@@ -264,7 +212,7 @@ const parseBudgetToNumber = (budgetRange: string): number => {
           <h3 className="font-semibold mb-4">AI Matched Vendors</h3>
           <div className="space-y-4">
             {matches.map((vendor, index) => (
-              <div key={vendor.id} className="border rounded-lg p-4 hover-elevate cursor-pointer" onClick={() => handleViewVendor(vendor.id)}>
+              <div key={vendor.id} className="border rounded-lg p-4 hover-elevate cursor-pointer" >
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <h4 className="font-medium">{vendor.title}</h4>
@@ -278,7 +226,6 @@ const parseBudgetToNumber = (budgetRange: string): number => {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
                   {vendor.hourlyRate && (
                     <div className="flex items-center gap-1">
-                      <DollarSign className="h-4 w-4" />
                       <span>${vendor.hourlyRate}/hr</span>
                     </div>
                   )}

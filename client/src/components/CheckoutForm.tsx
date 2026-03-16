@@ -1,15 +1,19 @@
 import { useToast } from "@/hooks/use-toast";
 import { useStripe, useElements, PaymentElement } from "@stripe/react-stripe-js";
+import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 
 type Props = {
   clientSecret: string;
   requestId: string | null;
 };
 
-export default function CheckoutForm({ clientSecret }: Props) {
+export default function CheckoutForm({ requestId, clientSecret }: Props) {
+  const queryClient = useQueryClient();
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
@@ -34,11 +38,21 @@ export default function CheckoutForm({ clientSecret }: Props) {
       });
 
     } else if (result.paymentIntent?.status === "succeeded") {
+      await fetch(`/api/service-requests/${requestId}/pay`, {
+        method: "POST",
+        credentials: "include",
+      });
 
       toast({
         title: "Payment successful 🎉",
         description: "Your escrow has been funded.",
       });
+      // refresh request data
+      queryClient.invalidateQueries({
+        queryKey: ["service-request", requestId],
+      });
+
+      navigate(`/vendor/requests/${requestId}`);
 
     }
   };
@@ -52,7 +66,7 @@ export default function CheckoutForm({ clientSecret }: Props) {
         type="submit"
         className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium"
       >
-        Pay & Fund Escrow
+        Pay
       </button>
 
     </form>

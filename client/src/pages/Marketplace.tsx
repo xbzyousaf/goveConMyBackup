@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Star, TrendingUp, Package, Briefcase, Scale, Zap, Award, Filter, ArrowRight, CheckCircle } from "lucide-react";
 import type { VendorProfile } from "@shared/schema";
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
+import { getFirstLetter } from "@/utility/textUtils";
 const categoryIconMap: Record<string, React.ElementType> = {
   legal: Scale,
   cybersecurity: Zap,
@@ -94,9 +95,11 @@ console.log("Fetched Vendors:", vendors);
   //     features: ["Gap analysis", "CMMC preparation", "NIST 800-171", "Remediation plan"]
   //   }
   // ];
-  const { data: featuredServices = [], isLoading } = useQuery<MarketplaceService[]>({
+  const { data: servicesResponse } = useQuery({
     queryKey: ["/api/marketplace/services"],
   });
+
+const featuredServices = servicesResponse?.data || [];
 const approvedVendors = vendors.filter(v => v.isApproved === true);
 
 const approvedVendorIds = approvedVendors.map(v => v.userId);
@@ -378,9 +381,7 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
                                   className="h-full w-full object-cover"
                                 />
                                 <AvatarFallback className="flex h-full w-full items-center justify-center rounded-full bg-primary text-white text-lg font-semibold">
-                                  {vendor?.companyName
-                                    ? vendor.companyName.trim().charAt(0).toUpperCase()
-                                    : "V"}
+                                  {getFirstLetter(vendor?.companyName)}
                                 </AvatarFallback>
                               </Avatar>
                             <div>

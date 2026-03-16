@@ -17,6 +17,7 @@ import {
   Award,
 } from "lucide-react";
 import { useState } from "react";
+import { getFirstLetter } from "@/utility/textUtils";
 
 interface Milestone {
   id: string;
@@ -679,7 +680,7 @@ export default function ProcessGuidance() {
                   }
 
                 >
-                  Advance to {nextStage.charAt(0).toUpperCase() + nextStage.slice(1)}
+                  Advance to {getFirstLetter(nextStage, "S") + nextStage.slice(1)}
                 </Button>
               )}
 

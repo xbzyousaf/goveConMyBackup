@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,37 +9,15 @@ import { Link, useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
-import {
-  Target,
-  TrendingUp,
-  Briefcase,
-  Lightbulb,
-  Rocket,
-  BookOpen,
-  Users,
-  Award,
-  ArrowRight,
-  CheckCircle2,
-  AlertTriangle,
-  RotateCcw,
-  FileText,
-  User,
-  DollarSign,
-  CalendarDays,
-  Check,
-  X,
-  CheckCircle,
-  MessageSquare,
-  Star,
-  EyeIcon,
-} from "lucide-react";
-import { ServiceRequest } from "@shared/schema";
+import { Target, TrendingUp, Briefcase, Lightbulb, Rocket, BookOpen, Users, Award, ArrowRight, CheckCircle2, AlertTriangle, RotateCcw, Star, ChevronDown} from "lucide-react";
+import { Service, ServiceRequest } from "@shared/schema";
 import { cn } from "@/lib/utils";
-import { useMessages } from "@/components/ui/MessageContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
-import { ServiceRequestList } from "@/components/service-requests/ServiceRequestList";
 import WalletPage from "./vendor/WalletPage";
-
+import { PRIORITY_STATUSES, REQUEST_STATUSES_LABELS, ServiceRequestStatus } from "../../../constants/serviceRequest";
+import { ServiceRequestCardCompact } from "@/components/service-requests/ServiceRequestCardCompact";
+import { ServiceCardCompact } from "@/components/Services/ServiceCardCompact";
+import { getFirstLetter } from "@/utility/textUtils";
 interface UserMaturityProfile {
   id: string;
   userId: string;
@@ -94,6 +72,7 @@ const PROCESS_INFO = {
   },
 };
 
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -102,76 +81,30 @@ export default function Dashboard() {
     id: string;
     status: "in_progress" | "cancelled" | "completed";
   } | null>(null);
-  const updateStatus = useMutation({
-    mutationFn: async ({
-      id,
-      status,
-    }: {
-      id: string;
-      status: string;
-    }) => {
-      const res = await fetch(`/api/service-requests/${id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-
-      if (!res.ok) throw new Error("Failed to update status");
-
-      return res.json();
-    },
-    onSuccess: (updatedRequest, variables) => {
-      setConfirmAction(null);
-      toast({
-        title: "Service Request Update",
-        description: "Service Request Updated Sucessfuly",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
-        if (variables.status === "completed") {
-      setReviewModal({
-        serviceRequestId: updatedRequest.id,
-        revieweeId: updatedRequest.vendorId,
-      });
-    }
-    },
-  });
-  const [reviewModal, setReviewModal] = useState<{
-    serviceRequestId: string;
-    revieweeId: string;
-  } | null>(null);
-  const hasReviewed = (
-    serviceRequestId: string,
-    userId: string
-  ): boolean => {
-    return reviews.some(
-      (review) =>
-        review.serviceRequestId === serviceRequestId &&
-        review.reviewerId === userId
-    );
-  };
+  const [activeDashboardTab, setActiveDashboardTab] = useState<"maturity" | "actions">("actions");
+  const [isMaturityCollapsed, setIsMaturityCollapsed] = useState(false);
+  
 
   
   const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState("");
   const { data: profile, isLoading, isError, error } = useQuery<UserMaturityProfile>({
     queryKey: ['/api/maturity-profile'],
     retry: false,
   });
-  const { openConversation } = useMessages();
-  
-  const { data: serviceRequests = [] } = useQuery<ServiceRequest[]>({
-    queryKey: ["/api/service-requests"],
-  });
-    const [statusFilter, setStatusFilter] = useState("all");
+ 
+    type StatusFilter = "priority" | "all" | ServiceRequestStatus;
+  const [statusFilter, setStatusFilter] =
+  useState<StatusFilter>("priority");
     const [search, setSearch] = useState("");
+useEffect(() => {
+  setPage(1);
+}, [statusFilter, search]);
     const applyFilter = (requests: ServiceRequest[]) => {
-
       return requests.filter((request) => {
-
         const statusMatch =
           statusFilter === "all" ||
+          (statusFilter === "priority" && PRIORITY_STATUSES.includes(request.status)) ||
           request.status === statusFilter;
-
         const searchMatch =
           search === "" ||
           request.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -180,45 +113,34 @@ export default function Dashboard() {
           request.service?.category?.toLowerCase().includes(search.toLowerCase());
 
         return statusMatch && searchMatch;
-
       });
-
     };
-   const overviewRequests = applyFilter(
-  serviceRequests.filter(
-    (request) =>
-      ["pending", "in_progress", "accepted", 'disputed',"delivered"].includes(request.status)
-  )
-);
-
-const allRequests = applyFilter(serviceRequests);
-  const submitReview = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/reviews", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceRequestId: reviewModal?.serviceRequestId,
-          rating,
-          comment,
-        }),
-      });
+     const [page, setPage] = useState(1);
+    const PAGE_SIZE = 5;
+    
+     const { data } = useQuery<{
+      page: number;
+      limit: number;
+      data: ServiceRequest[];
+    }>({
+      queryKey: [`/api/service-requests?page=${page}&limit=${PAGE_SIZE}&status=${statusFilter}`],
+    });
+    const { data: services } = useQuery<{
+      page: number;
+      limit: number;
+      total: number;
+      data: Service[];
+    }>({
+      queryKey: [`/api/marketplace/services?page=${page}&limit=${PAGE_SIZE}`],
+    });
+    const serviceRequests = data?.data ?? [];
+    const servicesData = Array.isArray(services?.data) ? services.data : [];
+    const filteredRequests = applyFilter(serviceRequests);
+    const paginatedRequests = filteredRequests;
+    const [activeTab, setActiveTab] = useState("recent");
+    const totalPages = Math.ceil(data?.total / PAGE_SIZE);
+    const servicesTotalPages = Math.ceil((services?.total ?? 0) / PAGE_SIZE);
   
-      if (!res.ok) throw new Error("Failed to submit review");
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Review Submitted",
-        description: "Thank you for your feedback.",
-      });
-  
-      setReviewModal(null);
-      setRating(0);
-      setComment("");
-      queryClient.invalidateQueries();
-    },
-  });
   const {
   data: user,
   isLoading: isUserLoading,
@@ -366,77 +288,6 @@ const allRequests = applyFilter(serviceRequests);
             </p>
           </div>
 
-        {/* Maturity Stage Card */}
-        <Card className="border-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <CardTitle className="text-2xl flex items-center gap-2">
-                  <StageIcon className="h-6 w-6" />
-                  Your Maturity Stage
-                </CardTitle>
-                <CardDescription>
-                  Based on your AI assessment
-                </CardDescription>
-              </div>
-              <div className="text-right">
-                <div className="flex items-center gap-2">
-                  <Badge className={`${stageInfo.color} text-white`} data-testid="badge-maturity-stage">
-                    {stageInfo.label}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground">{stageInfo.description}</p>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="font-medium">Readiness Score</span>
-                <span data-testid="text-readiness-score">{profile.readinessScore}/100</span>
-              </div>
-              <Progress value={profile.readinessScore} className="h-3" data-testid="progress-readiness" />
-            </div>
-            
-            {/* Retake Assessment Button */}
-            <div className="pt-2 border-t flex items-center justify-between">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={isResetting} data-testid="button-retake-assessment">
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    {isResetting ? "Resetting..." : "Retake Assessment"}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Reset Your Assessment?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will clear your current maturity profile, assessment history, and all journey progress. 
-                      You'll be able to take the assessment again with different answers to see how your maturity stage changes.
-                      This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel data-testid="button-cancel-reset">Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={handleResetAssessment}
-                      data-testid="button-confirm-reset"
-                    >
-                      Reset Assessment
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-              {profile.assessmentData?.status !== "completed" && (
-                <Button size="sm" onClick={() => setLocation("/assessment")}>
-                  Resume Assessment
-                </Button>
-              )}
-
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Three Core Processes */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Your Growth Framework</h2>
@@ -450,12 +301,34 @@ const allRequests = applyFilter(serviceRequests);
                 : profile.executionProgress;
               
               const isCurrent = profile.currentFocus === key;
-
+              const colorStyles =
+                key === "business_strategy"
+                  ? {
+                      border: "border-orange-500",
+                      iconBg: "bg-orange-500 text-white",
+                      button: "bg-orange-500 hover:bg-orange-600 text-white",
+                      progress: "[&>div]:bg-orange-500"
+                    }
+                  : key === "business_structure"
+                  ? {
+                      border: "border-blue-500",
+                      iconBg: "bg-blue-500 text-white",
+                      button: "bg-blue-600 hover:bg-blue-700 text-white outline",
+                      progress: "[&>div]:bg-blue-500"
+                    }
+                  : {
+                      border: "border-green-500",
+                      iconBg: "bg-green-500 text-white",
+                      button: "bg-green-600 hover:bg-green-700 text-white",
+                      progress: "[&>div]:bg-green-500"
+                    };
               return (
-                <Card key={key} className={isCurrent ? "border-2 border-primary" : ""}>
+                 <Card key={key} className={`border-2 ${colorStyles.border}`}>
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <Icon className="h-5 w-5" />
+                      <div className={`p-2 rounded-lg ${colorStyles.iconBg}`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
                       {info.label}
                       {isCurrent && (
                         <Badge variant="default" className="ml-auto" data-testid={`badge-current-${key}`}>
@@ -473,10 +346,14 @@ const allRequests = applyFilter(serviceRequests);
                         <span>Progress</span>
                         <span data-testid={`text-progress-${key}`}>{progress || 0}%</span>
                       </div>
-                      <Progress value={progress || 0} data-testid={`progress-${key}`} />
+                      <Progress
+                        value={progress || 0}
+                        className={`h-3 ${colorStyles.progress}`}
+                        data-testid={`progress-${key}`}
+                      />
                     </div>
                     <Link href={`/process/${key}`} data-testid={`link-view-${key}`}>
-                      <Button variant="outline" className="w-full" data-testid={`button-view-${key}`}>
+                      <Button className={`w-full ${colorStyles.button}`} data-testid={`button-view-${key}`}>
                         View Guidance <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     </Link>
@@ -487,79 +364,296 @@ const allRequests = applyFilter(serviceRequests);
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Maturity Stage Card */}
+          <Card className="border-2 border-primary rounded-xl">
+
+            {/* TAB BUTTONS */}
+            <CardHeader className="pb-4">
+
+              <div className="flex gap-4">
+                <Button
+                  variant={activeDashboardTab === "actions" ? "default" : "outline"}
+                  className="flex-1 text-base"
+                  onClick={() => {
+                    setActiveDashboardTab("actions");
+                    setIsMaturityCollapsed(false);
+                  }}
+                >
+                  Quick Actions
+                </Button>
+                <Button
+                  variant={activeDashboardTab === "maturity" ? "default" : "outline"}
+                  className="flex-1 text-base"
+                  onClick={() => {
+                    setActiveDashboardTab("maturity");
+                    setIsMaturityCollapsed(false);
+                  }}
+                >
+                  Your Maturity Stage
+                </Button>
+              </div>
+
+            </CardHeader>
+
+            <div className="border-t border-primary/40 relative">
+              {/* Collapse Arrow */}
+              <button
+                className="absolute right-4 -top-3 bg-white px-1"
+                onClick={() => setIsMaturityCollapsed(!isMaturityCollapsed)}
+              >
+                <ChevronDown
+                  className={cn(
+                    "h-6 w-6 text-primary transition-transform",
+                    isMaturityCollapsed && "rotate-180"
+                  )}
+                />
+              </button>
+
+            </div>
+
+            {!isMaturityCollapsed && (
+              <CardContent className="pt-6">
+
+                {/* MATURITY TAB */}
+                {activeDashboardTab === "maturity" && (
+                  <div className="space-y-4">
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <h2 className="text-xl font-semibold flex items-center gap-2">
+                          <div className="p-2 rounded-lg bg-blue-500 text-white outline">
+                          <StageIcon className="h-5 w-5" />
+                        </div>
+                          <span className="text-blue-500">Your Maturity Stage</span>
+                        </h2>
+                        <p className="text-sm text-blue-500 font-semibold">
+                          Based on your AI assessment
+                        </p>
+                      </div>
+
+                      <Badge className={`${stageInfo.color} text-white`}>
+                        {stageInfo.label}
+                      </Badge>
+                    </div>
+
+                    <p className="text-muted-foreground">
+                      {stageInfo.description}
+                    </p>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="font-medium">Readiness Score</span>
+                        <span>{profile.readinessScore}/100</span>
+                      </div>
+
+                      <Progress
+                        value={profile.readinessScore}
+                        className="h-3"
+                      />
+                    </div>
+
+                    <div className="pt-3 border-t flex items-center justify-between">
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isResetting}
+                          >
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            Retake Assessment
+                          </Button>
+                        </AlertDialogTrigger>
+
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              Reset Your Assessment?
+                            </AlertDialogTitle>
+
+                            <AlertDialogDescription>
+                              This will clear your current maturity profile.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>
+                              Cancel
+                            </AlertDialogCancel>
+
+                            <AlertDialogAction
+                              onClick={handleResetAssessment}
+                            >
+                              Reset Assessment
+                            </AlertDialogAction>
+
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      {profile.assessmentData?.status !== "completed" && (
+                        <Button
+                          size="sm"
+                          onClick={() => setLocation("/assessment")}
+                        >
+                          Resume Assessment
+                        </Button>
+                      )}
+
+                    </div>
+
+                  </div>
+                )}
+
+                {/* QUICK ACTIONS TAB */}
+                {activeDashboardTab === "actions" && (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+
+                    <Card className="opacity-50 border-2 border-blue-500 hover:bg-blue-500 hover:text-white">
+                      <CardHeader>
+                        <CardTitle className="text-base flex gap-2">
+                           <div className="p-2 rounded-lg bg-blue-500 text-white outline">
+                            <BookOpen className="h-4 w-4" />
+                           </div>
+                          <div className="mt-1">Knowledge Base</div>
+                        </CardTitle>
+                      </CardHeader>
+
+                      <CardContent>
+                        <p className="text-sm">
+                          Coming soon
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Link href="/vendors">
+                      <Card className="cursor-pointer border-2 hover-elevate border-orange-500 hover:bg-orange-500 hover:text-white">
+                        <CardHeader>
+                          <CardTitle className="text-base color-orange flex gap-2">
+                            <div className="p-2 rounded-lg bg-orange-500 text-white outline">
+                                  <Users className="h-4 w-4" />
+                            </div>
+                            <div className="mt-1">Find Vendors</div>
+                          </CardTitle>
+                        </CardHeader>
+
+                        <CardContent>
+                          <p className="text-sm">
+                            Connect with vetted providers
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+
+                    <Link href="/assessment">
+                      <Card className="cursor-pointer border-2 hover-elevate border-green-500 hover:bg-green-500 hover:text-white">
+                        <CardHeader>
+                          <CardTitle className="text-base flex gap-2">
+                             <div className="p-2 rounded-lg bg-green-500 text-white outline">
+                              <Award className="h-4 w-4" />
+                            </div>
+                            <div className="mt-1">Retake Assessment</div>
+                          </CardTitle>
+                        </CardHeader>
+
+                        <CardContent>
+                          <p className="text-sm">
+                            Update your maturity profile by re-taking assessment
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+
+                    <Card className="opacity-50 border-2 border-gray-500 hover:bg-gray-500 hover:text-white">
+                      <CardHeader>
+                        <CardTitle className="text-base flex gap-2">
+                           <div className="p-2 rounded-lg bg-gray-500 text-white outline">
+                            <Rocket className="h-4 w-4" />
+                           </div>
+                          <div className="mt-1">Upgrade Plan</div>
+                        </CardTitle>
+                      </CardHeader>
+
+                      <CardContent>
+                        <p className="text-sm">
+                          Coming soon
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                  </div>
+                )}
+
+              </CardContent>
+            )}
+          </Card>
         <div>
-          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+        {/* // Recmonded Services card */}
+          <Card data-testid="card-recent-requests"
+            className="col-span-full border-2 border-orange-500">
+            <CardHeader >
+                <CardTitle className="text-base color-orange flex gap-2">
+                  <div className="p-2 rounded-lg bg-orange-500 text-white outline">
+                        <Briefcase className="h-6 w-6" />
+                  </div>
+                  <CardTitle className="text-orange-600 mt-1">Recmonded Services</CardTitle>
+                </CardTitle>
+              <CardDescription className="font-semibold text-orange-600">Explore below these services are matched with your profile and interests</CardDescription>
+            </CardHeader>
+            <CardContent className="w-full">
+
+
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
+                <div className="grid grid-cols-1 gap-6 w-full">
+                  {servicesData.map((service, index) => (
+                    <ServiceCardCompact
+                      key={index}
+                      service={service}
+                      detailsUrl={`/services/${service.serviceId}`}
+                    />
+                  ))}
+                </div>
+
+              </div>
+            {servicesTotalPages > 1 && (
+              <div className="flex justify-center gap-4 mt-4">
+
+                <Button className="bg-orange-500"
+                  disabled={page === 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  Previous
+                </Button>
+
+                <span className="text-sm mt-2">
+                  Page {page} of {servicesTotalPages}
+                </span>
+
+                <Button className="bg-orange-500"
+                  disabled={page === servicesTotalPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  Next
+                </Button>
+
+              </div>
+            )}
+            </CardContent>
+          </Card>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="hover-elevate cursor-pointer opacity-50" data-testid="card-knowledge-base">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BookOpen className="h-4 w-4" />
-                  Knowledge Base
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Coming soon
-                </p>
-              </CardContent>
-            </Card>
 
-            <Link href="/vendors" data-testid="link-find-vendors">
-              <Card className="hover-elevate cursor-pointer" data-testid="card-find-vendors">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Find Vendors
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Connect with vetted service providers
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Link href="/assessment" data-testid="link-retake-assessment">
-              <Card className="hover-elevate cursor-pointer" data-testid="card-retake-assessment">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Award className="h-4 w-4" />
-                    Retake Assessment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">
-                    Update your maturity profile
-                  </p><br />
-                </CardContent>
-              </Card>
-            </Link>
-
-            <Card className="hover-elevate cursor-pointer opacity-50" data-testid="card-upgrade-plan">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Rocket className="h-4 w-4" />
-                  Upgrade Plan
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Coming soon
-                </p>
-              </CardContent>
-            </Card>
-            <Tabs defaultValue="overview" className="space-y-6 col-span-full mt-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 col-span-full mt-4">
               <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
 
               {/* LEFT SIDE → Search + Status */}
-              <div className="flex items-center gap-4">
-
+              <div className="flex items-center gap-4 min-h-[40px]">
+            {activeTab === "recent" && (
+              <>
                 <input
                   placeholder="Search requests..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {setSearch(e.target.value)}}
                   className="border rounded-md px-3 py-2 text-sm"
                 />
 
@@ -568,31 +662,25 @@ const allRequests = applyFilter(serviceRequests);
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="border rounded-md px-3 py-2 text-sm"
                 >
-                  <option value="all">All</option>
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="completed">Completed</option>
+                  {REQUEST_STATUSES_LABELS.map((status) => (
+                    <option key={status.value} value={status.value}>
+                      {status.label}
+                    </option>
+                  ))}
                 </select>
-
-              </div>
+              </>
+            )}
+          </div>
 
 
               {/* RIGHT SIDE → Tabs */}
-              <TabsList className="bg-muted py-1 px-1 rounded-sm inline-flex gap-4">
-
-                <TabsTrigger
-                  value="overview"
-                  className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black"
-                >
-                  Overview
-                </TabsTrigger>
+              <TabsList className="bg-muted py-1 px-1 rounded-sm inline-flex gap-4 justify-end">
 
                 <TabsTrigger
                   value="recent"
                   className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black"
                 >
-                  Recent Services
+                  Services Requests
                 </TabsTrigger>
 
                 <TabsTrigger
@@ -610,53 +698,61 @@ const allRequests = applyFilter(serviceRequests);
                 </TabsTrigger>
 
               </TabsList>
-
             </div>
-              {/* ✅ Recent Services FULL ROW */}
-              <TabsContent value="overview" className="col-span-12 space-y-6">
-
-                <Card data-testid="card-recent-requests"
-                  className="col-span-full">
-                  <CardHeader>
-                    <CardTitle>Recent Service Requests</CardTitle>
-                    <CardDescription>Latest requests to vendors</CardDescription>
-                  </CardHeader>
-                  <CardContent className="w-full">
-
-                      <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
-                        <ServiceRequestList
-                          requests={overviewRequests}
-                          userType="contractor"
-                          baseUrl="/vendor/requests"
-                        />
-                    </div>
-                  </CardContent>
-                </Card>
-
-              </TabsContent>
+            
               {/* ✅ Recent all Services FULL ROW */}
-              <TabsContent value="recent" className="col-span-12 space-y-6">
+              <TabsContent value="recent" className="">
 
                 <Card data-testid="card-recent-requests"
-                  className="col-span-full">
-                  <CardHeader>
-                    <CardTitle>Recent Service Requests</CardTitle>
-                    <CardDescription>All requests to vendors</CardDescription>
+                  className="col-span-full border-2 border-green-500">
+                  <CardHeader >
+                     <CardTitle className="text-base color-orange flex gap-2">
+                        <div className="p-2 rounded-lg bg-green-500 text-white outline">
+                              <Briefcase className="h-6 w-6" />
+                        </div>
+                        <CardTitle className="text-green-600 mt-1">Service Requests</CardTitle>
+                      </CardTitle>
+                    <CardDescription className="font-semibold text-green-600">All service requests to vendors</CardDescription>
                   </CardHeader>
                   <CardContent className="w-full">
 
 
                     <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
-
-                      {/* ✅ USE FILTERED REQUESTS */}
-                      <ServiceRequestList
-                        requests={allRequests}
-                        userType="contractor"
-                        baseUrl="/vendor/requests"
-                      />
+                      <div className="grid grid-cols-1 gap-6 w-full">
+                        {paginatedRequests.map((request, index) => (
+                          <ServiceRequestCardCompact
+                            key={index}
+                            request={request}
+                            userType="contractor"
+                            detailsUrl={`/vendor/requests`}
+                          />
+                        ))}
+                      </div>
 
                     </div>
+                  {totalPages> 1 && 
+                    <div className="flex justify-center gap-4 mt-4">
 
+                      <Button className="bg-green-500"
+                        disabled={page === 1}
+                        onClick={() => setPage(page - 1)}
+                      >
+                        Previous
+                      </Button>
+
+                      <span className="text-sm mt-2">
+                        Page {page} of {totalPages}
+                      </span>
+
+                      <Button className="bg-green-500"
+                        disabled={page === totalPages}
+                        onClick={() => setPage(page + 1)}
+                      >
+                        Next
+                      </Button>
+
+                    </div>
+                  }
                   </CardContent>
                 </Card>
 
@@ -681,9 +777,7 @@ const allRequests = applyFilter(serviceRequests);
                     )}
 
                     {reviews.map((review, index) => {
-                      const firstLetter = review.vendorName
-                        ? review.vendorName.charAt(0).toUpperCase()
-                        : "C";
+                      const firstLetter = getFirstLetter(review?.vendorName , "V");
 
                       return (
                         <div
@@ -727,13 +821,6 @@ const allRequests = applyFilter(serviceRequests);
                                 ))}
                               </div>
                             </div>
-
-                            {/* Comment */}
-                            {review.comment && (
-                              <p className="text-sm text-muted-foreground">
-                                {review.comment}
-                              </p>
-                            )}
                           </div>
                         </div>
                       );
@@ -757,13 +844,17 @@ const allRequests = applyFilter(serviceRequests);
 
           {/* Recommended Next Steps (from AI assessment) */}
           {profile.assessmentData?.recommendations && (
-            <Card>
+            <Card className="border-2 border-orange-500">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="h-5 w-5" />
-                  Your Personalized Recommendations
+                  <div className="p-2 rounded-lg bg-orange-500 text-white outline">
+                    <Lightbulb className="h-5 w-5" />
+                  </div>
+                  <div className="text-orange-500">
+                    Your Personalized Recommendations
+                  </div>
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-sm text-orange-500 font-semibold">
                   Based on your assessment results
                 </CardDescription>
               </CardHeader>
@@ -772,7 +863,7 @@ const allRequests = applyFilter(serviceRequests);
                   {Array.isArray(profile.assessmentData.recommendations) 
                     ? profile.assessmentData.recommendations.map((rec: string, i: number) => (
                         <li key={i} className="flex gap-3">
-                          <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                          <CheckCircle2 className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
                           <span className="text-sm">{rec}</span>
                         </li>
                       ))
@@ -785,109 +876,6 @@ const allRequests = applyFilter(serviceRequests);
         </div>
       </div>
       
-      {confirmAction && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          
-          {/* backdrop */}
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setConfirmAction(null)}
-          />
-
-          {/* dialog */}
-          <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
-            
-            <h3 className="text-lg font-semibold mb-2">
-              Confirm Action
-            </h3>
-
-            <p className="text-sm text-muted-foreground mb-6">
-              Are you sure you want to mark this request as{" "}
-              <span className="font-medium capitalize">
-                {confirmAction.status.replace("_", " ")}
-              </span>
-              ?
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setConfirmAction(null)}
-              >
-                Cancel
-              </Button>
-
-              <Button
-                disabled={updateStatus.isPending}
-                onClick={async () => {
-                  updateStatus.mutate(
-                    {
-                      id: confirmAction.id,
-                      status: confirmAction.status,
-                    }
-                  );
-                }}
-              >
-                Confirm
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-      {reviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setReviewModal(null)}
-          />
-
-          <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">
-              Leave Feedback
-            </h3>
-
-            {/* Star Rating */}
-            <div className="flex items-center gap-2 mb-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  onClick={() => setRating(i + 1)}
-                  className={`w-6 h-6 cursor-pointer ${
-                    i < rating
-                      ? "text-yellow-400 fill-current"
-                      : "text-muted-foreground"
-                  }`}
-                />
-              ))}
-            </div>
-
-            {/* Comment */}
-            <textarea
-              className="w-full border rounded-lg p-2 text-sm mb-4"
-              rows={4}
-              placeholder="Write your feedback..."
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-            />
-
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setReviewModal(null)}
-              >
-                Cancel
-              </Button>
-
-              <Button
-                disabled={rating === 0 || submitReview.isPending}
-                onClick={() => submitReview.mutate()}
-              >
-                Submit Review
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

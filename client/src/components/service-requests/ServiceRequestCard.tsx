@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, User, DollarSign, CalendarDays, EyeIcon, Truck } from "lucide-react";
+import { FileText, User, DollarSign, CalendarDays, EyeIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
 
@@ -12,7 +12,7 @@ type ServiceRequest = {
   budget?: number;
   description?: string;
   title?: string;
-  deliveryDays?: number;
+  proposedPrice?: number;
 
   contractor?: {
     firstName?: string | null;
@@ -28,7 +28,12 @@ type ServiceRequest = {
     name?: string | null;
   };
 };
-
+const STATUS_COLORS = {
+  accepted: "bg-green-500 text-white",
+  in_progress: "bg-blue-500 text-white",
+  pending: "bg-yellow-500 text-white",
+  disputed: "bg-red-500 text-white",
+};
 interface Props {
   request: ServiceRequest;
   userType?: "vendor" | "contractor";
@@ -44,9 +49,6 @@ export function ServiceRequestCard({ request, userType, detailsUrl }: Props) {
     : userType === "contractor"
     ? request.vendor
     : undefined;
-  const deliveryDate = request.deliveryDeadline
-    ? new Date(request.deliveryDeadline)
-    : null;
 
 
 
@@ -58,19 +60,7 @@ export function ServiceRequestCard({ request, userType, detailsUrl }: Props) {
             {request.service?.name ?? "Service"}
           </CardTitle>
 
-          <Badge
-            className={cn(
-              "capitalize text-xs font-medium",
-              request.status === "completed" &&
-                "bg-green-100 text-green-700 border-green-200",
-              request.status === "in_progress" &&
-                "bg-blue-100 text-blue-700 border-blue-200",
-              request.status === "pending" &&
-                "bg-amber-100 text-amber-700 border-amber-200",
-              request.status === "disputed" &&
-                "bg-red-100 text-red-700 border-red-200"
-            )}
-          >
+          <Badge className={cn("capitalize px-3 py-1 text-xs", STATUS_COLORS[request?.status??'pending'])}>
             {request.status?.replace("_", " ") ?? "Unknown"}
           </Badge>
         </div>
@@ -118,22 +108,11 @@ export function ServiceRequestCard({ request, userType, detailsUrl }: Props) {
 
             <span className="font-medium">
                 {request?.proposedPrice
-                ? `${(request.proposedPrice ?? 0).toLocaleString()}`
+                ? `$${(request.proposedPrice ?? 0).toLocaleString()}`
                 : "Not specified"}
             </span>
           </div>
 
-          {/* Delivery */}
-        <div className="flex justify-between text-sm">
-        <div className="flex gap-2">
-            <Truck  className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Delivery Date:</span>
-        </div>
-
-        <span className="font-medium">
-             {deliveryDate ? deliveryDate.toLocaleDateString() : "N/A"}
-        </span>
-        </div>
 
           {/* Created */}
           <div className="flex justify-between text-sm">

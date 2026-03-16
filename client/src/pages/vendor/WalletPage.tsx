@@ -1,3 +1,4 @@
+import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 
 export default function WalletPage() {
@@ -15,8 +16,10 @@ export default function WalletPage() {
   }, []);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Wallet</h1>
+    <Card data-testid="card-no-profile">
+    <CardContent className="">
+    <div className="pt-6 pl-2">
+      <h1 className="text-2xl font-bold ">Wallet</h1>
 
       <div className="mb-6 text-lg">
         Balance: ${balance}
@@ -49,5 +52,7 @@ export default function WalletPage() {
         ))}
       </div>
     </div>
+    </CardContent>
+    </Card>
   );
 }
