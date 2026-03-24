@@ -1660,44 +1660,6 @@ Respond in JSON format:
       if (!isVendor && !isContractor && !isAdmin) {
         return res.status(403).json({ message: "Not authorized" });
       }
-      const previousStatus = serviceRequest.status ?? 'pending';
-      const updated = await storage.updateServiceRequestStatus(id, status);
-      if (status === "completed" || status === 'cancelled') {
-        if (previousStatus !== "completed") {
-           const escrow = await storage.getEscrowByRequestId(id);
-          if (!escrow || (escrow.status !== "held" && escrow.status !== "disputed")) {
-            return res.status(400).json({
-              message: "Escrow not available for release "  + id
-            });
-          }
-           const vendorWallet = await walletStorage.getWalletByUserId(serviceRequest.vendorId);
-          if (!vendorWallet) {
-            return res.status(400).json({
-              message: "Vendor wallet not found"
-            });
-          }
-          const vendorPercent = req.body.vendorPercent;
-          if (disputeStatus === "vendor") {
-            // Full vendor win
-            await walletStorage.creditWallet(
-              serviceRequest.vendorId,
-              Number(escrow.vendorEarning),
-              "escrow_release",
-              serviceRequest.id
-            );
-          } else if (disputeStatus === "contractor") {
-            // Full contractor win
-            await walletStorage.creditWallet(
-              serviceRequest.contractorId,
-              Number(escrow.vendorEarning) + Number(escrow.platformFee),
-              "escrow_refund",
-              serviceRequest.id
-            );
-          } else if (disputeStatus === "partial") {
-            // Partial win: split according to percentages
-            const contractorPercent = req.body.contractorPercent;
-            const contractorAmount = (Number(escrow.vendorEarning) * contractorPercent) / 100;
-            const vendorAmount = (Number(escrow.vendorEarning) * vendorPercent) / 100;
 
       // Accept request
       if (status === "accepted") {
@@ -1711,70 +1673,6 @@ Respond in JSON format:
           return res.status(400).json({
             message: "Final price required"
           });
-            if (vendorAmount > 0) {
-              await walletStorage.creditWallet(
-                serviceRequest.vendorId,
-                vendorAmount,
-                "escrow_release",
-                serviceRequest.id
-              );
-            }
-          }
-          if (disputeStatus === "contractor") {
-            await storage.createRequestLog({
-              serviceRequestId: id,
-              action: "ESCROW_REFUNDED",
-              performedBy: userId,
-              previousStatus,
-            });
-          }else{
-            await storage.createRequestLog({
-              serviceRequestId: id,
-              action: "ESCROW_RELEASED",
-              performedBy: userId,
-              previousStatus,
-            });
-          }
-          await storage.releaseEscrowByRequestId(id,disputeStatus,vendorPercent);
-          await storage.createNotification({
-            userId: serviceRequest.vendorId,
-            triggeredBy: serviceRequest.contractorId,
-            type: "escrow_released",
-            title: "Payment Released",
-            message: "Escrow payment has been released to your wallet.",
-            relatedRequestId: id,
-          });
-
-           await storage.updateServiceRequest(id, {
-            paymentStatus: "released",
-            actualCost: serviceRequest.finalPrice || serviceRequest.proposedPrice,
-            completedAt: new Date(),
-          });
-          let updatedServiceRequest: ServiceRequest | null = null;
-
-          if (
-            user?.userType === "admin" &&
-            disputeStatus === "contractor"
-          ) {
-            updatedServiceRequest = await storage.updateServiceRequest(id, {
-              paymentStatus: "refunded",
-              status: "cancelled",
-              actualCost:
-                serviceRequest.finalPrice ||
-                serviceRequest.proposedPrice,
-              completedAt: new Date(),
-            });
-          } else {
-            updatedServiceRequest = await storage.updateServiceRequest(id, {
-              paymentStatus: "released",
-              actualCost:
-                serviceRequest.finalPrice ||
-                serviceRequest.proposedPrice,
-              completedAt: new Date(),
-            });
-          }
-
-          await scoringService.handleRequestCompletion(serviceRequest);
         }
 
         await storage.updateServiceRequest(id, {
@@ -1793,13 +1691,11 @@ Respond in JSON format:
 
       // Escrow release on completion
       if (status === "completed") {
-
         await releaseEscrow(
           serviceRequest,
           winner ?? "vendor",
           vendorPercent
         );
-
         await storage.updateServiceRequest(id, {
           paymentStatus: winner === "contractor" ? "refunded" : "released",
           actualCost: serviceRequest.finalPrice ?? serviceRequest.proposedPrice,

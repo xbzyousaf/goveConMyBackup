@@ -31,7 +31,11 @@ export default function AdminDisputes() {
     queryFn: async () => {
       const res = await fetch("/api/service-requests");
       if (!res.ok) throw new Error("Failed to fetch disputes");
-      return res.json();
+
+      const data = await res.json();
+
+      // adjust this depending on your API
+      return Array.isArray(data) ? data : data.data || [];
     },
   });
 

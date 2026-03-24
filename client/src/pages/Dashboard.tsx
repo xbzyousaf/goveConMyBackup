@@ -690,12 +690,12 @@ useEffect(() => {
                   Reviews
                 </TabsTrigger>
 
-                <TabsTrigger
+                {/* <TabsTrigger
                   value="wallet"
                   className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black"
                 >
                   Wallet
-                </TabsTrigger>
+                </TabsTrigger> */}
 
               </TabsList>
             </div>
