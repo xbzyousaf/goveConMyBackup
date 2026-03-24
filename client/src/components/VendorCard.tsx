@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Star, MapPin, Clock, CheckCircle, Award, TrendingUp, Shield } from "lucide-react";
-import { name } from "node_modules/postcss/lib/document";
+import { getFirstLetter } from "@/utility/textUtils";
 
 interface VendorCardProps {
   name: string;
@@ -62,7 +62,7 @@ export function VendorCard({
               <AvatarImage src={avatar} alt={name} />
             ) : (
               <AvatarFallback>
-                {name?.charAt(0).toUpperCase() || "V"}
+                {getFirstLetter(name, "V")}
               </AvatarFallback>
             )}
           </Avatar>

@@ -38,7 +38,6 @@ import {
   serviceTiers,
   InsertNotification,
   requestLogs,
-  deliveryExtensions,
   portfolios,
   Portfolio,
   certificates,
@@ -54,6 +53,7 @@ import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
 import { notifications } from "@shared/schema"; // adjust path correctly
 import { deliveries, deliveryAttachments } from "@shared/schema";
 import { Avatar } from "@radix-ui/react-avatar";
+import { PRIORITY_STATUSES } from "constants/serviceRequest";
 // Enhanced IStorage interface with marketplace functionality
 export interface IStorage {
   // User management
@@ -75,8 +75,8 @@ export interface IStorage {
   getServiceRequest(id: string): Promise<ServiceRequest | undefined>;
   createServiceRequest(request: InsertServiceRequest): Promise<ServiceRequest>;
   updateServiceRequest(id: string, updates: Partial<ServiceRequest>): Promise<ServiceRequest>;
-  getServiceRequestsByContractor(contractorId: string): Promise<ServiceRequest[]>;
-  getServiceRequestsByVendor(vendorId: string): Promise<ServiceRequest[]>;
+  getServiceRequestsByContractor(contractorId: string, limit: number, offset: number): Promise<ServiceRequest[]>;
+  getServiceRequestsByVendor(vendorId: string, limit: number, offset: number): Promise<ServiceRequest[]>;
   getPendingServiceRequests(): Promise<ServiceRequest[]>;
 
   // Messaging
@@ -521,9 +521,33 @@ return vendorProfile;
   return request;
 }
 
-  async getServiceRequestsByContractor(contractorId: string) {
+  async getServiceRequestsByContractor(
+  contractorId: string,
+  limit: number,
+  offset: number,
+  status?: string
+) {
+
+  let whereCondition = eq(serviceRequests.contractorId, contractorId);
+
+  if (status && status !== "all") {
+
+    if (status === "priority") {
+      whereCondition = and(
+        eq(serviceRequests.contractorId, contractorId),
+        inArray(serviceRequests.status, PRIORITY_STATUSES)
+      );
+    } else {
+      whereCondition = and(
+        eq(serviceRequests.contractorId, contractorId),
+        eq(serviceRequests.status, status)
+      );
+    }
+
+  }
+
   return await db.query.serviceRequests.findMany({
-    where: eq(serviceRequests.contractorId, contractorId),
+    where: whereCondition,
 
     with: {
       service: {
@@ -538,6 +562,7 @@ return vendorProfile;
           id: true,
           firstName: true,
           lastName: true,
+          username:true
         },
       },
 
@@ -547,63 +572,147 @@ return vendorProfile;
     orderBy: (serviceRequests, { desc }) => [
       desc(serviceRequests.createdAt),
     ],
+
+    limit,
+    offset,
   });
 }
 
+async countServiceRequestsByContractor(
+  contractorId: string,
+  status?: string
+) {
 
+  let whereCondition = eq(serviceRequests.contractorId, contractorId);
 
-  async getServiceRequestsByVendor(vendorId: string) {
-    return await db.query.serviceRequests.findMany({
-      where: eq(serviceRequests.vendorId, vendorId),
-      with: {
-        contractor: {
-          columns: {
-            firstName: true,
-            lastName: true,
-          },
-        },
-        service: {
-          columns: {
-            name: true,
-          },
-        },
-        reviews: true,
-      },
-      orderBy: (serviceRequests, { desc }) => [
-        desc(serviceRequests.createdAt),
-      ],
-    });
+  if (status && status !== "all") {
+
+    if (status === "priority") {
+      whereCondition = and(
+        eq(serviceRequests.contractorId, contractorId),
+        inArray(serviceRequests.status, PRIORITY_STATUSES)
+      );
+    } else {
+      whereCondition = and(
+        eq(serviceRequests.contractorId, contractorId),
+        eq(serviceRequests.status, status)
+      );
+    }
+
   }
-  async getAllServiceRequestsWithDisputes() {
-    return await db.query.serviceRequests.findMany({
-      where: eq(serviceRequests.status, "disputed"), 
-      with: {
-        vendor: {
-          columns: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
+
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(serviceRequests)
+    .where(whereCondition);
+
+  return result[0]?.count ?? 0;
+}
+  async getServiceRequestsByVendor(
+  vendorId: string,
+  limit: number,
+  offset: number
+) {
+  return await db.query.serviceRequests.findMany({
+    where: eq(serviceRequests.vendorId, vendorId),
+
+    with: {
+      contractor: {
+        columns: {
+          firstName: true,
+          lastName: true,
+          username:true
         },
-        contractor: {
-          columns: {
-            firstName: true,
-            lastName: true,
-          },
-        },
-        service: {
-          columns: {
-            name: true,
-          },
-        },
-        disputes:true,
-        reviews: true,
       },
-      orderBy: (serviceRequests, { desc }) => [
-        desc(serviceRequests.createdAt),
-      ],
-    });
+      service: {
+        columns: {
+          name: true,
+        },
+      },
+      reviews: true,
+    },
+
+    orderBy: (serviceRequests, { desc }) => [
+      desc(serviceRequests.createdAt),
+    ],
+
+    limit,
+    offset,
+  });
+}
+async countServiceRequestsByVendor(vendorId: string, status?: string) {
+ let whereCondition = eq(serviceRequests.vendorId, vendorId);
+
+  if (status && status !== "all") {
+
+    if (status === "priority") {
+      whereCondition = and(
+        eq(serviceRequests.vendorId, vendorId),
+        inArray(serviceRequests.status, PRIORITY_STATUSES)
+      );
+    } else {
+      whereCondition = and(
+        eq(serviceRequests.vendorId, vendorId),
+        eq(serviceRequests.status, status)
+      );
+    }
+
   }
+
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(serviceRequests)
+    .where(whereCondition);
+
+  return result[0]?.count ?? 0;
+}
+  async getAllServiceRequestsWithDisputes(
+  limit: number,
+  offset: number
+) {
+  return await db.query.serviceRequests.findMany({
+    where: eq(serviceRequests.status, "disputed"),
+
+    with: {
+      vendor: {
+        columns: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      contractor: {
+        columns: {
+          firstName: true,
+          lastName: true,
+        },
+      },
+      service: {
+        columns: {
+          name: true,
+        },
+      },
+      disputes: true,
+      reviews: true,
+    },
+
+    orderBy: (serviceRequests, { desc }) => [
+      desc(serviceRequests.createdAt),
+    ],
+
+    limit,
+    offset,
+  });
+}
+async countAllServiceRequestsWithDisputes() {
+
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(serviceRequests)
+    .where(eq(serviceRequests.status, "disputed"));
+
+  return result[0]?.count ?? 0;
+}
 
   async getPendingServiceRequests(): Promise<ServiceRequest[]> {
     const requests = await db
@@ -1154,7 +1263,7 @@ return vendorProfile;
             .set({ isApproved: approve })
             .where(eq(vendorProfiles.id, vendorId));
   }
-  async getMarketplaceServicesByStage(stage: "startup" | "growth" | "scale") {
+  async getMarketplaceServicesByStage(stage: "startup" | "growth" | "scale", limit: number, offset: number) {
     return await db
       .select({
         serviceId: services.id,
@@ -1174,7 +1283,13 @@ return vendorProfile;
         eq(vendorProfiles.userId, services.vendorId)
       )
       .where(eq(services.isActive, true))
-      .orderBy(desc(services.createdAt));
+      .orderBy(desc(services.createdAt))
+      .limit(limit)
+      .offset(offset);
+}
+async countMarketplaceServices() {
+  const result = await db.select({ count: sql<number>`count(*)` }).from(services);
+  return Number(result[0]?.count ?? 0);
 }
 
   async advanceUserStage(userId: string, nextStage: "startup" | "growth" | "scale") {
@@ -1587,127 +1702,7 @@ async getRequestLogs(options?: { requestId?: string; page?: number; limit?: numb
     },
   };
 }
-async createExtensionRequest(data: {
-  serviceRequestId: string;
-  newDeliveryDate: Date;
-  reason: string;
-  requestedBy: string;
-}) {
-  const request = await db.query.serviceRequests.findFirst({
-    where: (r, { eq }) => eq(r.id, data.serviceRequestId),
-  });
 
-  if (!request) throw new Error("Request not found");
-
-  // 1️⃣ Calculate OLD delivery date
-  const oldDeliveryDate = new Date(
-    new Date(request.createdAt).getTime() +
-    Number(request.deliveryDays) * 24 * 60 * 60 * 1000
-  );
-
-  // 2️⃣ Calculate difference in days (new priority)
-  const diffMs =
-    data.newDeliveryDate.getTime() - new Date(request.createdAt).getTime();
-
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays <= 0) throw new Error("Invalid date");
-
-  // 3️⃣ Insert extension
-  const inserted = await db
-    .insert(deliveryExtensions)
-    .values({
-      serviceRequestId: data.serviceRequestId,
-      requestedBy: data.requestedBy,
-      reason: data.reason,
-      status: "pending",
-      oldDate: oldDeliveryDate,
-      newDate: data.newDeliveryDate,
-    })
-    .returning();
-
-  await this.createRequestLog({
-    serviceRequestId: data.serviceRequestId,
-    action: "EXTENTION_REQUESTED",
-    performedBy: data.requestedBy,
-    metadata: {
-      oldDate: oldDeliveryDate,
-      newDate: data.newDeliveryDate,
-      reason: data.reason,
-    },
-  });
-
-  return inserted[0];
-}
-async approveExtension(extensionId: string, approvedBy: string) {
-  const extension = await db.query.deliveryExtensions.findFirst({
-    where: (e, { eq }) => eq(e.id, extensionId),
-  });
-
-  if (!extension || extension.status !== "pending") {
-    throw new Error("Invalid extension request");
-  }
-
-  // 1️⃣ Update priority
-  await db
-    .update(serviceRequests)
-    .set({
-      deliveryDate: extension.newDate,
-      updatedAt: new Date(),
-    })
-    .where(eq(serviceRequests.id, extension.serviceRequestId));
-
-  // 2️⃣ Update extension status
-  await db
-    .update(deliveryExtensions)
-    .set({ status: "accepted" })
-    .where(eq(deliveryExtensions.id, extensionId));
-
-  await this.createRequestLog({
-    serviceRequestId: extension.serviceRequestId,
-    action: "EXTENSION_APPROVED",
-    performedBy: approvedBy,
-  });
-
-  return { success: true };
-}
-async rejectExtension(extensionId: string, rejectedBy: string) {
-  const extension = await db.query.deliveryExtensions.findFirst({
-    where: (e, { eq }) => eq(e.id, extensionId),
-  });
-
-  if (!extension || extension.status !== "pending") {
-    throw new Error("Invalid extension request");
-  }
-
-  await db
-    .update(deliveryExtensions)
-    .set({ status: "rejected" })
-    .where(eq(deliveryExtensions.id, extensionId));
-
-  await this.createRequestLog({
-    serviceRequestId: extension.serviceRequestId,
-    action: "EXTENSION_REJECTED",
-    performedBy: rejectedBy,
-  });
-
-  return { success: true };
-}
-async getExtensionById(id: string) {
-  const result = await db
-    .select()
-    .from(deliveryExtensions)
-    .where(eq(deliveryExtensions.id, id))
-    .limit(1);
-
-  return result[0];
-}
-async getExtensionsByServiceRequestId(serviceRequestId: string) {
-  return await db
-    .select()
-    .from(deliveryExtensions)
-    .where(eq(deliveryExtensions.serviceRequestId, serviceRequestId));
-}
 async createEscrow(data: {
   serviceRequestId: string;
   contractorId: string;

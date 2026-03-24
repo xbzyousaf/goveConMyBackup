@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef  } from "react";
 import { IconLeft } from "react-day-picker";
 import { Link } from "wouter";
+import { getFirstLetter } from "@/utility/textUtils";
 
 interface Props {
   open: boolean;
@@ -92,7 +93,6 @@ export default function ServiceMessages({
 
 
     const otherName = isVendor ? contractorName : vendorName;
-    const firstLetter = otherName?.charAt(0)?.toUpperCase() ?? "?";
 useEffect(() => {
   if (activeConversationId) {
     scrollToBottom();
@@ -171,7 +171,7 @@ useEffect(() => {
 
                 <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
-                    {firstLetter}
+                    {getFirstLetter(otherName, "?")}
                 </div>
 
                 <div>
@@ -241,7 +241,6 @@ useEffect(() => {
             {!activeConversationId  &&
                 conversations.map((conv: any) => {
                     const otherName = conv.otherUser?.name ?? "User";
-                    const firstLetter = otherName.charAt(0).toUpperCase();
 
                     return (
                     <div
@@ -251,7 +250,7 @@ useEffect(() => {
                     >
                         {/* Avatar */}
                         <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
-                        {firstLetter}
+                        {getFirstLetter(otherName, "?")}
                         </div>
 
                         {/* Text */}

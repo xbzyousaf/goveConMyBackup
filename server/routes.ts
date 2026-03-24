@@ -18,6 +18,9 @@ import { fileURLToPath } from "url";
 import { scoringService } from "./services/scoring.service";
 import { walletStorage } from "./storage/walletStorage";
 import { stripe } from "./lib/stripe";
+import { releaseEscrow } from './services/escrowService';
+import { canTransition } from './services/statusEngine';
+
 import { eq , and} from "drizzle-orm";
 import { processes, stages, milestones } from '@shared/schema';
 import { db } from "./db";
@@ -690,6 +693,8 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
               status: 'completed',
               conversationHistory: updatedConversation,
               completedAt: new Date(),
+              aiAnalysis: assessmentResult.aiAnalysis,
+              recommendations: assessmentResult.recommendations
             },
             currentFocus: existingProfile?.currentFocus || 'business_structure',
             subscriptionTier: existingProfile?.subscriptionTier || 'freemium',
@@ -1034,9 +1039,12 @@ Respond in JSON format:
       if (!contractorId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
-      const { vendorId, serviceId, deliveryDays, proposedPrice } = req.body;
-      const deliveryDeadline = new Date();
-      deliveryDeadline.setDate(deliveryDeadline.getDate() + deliveryDays);
+      const { vendorId, serviceId} = req.body;
+      const service = await storage.getService(serviceId);
+      if (!service) {
+        return res.status(404).json({ message: "Service not found" });
+      }
+      const proposedPrice = service.priceMax ?? "0";
       // const existing =
       //   await storage.findServiceRequestByContractorVendorService({
       //     contractorId,
@@ -1053,7 +1061,8 @@ Respond in JSON format:
       const serviceRequest = await storage.createServiceRequest({
         ...req.body,
         contractorId,
-        deliveryDeadline,
+        vendorId,
+        serviceId,
         proposedPrice,
         status: "pending",
         paymentStatus: "payment_pending",
@@ -1084,7 +1093,6 @@ Respond in JSON format:
         message: "You have received a new service request",
         type: "request_submitted", // use correct type
         relatedRequestId: serviceRequest.id,
-        isRead: false,
       });
       res.json(serviceRequest);
     }catch (error) {
@@ -1111,17 +1119,31 @@ Respond in JSON format:
         return res.status(401).json({ message: "Not authenticated" });
       }
       const user = await storage.getUser(userId);
-      
+      // pagination params
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 5;
+      const offset = (page - 1) * limit;
+      const status = req.query.status;
+      let total = 0;
       let requests: any[] = [];
       if (user?.userType === 'contractor') {
-        requests = await storage.getServiceRequestsByContractor(userId);
+        requests = await storage.getServiceRequestsByContractor(userId, limit, offset, status);
+        total = await storage.countServiceRequestsByContractor(userId, status);
       } else if (user?.userType === 'vendor') {
-        requests = await storage.getServiceRequestsByVendor(userId);
-      }else if (user?.userType === 'admin') {
-        requests = await storage.getAllServiceRequestsWithDisputes();
+        requests = await storage.getServiceRequestsByVendor(userId, limit, offset);
+        total = await storage.countServiceRequestsByVendor(userId, status);
       }
-      
-      res.json(requests);
+      else if (user?.userType === 'admin') {
+        requests = await storage.getAllServiceRequestsWithDisputes(limit, offset);
+        total = await storage.countAllServiceRequestsWithDisputes();
+      }
+
+      res.json({
+        page,
+        limit,
+        total,
+        data: requests
+      });
     } catch (error: any) {
         console.error("Error fetching service requests:", error);
         res.status(500).json({ 
@@ -1352,6 +1374,9 @@ Respond in JSON format:
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin only" });
+    }
 
     const { isActive } = req.body;
     const serviceId = req.params.id;
@@ -1451,9 +1476,17 @@ Respond in JSON format:
       if (!stage) {
         return res.status(400).json({ message: "Stage is required" });
       }
-
-      const services = await storage.getMarketplaceServicesByStage(stage);
-      res.json(services);
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+      const services = await storage.getMarketplaceServicesByStage(stage, limit, offset);
+      const total = await storage.countMarketplaceServices();
+      res.json({
+        data: services || [],
+        page,
+        limit,
+        total
+      });
     } catch (error) {
       console.error("Error fetching marketplace services:", error);
       res.status(500).json({ message: "Failed to fetch services" });
@@ -1603,170 +1636,81 @@ Respond in JSON format:
       const user = await storage.getUser(userId);
 
       const { id } = req.params;
-      const { status } = req.body;
-
-      const allowedStatuses = [
-        "pending",
-        "accepted",
-        "in_progress",
-        "delivered",
-        "completed",
-        "cancelled",
-        "disputed",
-      ];
-
-      if (!allowedStatuses.includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
-      }
+      const { status, winner, vendorPercent, contractorPercent, disputeId } = req.body;
 
       const serviceRequest = await storage.getServiceRequest(id);
 
       if (!serviceRequest) {
         return res.status(404).json({ message: "Service request not found" });
       }
-      const paymentStatus = serviceRequest.paymentStatus;
-      // STRICT TRANSITION RULES
-      if (status === "in_progress") {
-        if (paymentStatus !== "escrow_held") {
-          return res.status(400).json({
-            message: "Cannot start work until payment is secured in escrow"
-          });
-        }
+
+      const currentStatus = serviceRequest.status ?? "pending";
+
+      // Transition validation
+      if (!canTransition(currentStatus, status)) {
+        return res.status(400).json({
+          message: `Invalid transition from ${currentStatus} to ${status}`
+        });
       }
 
-      if (status === "completed") {
-        if (paymentStatus !== "escrow_held") {
-          return res.status(400).json({
-            message: "Invalid completion state"
-          });
-        }
-      }
-      //only for resolve dispute 
-      const disputeStatus = req.body.winner;
-      const disputeId = req.body.disputeId;
-      // Only vendor can approve/reject
-      if (!serviceRequest.vendorId) {
-        return res.status(403).json({ message: "Vendor not found" });
-      }
-      if (serviceRequest.vendorId !== userId && serviceRequest.contractorId !== userId && user?.userType !== 'admin') {
+      const isVendor = serviceRequest.vendorId === userId;
+      const isContractor = serviceRequest.contractorId === userId;
+      const isAdmin = user?.userType === "admin";
+
+      if (!isVendor && !isContractor && !isAdmin) {
         return res.status(403).json({ message: "Not authorized" });
       }
-      const previousStatus = serviceRequest.status ?? 'pending';
-      const updated = await storage.updateServiceRequestStatus(id, status);
-      if (status === "completed" || status === 'cancelled') {
-        if (previousStatus !== "completed") {
-           const escrow = await storage.getEscrowByRequestId(id);
-          if (!escrow || (escrow.status !== "held" && escrow.status !== "disputed")) {
-            return res.status(400).json({
-              message: "Escrow not available for release "  + id
-            });
-          }
-           const vendorWallet = await walletStorage.getWalletByUserId(serviceRequest.vendorId);
-          if (!vendorWallet) {
-            return res.status(400).json({
-              message: "Vendor wallet not found"
-            });
-          }
-          const vendorPercent = req.body.vendorPercent;
-          if (disputeStatus === "vendor") {
-            // Full vendor win
-            await walletStorage.creditWallet(
-              serviceRequest.vendorId,
-              Number(escrow.vendorEarning),
-              "escrow_release",
-              serviceRequest.id
-            );
-          } else if (disputeStatus === "contractor") {
-            // Full contractor win
-            await walletStorage.creditWallet(
-              serviceRequest.contractorId,
-              Number(escrow.vendorEarning) + Number(escrow.platformFee),
-              "escrow_refund",
-              serviceRequest.id
-            );
-          } else if (disputeStatus === "partial") {
-            // Partial win: split according to percentages
-            const contractorPercent = req.body.contractorPercent;
-            const contractorAmount = (Number(escrow.vendorEarning) * contractorPercent) / 100;
-            const vendorAmount = (Number(escrow.vendorEarning) * vendorPercent) / 100;
 
-            if (contractorAmount > 0) {
-              await walletStorage.creditWallet(
-                serviceRequest.contractorId,
-                contractorAmount,
-                "escrow_release",
-                serviceRequest.id
-              );
-            }
+      // Accept request
+      if (status === "accepted") {
 
-            if (vendorAmount > 0) {
-              await walletStorage.creditWallet(
-                serviceRequest.vendorId,
-                vendorAmount,
-                "escrow_release",
-                serviceRequest.id
-              );
-            }
-          }
-          if (disputeStatus === "contractor") {
-            await storage.createRequestLog({
-              serviceRequestId: id,
-              action: "ESCROW_REFUNDED",
-              performedBy: userId,
-              previousStatus,
-            });
-          }else{
-            await storage.createRequestLog({
-              serviceRequestId: id,
-              action: "ESCROW_RELEASED",
-              performedBy: userId,
-              previousStatus,
-            });
-          }
-          await storage.releaseEscrowByRequestId(id,disputeStatus,vendorPercent);
-          await storage.createNotification({
-            userId: serviceRequest.vendorId,
-            triggeredBy: serviceRequest.contractorId,
-            type: "escrow_released",
-            title: "Payment Released",
-            message: "Escrow payment has been released to your wallet.",
-            relatedRequestId: id,
+        const finalPrice =
+          serviceRequest.finalPrice != null
+            ? Number(serviceRequest.finalPrice)
+            : Number(serviceRequest.proposedPrice);
+
+        if (!finalPrice || finalPrice <= 0) {
+          return res.status(400).json({
+            message: "Final price required"
           });
-
-           await storage.updateServiceRequest(id, {
-            paymentStatus: "released",
-            actualCost: serviceRequest.finalPrice || serviceRequest.proposedPrice,
-            completedAt: new Date(),
-          });
-          let updatedServiceRequest: ServiceRequest | null = null;
-
-          if (
-            user?.userType === "admin" &&
-            disputeStatus === "contractor"
-          ) {
-            updatedServiceRequest = await storage.updateServiceRequest(id, {
-              paymentStatus: "refunded",
-              status: "cancelled",
-              actualCost:
-                serviceRequest.finalPrice ||
-                serviceRequest.proposedPrice,
-              completedAt: new Date(),
-            });
-          } else {
-            updatedServiceRequest = await storage.updateServiceRequest(id, {
-              paymentStatus: "released",
-              actualCost:
-                serviceRequest.finalPrice ||
-                serviceRequest.proposedPrice,
-              completedAt: new Date(),
-            });
-          }
-
-          await scoringService.handleRequestCompletion(serviceRequest);
         }
+
+        await storage.updateServiceRequest(id, {
+          finalPrice: finalPrice.toString(),
+          status: "accepted"
+        });
+
       }
-      if(user?.userType === 'admin') {
-        const resolution = storage.updateDisputeResolution(disputeId, disputeStatus);
+
+      // Prevent work without escrow
+      if (status === "in_progress" && serviceRequest.paymentStatus !== "escrow_held") {
+        return res.status(400).json({
+          message: "Escrow must be funded before work starts"
+        });
+      }
+
+      // Escrow release on completion
+      if (status === "completed") {
+        await releaseEscrow(
+          serviceRequest,
+          winner ?? "vendor",
+          vendorPercent
+        );
+        await storage.updateServiceRequest(id, {
+          paymentStatus: winner === "contractor" ? "refunded" : "released",
+          actualCost: serviceRequest.finalPrice ?? serviceRequest.proposedPrice,
+          completedAt: new Date()
+        });
+
+      }
+
+      const updated = await storage.updateServiceRequestStatus(id, status);
+
+      // Admin dispute resolution
+      if (isAdmin && disputeId) {
+
+        await storage.updateDisputeResolution(disputeId, winner);
+
         await storage.createNotification({
           userId: serviceRequest.vendorId,
           triggeredBy: userId,
@@ -1784,21 +1728,28 @@ Respond in JSON format:
           message: "Admin has resolved the dispute.",
           relatedRequestId: id,
         });
+
       }
+
+      // Log
       await storage.createRequestLog({
         serviceRequestId: id,
         action: "STATUS_UPDATED",
         performedBy: userId,
-        previousStatus,
-        newStatus: status,
+        previousStatus: currentStatus,
+        newStatus: status
       });
 
+      // Notifications
       const receiverId =
-      serviceRequest.vendorId === userId
-        ? serviceRequest.contractorId
-        : serviceRequest.vendorId;
+        serviceRequest.vendorId === userId
+          ? serviceRequest.contractorId
+          : serviceRequest.vendorId;
+
       const notification = getNotificationContent(status);
-      if(user?.userType !== 'admin') { 
+
+      if (user?.userType !== "admin") {
+
         await storage.createNotification({
           userId: receiverId,
           triggeredBy: userId,
@@ -1806,15 +1757,23 @@ Respond in JSON format:
           message: notification.message,
           type: notification.type,
           relatedRequestId: serviceRequest.id,
-          isRead: false,
+          isRead: false
         });
+
       }
+
+      // scoring
+      if (status === "completed") {
+        await scoringService.handleRequestCompletion(serviceRequest);
+      }
+
       res.json(updated);
+
     } catch (error) {
-      console.error("CREATE SERVICE REQUEST FAILED");
+
+      console.error("STATUS UPDATE FAILED");
 
       if (error instanceof Error) {
-        console.error(error.message);
         return res.status(400).json({
           message: error.message
         });
@@ -1951,7 +1910,6 @@ Respond in JSON format:
           request.status = "completed";
         }
       }
-      const extensions = await storage.getExtensionsByServiceRequestId(id);
 
       const alreadyReviewed = request.reviews?.some(
         (review) => review.reviewerId === userId
@@ -1964,7 +1922,6 @@ Respond in JSON format:
       res.json({
         ...request,
         alreadyReviewed,
-        extensions
       });
     } catch (err) {
       res.status(500).json({ message: "Failed to fetch request" });
@@ -2143,143 +2100,40 @@ Respond in JSON format:
   }
 });
 
-app.post("/api/service-requests/:id/extend", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { newDeliveryDate, reason } = req.body;
-     const userId = getUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-    if (!newDeliveryDate || !reason?.trim()) {
-      return res.status(400).json({
-        message: "New delivery date and reason are required",
-      });
-    }
-
-    const result = await storage.createExtensionRequest({
-      serviceRequestId: id,
-      newDeliveryDate: new Date(newDeliveryDate),
-      reason: reason.trim(),
-      requestedBy: userId,
-    });
-    const serviceRequest = await storage.getServiceRequest(id);
-    if (!serviceRequest) {
-      return res.status(404).json({ message: "Service request not found" });
-    }
-
-    const contractorId = serviceRequest.contractorId;
-    // 2. notify contractor
-    await storage.createNotification({
-      userId: contractorId,
-      triggeredBy: userId,
-      type: "delivery_extension_request",
-      title: "Delivery Extension Requested",
-      message: "Vendor has requested to extend the delivery date.",
-      relatedRequestId: id,
-    });
-
-    res.json(result);
-  } catch (error: any) {
-    console.error(error);
-    res.status(500).json({
-      message: error.message || "Failed to extend delivery",
-    });
-  }
-});
-app.post("/api/extensions/:id/approve", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = getUserId(req);
-
-    if (!userId) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
-    const extension = await storage.getExtensionById(id);
-    if (!extension) {
-      return res.status(404).json({ message: "Extension not found" });
-    }
-
-    const updated = await storage.approveExtension(id, userId);
-    const vendorId = extension.requestedBy;
-
-    await storage.createNotification({
-      userId: vendorId,
-      triggeredBy: userId, // contractor approving
-      type: "delivery_extension_accepted",
-      title: "Delivery Extension Approved",
-      message: "Your delivery extension request has been approved.",
-      relatedRequestId: extension.serviceRequestId,
-    });
-
-    res.json(updated);
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
-  }
-});
-app.post("/api/extensions/:id/reject", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = getUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-      const extension = await storage.getExtensionById(id);
-      if (!extension) {
-        return res.status(404).json({ message: "Extension not found" });
-      }
-    const updated = await storage.rejectExtension(req.params.id, userId);
-    const vendorId = extension.requestedBy;
-    await storage.createNotification({
-      userId: vendorId,
-      triggeredBy: userId,
-      type: "delivery_extension_rejected",
-      title: "Delivery Extension Rejected",
-      message: "Your delivery extension request has been rejected.",
-      relatedRequestId: extension.serviceRequestId,
-    });
-    res.json(updated);
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
-  }
-});
 app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
   try {
     const contractorId = getUserId(req);
     const { id } = req.params;
 
     const request = await storage.getServiceRequest(id);
-
-    if (!request || request.contractorId !== contractorId) {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    if (request.status !== "accepted") {
-      return res.status(400).json({ message: "Invalid state for payment" });
-    }
     if (!request) {
       return res.status(404).json({ message: "Request not found" });
+    }
+    if (request.status !== "accepted") {
+      return res.status(400).json({ message: "Invalid state for payment" });
     }
 
     if (request.contractorId !== contractorId) {
       return res.status(403).json({ message: "Unauthorized" });
     }
+    if (request.paymentStatus === "escrow_held") {
+      return res.status(400).json({
+        message: "Escrow already funded"
+      });
+    }
 
-    const finalPrice = Number(request.finalPrice || request.proposedPrice);
+    const finalPrice = Number(request.proposedPrice) ?? 0;
 
     const platformFee = finalPrice * 0.1;
     const vendorEarning = finalPrice - platformFee;
-    const wallet = await walletStorage.getWalletByUserId(contractorId);
+    // const wallet = await walletStorage.getWalletByUserId(contractorId);
 
-    if (!wallet) {
-      return res.status(400).json({ message: "Wallet not found" });
-    }
-    if (Number(wallet.balance) < finalPrice) {
-      return res.status(400).json({ message: "Insufficient balance" });
-    }
-    await walletStorage.debitWallet(contractorId, finalPrice, "escrow_funding", id);
+    // if (!wallet) {
+    //   return res.status(400).json({ message: "Wallet not found" });
+    // }
+    // if (Number(wallet.balance) < finalPrice) {
+    //   return res.status(400).json({ message: "Insufficient balance" });
+    // }
     // 1️⃣ Create escrow
     await storage.createEscrow({
       serviceRequestId: id,
@@ -2294,7 +2148,7 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
     // 2️⃣ Update service request
     await storage.updateServiceRequest(id, {
       paymentStatus: "escrow_held",
-      finalPrice: vendorEarning.toString(),
+      finalPrice: finalPrice.toString(),
       status: "in_progress"
     });
     await storage.createRequestLog({
@@ -2529,16 +2383,19 @@ app.post("/api/admin/milestones", async (req, res) => {
 app.post("/api/payments/create-intent", async (req, res) => {
   try {
     const { requestId } = req.body;
-
+    const contractorId = getUserId(req);
+    if (!contractorId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     const request = await storage.getServiceRequest(requestId);
 
-    if (!request || !request.finalPrice) {
+    if (!request || !request.proposedPrice) {
       return res.status(400).json({
         message: "Final price not set for this request"
       });
     }
 
-    const amount = Number(request.finalPrice) * 100;
+    const amount = Math.round(Number(request.proposedPrice) * 100);
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount,

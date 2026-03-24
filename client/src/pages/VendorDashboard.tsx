@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
 import { VendorProfileForm } from "@/components/VendorProfileForm";
@@ -14,18 +14,44 @@ import { calculateMonthlyMetric } from "@/services/servicesStats.service";
 import { cn } from "@/lib/utils";
 import { isCurrentMonth } from "@/helpers/dateHelper";
 import { useToast } from "@/hooks/use-toast";
-import { ServiceRequestList } from "@/components/service-requests/ServiceRequestList";
 import VendorPerformanceTab from "@/components/VendorPerformanceTab";
 import WalletPage from "./vendor/WalletPage";
+import { PRIORITY_STATUSES, REQUEST_STATUSES_LABELS, ServiceRequestStatus } from "../../../constants/serviceRequest";
+import { ServiceRequestCardCompact } from "@/components/service-requests/ServiceRequestCardCompact";
+import { getFirstLetter } from "@/utility/textUtils";
 
 export default function VendorDashboard() {
-  const queryClient = useQueryClient();
+  
   const [showCreateForm, setShowCreateForm] = useState(false);
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const PAGE_SIZE = 5;
+type StatusFilter = "priority" | "all" | ServiceRequestStatus;
+const [page, setPage] = useState(1);
+const [statusFilter, setStatusFilter] = useState<StatusFilter>("priority");
+
+const [search, setSearch] = useState("");
+useEffect(() => {
+  setPage(1);
+}, [statusFilter, search]);
+const { data } = useQuery<{
+  page: number;
+  limit: number;
+  total: number;
+  data: ServiceRequest[];
+}>({
+  queryKey: ["/api/service-requests", page, statusFilter, search],
+  queryFn: async () => {
+    const res = await fetch(
+      `/api/service-requests?page=${page}&limit=${PAGE_SIZE}&status=${statusFilter}&search=${search}`
+    );
+    return res.json();
+  }
+});
+
+const serviceRequests = data?.data ?? [];
+const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
   // Fetch vendor profile
   const { data: vendorProfile, isLoading: profileLoading } = useQuery({
     queryKey: ["/api/vendor-profile"],
@@ -75,9 +101,6 @@ export default function VendorDashboard() {
     setLocation("/vendor-onboarding");
     return null;
   }
-  const { data: serviceRequests = [] } = useQuery<ServiceRequest[]>({
-    queryKey: ["/api/service-requests"],
-  });
   const earningsChange = calculateMonthlyMetric(serviceRequests, {
     dateKey: "createdAt",
     valueFn: r =>
@@ -87,7 +110,6 @@ export default function VendorDashboard() {
     dateKey: "createdAt",
     valueFn: () => 1, // 👈 count each request as 1
   });
-  const currentVendorId = user?.id;
     
 
   // Mock data for service requests and stats
@@ -112,34 +134,7 @@ export default function VendorDashboard() {
 
     title?: string; // request title
   };
-  const applyFilter = (requests: ServiceRequest[]) => {
-  
-    return requests.filter((request) => {
-
-      const statusMatch =
-        statusFilter === "all" ||
-        request.status === statusFilter;
-
-      const searchMatch =
-        search === "" ||
-        request.title?.toLowerCase().includes(search.toLowerCase()) ||
-        request.description?.toLowerCase().includes(search.toLowerCase()) ||
-        request.service?.name?.toLowerCase().includes(search.toLowerCase()) ||
-        request.service?.category?.toLowerCase().includes(search.toLowerCase());
-
-      return statusMatch && searchMatch;
-
-    });
-
-  };
-
-const allRequests = applyFilter(serviceRequests);
-const overviewRequests = allRequests.filter((request) => {
-    if (["pending", "in_progress", "delivered", 'disputed','accepted'].includes(request.status)) {
-      return true;
-    }
-    return false;
-  });
+ const allRequests = serviceRequests;
   const mockStats = {
     totalRequests: allRequests.length,
     completedRequests: allRequests.filter(r => r.status === 'completed').length,
@@ -218,7 +213,7 @@ const overviewRequests = allRequests.filter((request) => {
           </Card>
         ) : vendorProfile && (
           // Profile Exists - Show Dashboard
-          <Tabs defaultValue="overview" className="space-y-6">
+          <Tabs defaultValue="requests" className="space-y-6">
             <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
 
             {/* LEFT SIDE → Search + Status */}
@@ -232,23 +227,23 @@ const overviewRequests = allRequests.filter((request) => {
               />
 
               <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="border rounded-md px-3 py-2 text-sm"
-              >
-                <option value="all">All</option>
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="delivered">Delivered</option>
-                <option value="completed">Completed</option>
-              </select>
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="border rounded-md px-3 py-2 text-sm"
+                >
+                  {REQUEST_STATUSES_LABELS.map((status) => (
+                    <option key={status.value} value={status.value}>
+                      {status.label}
+                    </option>
+                  ))}
+                </select>
 
             </div>
             {/* RIGHT SIDE → Tabs */}
             <TabsList data-testid="tabs-dashboard">
-              <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-              <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
+              {/* <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger> */}
               <TabsTrigger value="requests" data-testid="tab-requests">Service Requests</TabsTrigger>
+              <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
               <TabsTrigger value="reviews" data-testid="tab-reviews">Reviews</TabsTrigger>
               <TabsTrigger value="performance" data-testid="tab-performance">Performance</TabsTrigger>
               <TabsTrigger value="wallet" data-testid="tab-wallet">Wallet</TabsTrigger>
@@ -342,24 +337,6 @@ const overviewRequests = allRequests.filter((request) => {
                   </CardContent>
                 </Card>
               </div>
-
-              {/* Recent Requests */}
-              <Card data-testid="card-recent-requests">
-                <CardHeader>
-                  <CardTitle>Recent Service Requests</CardTitle>
-                  <CardDescription>Latest requests from contractors</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
-                    
-                   <ServiceRequestList
-                      requests={overviewRequests}
-                      userType="vendor"
-                      baseUrl="/vendor/requests"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
 
             </TabsContent>
             <TabsContent value="performance" className="space-y-6">
@@ -608,14 +585,34 @@ const overviewRequests = allRequests.filter((request) => {
 
                     <CardContent>
                       <div className="space-y-4">
-
-                        <ServiceRequestList
-                          requests={allRequests}
-                          userType="vendor"
-                          baseUrl="/vendor/requests"
-                        />
-
+                        {allRequests.map((request, index) => (
+                            <ServiceRequestCardCompact
+                              key={index}
+                              request={request}
+                              userType="vendor"
+                              detailsUrl={`/vendor/requests`}
+                            />
+                          ))}
                       </div>
+                      {totalPages> 1 && <div className="flex justify-center gap-4 mt-4">
+                        <Button
+                          disabled={page === 1}
+                          onClick={() => setPage(page - 1)}
+                        >
+                          Previous
+                        </Button>
+  
+                        <span className="text-sm">
+                          Page {page} of {totalPages}
+                        </span>
+  
+                        <Button
+                          disabled={page === totalPages}
+                          onClick={() => setPage(page + 1)}
+                        >
+                          Next
+                        </Button>
+                      </div>}
                     </CardContent>
                 </TabsContent>
 
@@ -639,9 +636,6 @@ const overviewRequests = allRequests.filter((request) => {
                     )}
 
                     {reviews.map((review, index) => {
-                      const firstLetter = review.contractorName
-                        ? review.contractorName.charAt(0).toUpperCase()
-                        : "C";
 
                       return (
                         <div
@@ -650,7 +644,7 @@ const overviewRequests = allRequests.filter((request) => {
                         >
                           {/* Avatar */}
                           <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-200 text-gray-700 font-semibold">
-                            {firstLetter}
+                            {getFirstLetter(review.contractorName, "C")}
                           </div>
 
                           <div className="flex-1 space-y-2">

@@ -12,6 +12,7 @@ import type { VendorProfile, Review } from "@shared/schema";
 import { useLocation } from "wouter";
 import type { Service } from "@shared/schema";
 import { useState } from "react";
+import { getFirstLetter } from "../utility/textUtils"
 
 export default function VendorDetail() {
   const [, params] = useRoute("/vendor/:id");
@@ -92,19 +93,16 @@ export default function VendorDetail() {
               <CardContent className="p-8">
                 <div className="flex items-start gap-6">
                   <Avatar className="w-24 h-24">
-                    {vendor?.avatar ? (
-                      <AvatarImage src={vendor.avatar} alt={vendor.companyName} />
-                    ) : (
-                      <AvatarFallback className="text-2xl">
-                        {vendor?.companyName?.charAt(0).toUpperCase() || "V"}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
+  <AvatarImage src={vendor?.avatar ?? ""} />
+  <AvatarFallback className="text-2xl">
+    {getFirstLetter(vendor?.companyName, "C")}
+  </AvatarFallback>
+</Avatar>
                   
                   <div className="flex-1">
                     <div className="flex flex-wrap items-start gap-2 mb-2">
                       <h1 className="text-3xl font-bold" data-testid="text-vendor-title">
-                        {vendor.title}
+                        {vendor.companyName}
                       </h1>
                       {vendor.isApproved && (
                         <Badge variant="default" className="flex items-center gap-1" data-testid="badge-verified">
@@ -126,9 +124,9 @@ export default function VendorDetail() {
                       )}
                     </div>
 
-                    {vendor.companyName && (
+                    {vendor.title && (
                       <p className="text-lg text-muted-foreground mb-3" data-testid="text-company-name">
-                        {vendor.companyName}
+                        {vendor.title}
                       </p>
                     )}
 
@@ -392,10 +390,6 @@ export default function VendorDetail() {
                 {reviews.length > 0 ? (
                 <div className="space-y-4">
                   {reviews.map((review, index) => {
-                    const fullName =
-                      review.contractorName?.trim() || "Contractor";
-
-                    const firstLetter = fullName.charAt(0).toUpperCase();
 
                     return (
                       <Card
@@ -408,9 +402,7 @@ export default function VendorDetail() {
                             {/* Avatar */}
                             <Avatar className="w-10 h-10">
                               <AvatarFallback>
-                                {review.contractorName
-                                  ? review.contractorName.charAt(0).toUpperCase()
-                                  : "C"}
+                                {getFirstLetter(review?.contractorName, "C")}
                               </AvatarFallback>
                             </Avatar>
 

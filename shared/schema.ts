@@ -211,7 +211,6 @@ export const serviceTiers = pgTable("service_tiers", {
     // DELIVERY / SLA
     // --------------------------
     deliveryDeadline: timestamp("delivery_deadline"),
-    deliveryDays: integer("delivery_days").notNull(),
     deliveredAt: timestamp("delivered_at"),
     completedAt: timestamp("completed_at"),
     
@@ -263,21 +262,6 @@ export const serviceTiers = pgTable("service_tiers", {
     fileSize: integer("file_size"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
-  });
-  // delivery extentions
-  export const deliveryExtensions = pgTable("delivery_extensions", {
-    id: uuid("id").defaultRandom().primaryKey(),
-    serviceRequestId: uuid("service_request_id")
-      .references(() => serviceRequests.id, { onDelete: "cascade" })
-      .notNull(),
-    requestedBy: uuid("requested_by").notNull(),
-
-    oldDate: timestamp("old_date").notNull(),
-    newDate: timestamp("new_date").notNull(),
-
-    reason: text("reason").notNull(),
-    status: extentionStatusEnum("status").default("pending").notNull(),
-    createdAt: timestamp("created_at").defaultNow(),
   });
 
 // Messages for contractor-vendor communication
@@ -468,9 +452,6 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "delivery",
   "new_review",
   "payment_update",
-  "delivery_extension_request",
-  "delivery_extension_accepted",
-  "delivery_extension_rejected",
   "payment_created",
   "escrow_released",
   "dispute_opened",
@@ -631,7 +612,7 @@ export const serviceRequestsRelations = relations(serviceRequests, ({ one, many 
   vendorProfile: one(vendorProfiles, {
     fields: [serviceRequests.vendorId],
     references: [vendorProfiles.userId],
-    relationName: "vendorRequests",
+    relationName: "vendorProfileRequests",
   }),
   service: one(services, {
     fields: [serviceRequests.serviceId],

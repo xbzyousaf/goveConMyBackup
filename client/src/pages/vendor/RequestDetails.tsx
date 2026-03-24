@@ -3,12 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import {Card, CardHeader, CardTitle, CardContent, CardDescription,} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {FileText, User, DollarSign, CalendarDays, Check, X, CheckCircle, MessageSquare, ArrowLeft,} from "lucide-react";
-import { cn } from "@/lib/utils";
+import {Check, CheckCircle, MessageSquare, ArrowLeft,} from "lucide-react";
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMessages } from "@/components/ui/MessageContext";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +16,7 @@ import { Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ServiceRequestCard } from "@/components/service-requests/ServiceRequestCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
+import { getFirstLetter } from "../../utility/textUtils"
 
 export default function RequestDetails() {
   const [, params] = useRoute("/vendor/requests/:id");
@@ -28,16 +28,9 @@ export default function RequestDetails() {
     status: "in_progress" | "cancelled";
   } | null>(null);
   const { user } = useAuth();
-  const [isExtendOpen, setIsExtendOpen] = useState(false);
-  const [newDeliveryDate, setNewDeliveryDate] = useState(
-    new Date().toISOString().split("T")[0] // today
-  );
-  const [extendReason, setExtendReason] = useState("");
 const [isDisputeOpen, setIsDisputeOpen] = useState(false);
 const [disputeReason, setDisputeReason] = useState("");
 const [disputeDescription, setDisputeDescription] = useState("");
-const [isPayConfirmOpen, setIsPayConfirmOpen] = useState(false);
-const [isPaying, setIsPaying] = useState(false);
 const openDispute = useMutation({
   mutationFn: async () => {
     const res = await fetch("/api/disputes", {
@@ -90,77 +83,7 @@ const openDispute = useMutation({
     },
     enabled: !!id,
   });
-  const [timeLeft, setTimeLeft] = useState("");
 
-  const approvedExtension = request?.extensions
-    ?.filter((ext: any) => ext.status === "accepted")
-    ?.sort(
-      (a: any, b: any) =>
-        new Date(b.createdAt).getTime() -
-        new Date(a.createdAt).getTime()
-    )[0];
-  const currentDeadline = approvedExtension
-  ? new Date(approvedExtension.newDate)
-  : request?.deliveryDeadline
-  ? new Date(request.deliveryDeadline)
-  : null;
-  const minDate = currentDeadline
-  ? currentDeadline.toISOString().split("T")[0]
-  : new Date().toISOString().split("T")[0];
-
-  const finalDeliveryDate = approvedExtension
-  ? new Date(approvedExtension.newDate)
-  : request?.createdAt && request?.deliveryDays
-  ? new Date(
-      new Date(request.createdAt).getTime() +
-        request.deliveryDays * 24 * 60 * 60 * 1000
-    )
-  : null;
-
-  useEffect(() => {
-    // STOP TIMER if request is no longer active
-    if (
-      !finalDeliveryDate ||
-      request?.status === "completed" ||
-      request?.status === "cancelled"
-    ) {
-      setTimeLeft("");
-      return;
-    }
-
-  const interval = setInterval(() => {
-      const now = Date.now();
-      const distance = finalDeliveryDate.getTime() - now;
-
-      if (distance <= 0) {
-        setTimeLeft("Expired");
-        clearInterval(interval);
-        return;
-      }
-
-      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-      const hours = Math.floor(
-        (distance % (1000 * 60 * 60 * 24)) /
-          (1000 * 60 * 60)
-      );
-      const minutes = Math.floor(
-        (distance % (1000 * 60 * 60)) /
-          (1000 * 60)
-      );
-      const seconds = Math.floor(
-        (distance % (1000 * 60)) / 1000
-      );
-
-      const pad = (num: number) =>
-        num.toString().padStart(2, "0");
-
-      setTimeLeft(
-        `${pad(days)} D | ${pad(hours)} H | ${pad(minutes)} M | ${pad(seconds)} S`
-      );
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [finalDeliveryDate]);
 
   const [isDeliverOpen, setIsDeliverOpen] = useState(false);
     const [deliveryMessage, setDeliveryMessage] = useState("");
@@ -190,77 +113,6 @@ const openDispute = useMutation({
             queryClient.invalidateQueries({ queryKey: ["service-request", id] });
             queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
         },
-    });
-    const extendDelivery = useMutation({
-      mutationFn: async () => {
-        const res = await fetch(
-          `/api/service-requests/${request.id}/extend`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              newDeliveryDate,
-              reason: extendReason,
-            }),
-          }
-        );
-
-        if (!res.ok) {
-          const error = await res.json().catch(() => null);
-          throw new Error(error?.message || "Failed to extend delivery");
-        }
-
-        return res.json();
-      },
-      onSuccess: () => {
-        toast({
-          title: "Delivery Extended",
-          description: "New delivery date submitted successfully.",
-        });
-
-        queryClient.invalidateQueries({
-          queryKey: ["service-request", request.id],
-        });
-
-        setIsExtendOpen(false);
-        setExtendReason("");
-      },
-      onError: (err: any) => {
-        toast({
-          title: "Error",
-          description: err.message,
-          variant: "destructive",
-        });
-      },
-    });
-    const approveExtension = useMutation({
-      mutationFn: async (extensionId: string) => {
-        const res = await fetch(`/api/extensions/${extensionId}/approve`, {
-          method: "POST",
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Failed");
-        return res.json();
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["service-request", id] });
-        toast({ title: "Extension Approved" });
-      },
-    });
-
-    const rejectExtension = useMutation({
-      mutationFn: async (extensionId: string) => {
-        const res = await fetch(`/api/extensions/${extensionId}/reject`, {
-          method: "POST",
-          credentials: "include",
-        });
-        if (!res.ok) throw new Error("Failed");
-        return res.json();
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["service-request", id] });
-        toast({ title: "Extension Rejected" });
-      },
     });
 
     const [reviewModal, setReviewModal] = useState(false);
@@ -406,88 +258,6 @@ const handleDeliver = async () => {
                   request={request}
                   userType={user?.userType}
                 />
-              {request.extensions?.length > 0 &&
-                  request.extensions.map((ext: any) => {
-                    const isPending = ext.status === "pending";
-                    const isContractor = user?.userType === "contractor";
-                    const isVendor = user?.userType === "vendor";
-                    return (
-                      <Card key={ext.id} className="rounded-2xl shadow-md mt-6">
-                        <CardHeader>
-                          <div className="flex justify-between">
-                            <CardTitle className="text-lg">
-                              Delivery Extension
-                            </CardTitle>
-                            <Badge
-                              className={
-                                ext.status === "approved"
-                                  ? "bg-green-100 text-green-700"
-                                  : ext.status === "rejected"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-yellow-100 text-yellow-700"
-                              }
-                            >
-                              {ext.status}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-
-                        <CardContent className="space-y-4 text-sm">
-                          <div className="flex justify-between">
-                            {/* Old Date */}
-                            <div>
-                              <p className="text-muted-foreground">Old Delivery Date</p>
-                              <p className="line-through">
-                                {new Date(ext.oldDate).toLocaleDateString()}
-                              </p>
-                            </div>
-
-                            {/* New Date */}
-                            <div>
-                              <p className="text-muted-foreground">Requested New Date</p>
-                              <p className="font-semibold">
-                                {new Date(ext.newDate).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                          {/* Reason */}
-                          <div>
-                            <p className="text-muted-foreground">Message</p>
-                            <p>{ext.reason}</p>
-                          </div>
-
-                          {/* Contractor Buttons */}
-                          {isContractor && isPending && (
-                            <div className="flex gap-3 pt-2">
-                              <Button
-                                className="flex-1"
-                                onClick={() => approveExtension.mutate(ext.id)}
-                              >
-                                Accept
-                              </Button>
-
-                              <Button
-                                variant="destructive"
-                                className="flex-1"
-                                onClick={() => rejectExtension.mutate(ext.id)}
-                              >
-                                Reject
-                              </Button>
-                            </div>
-                          )}
-
-                          {/* Vendor Pending Info */}
-                          {isVendor && isPending && (
-                            <p className="text-yellow-600 font-medium">
-                              Waiting for contractor approval
-                            </p>
-                          )}
-
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-              }
                 {/* ================= CONTRACTOR DELIVERY VIEW ================= */}
                 {request.deliveries.length > 0 && (
                   <Card className="rounded-2xl shadow-md mt-6">
@@ -563,16 +333,8 @@ const handleDeliver = async () => {
 
                 <CardContent className="space-y-4 text-sm">
 
-                    {/* Timer */}
-                    <div>
-                    <p className="text-muted-foreground mb-1">
-                        Time left to deliver
-                    </p>
-                    <div className="font-semibold text-lg">
-                          {timeLeft || "Calculating..."}
-                    </div>
-                    </div>
-                    {user?.userType === "vendor" && request.paymentStatus === "escrow_held" && request.escrow && (
+                    {/* Escrow Funded Card */}
+                    {user?.userType === "vendor" && request.status!== "disputed" && request.paymentStatus === "escrow_held" && request.escrow && (
                       <Card className="rounded-xl border border-green-200 bg-green-50">
                         <CardContent className="p-4 space-y-2">
                           <p className="font-semibold text-green-700">
@@ -600,76 +362,13 @@ const handleDeliver = async () => {
                             </div>
 
                             <div className="text-xs text-muted-foreground pt-2">
-                              Funded on {new Date(request.escrow?.createdAt).toLocaleDateString()}
+                              Funded on {new Date(request.escrow?.heldAt).toLocaleDateString()}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     )}
-                  {user?.userType === "vendor" && (
-                    <Dialog open={isExtendOpen} onOpenChange={setIsExtendOpen}>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full"
-                          disabled={
-                            request.status !== "in_progress" ||
-                            user?.userType !== "vendor"
-                          }
-                        >
-                          Extend delivery date
-                        </Button>
-                      </DialogTrigger>
-
-                      <DialogContent className="sm:max-w-lg">
-                        <DialogHeader>
-                          <DialogTitle>Extend Delivery Date</DialogTitle>
-                        </DialogHeader>
-
-                        <div className="space-y-4 mt-4">
-                          
-                          {/* Date Field */}
-                          <div>
-                            <label className="text-sm font-medium mb-2 block">
-                              New Delivery Date
-                            </label>
-                            <Input
-                              type="date"
-                              value={minDate}
-                              min={minDate}
-                              onChange={(e) => setNewDeliveryDate(e.target.value)}
-                            />
-                          </div>
-
-                          {/* Reason Field */}
-                          <div>
-                            <label className="text-sm font-medium mb-2 block">
-                              Message
-                            </label>
-                            <Textarea
-                              rows={4}
-                              placeholder="Explain why you need to extend the delivery..."
-                              value={extendReason}
-                              onChange={(e) => setExtendReason(e.target.value)}
-                            />
-                          </div>
-                        </div>
-
-                        <DialogFooter className="mt-6">
-                          <Button variant="outline" onClick={() => setIsExtendOpen(false)}>
-                            Cancel
-                          </Button>
-
-                          <Button
-                            disabled={!extendReason.trim()}
-                            onClick={() => extendDelivery.mutate()}
-                          >
-                            Submit Request
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  )}
+                 
                   {user?.userType === "vendor" && request.status !== "pending" && request.status !== "disputed" && request.status !== "completed" && (
                     <Dialog open={isDeliverOpen} onOpenChange={setIsDeliverOpen}>
                         <DialogTrigger asChild>
@@ -775,12 +474,12 @@ const handleDeliver = async () => {
                           <Avatar className="w-16 h-16">
                             <AvatarImage  className="aspect-square rounded-full" src={otherUser.avatar} />
                             <AvatarFallback className="font-semibold">
-                              {otherUser.firstName?.charAt(0)?.toUpperCase() ?? "U"}
+                              {getFirstLetter(otherUser?.firstName)}
                             </AvatarFallback>
                           </Avatar>
                         ) : (
                           <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
-                            {otherUser?.firstName?.charAt(0)?.toUpperCase() ?? "U"}
+                            {getFirstLetter(otherUser?.firstName)}
                           </div>
                         )}
                         <div>
@@ -823,15 +522,8 @@ const handleDeliver = async () => {
                     </p>
                   <Dialog open={isDisputeOpen} onOpenChange={setIsDisputeOpen}>
                     <DialogTrigger asChild>
-                    {request.status !== "completed" &&
-                      request.status !== "disputed" &&
-                      request.status !== "pending" &&
-                      request.status !== "accepted" &&
-                      request.status !== "cancelled" && (
-                      <Button
-                        variant="destructive"
-                        className="w-full mt-3"
-                      >
+                    {["in_progress","delivered"].includes(request.status) && (
+                      <Button variant="destructive" className="w-full mt-3">
                         Open Dispute
                       </Button>
                     )}
@@ -905,87 +597,16 @@ const handleDeliver = async () => {
                         Cancel
                     </Button> */}
                     {/* Contractor Pay Escrow */}
-                {user?.userType === "contractor" &&
-  request.status === "accepted" && (
-    <Dialog open={isPayConfirmOpen} onOpenChange={setIsPayConfirmOpen}>
-      <DialogTrigger asChild>
-        {/* <Button className="w-full mt-3">
-          Pay & Fund Escrow
-        </Button> */}
-        <Button className="w-full mt-3"
- onClick={() => setLocation(`/checkout?requestId=${request.id}`)}
->
-Pay Now
-</Button>
-      </DialogTrigger>
-
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Confirm Escrow Payment</DialogTitle>
-        </DialogHeader>
-
-        <p className="text-sm text-muted-foreground">
-          This will securely fund the escrow for this service request.
-          The vendor will only receive payment after completion.
-        </p>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => setIsPayConfirmOpen(false)}
-            disabled={isPaying}
-          >
-            Cancel
-          </Button>
-
-          <Button
-            disabled={isPaying}
-            onClick={async () => {
-              try {
-                setIsPaying(true);
-
-                const res = await fetch(
-                  `/api/service-requests/${request.id}/pay`,
-                  {
-                    method: "POST",
-                    credentials: "include",
-                  }
-                );
-
-                if (!res.ok) {
-                  throw new Error("Payment failed");
-                }
-
-                toast({
-                  title: "Escrow Funded",
-                  description: "Payment secured successfully",
-                });
-
-                setIsPayConfirmOpen(false);
-
-                queryClient.invalidateQueries({
-                  queryKey: ["service-request", request.id],
-                });
-                queryClient.invalidateQueries({
-                  queryKey: ["/api/wallet/balance"],
-                });
-              } catch (error) {
-                toast({
-                  title: "Payment Failed",
-                  description: "Something went wrong",
-                  variant: "destructive",
-                });
-              } finally {
-                setIsPaying(false);
-              }
-            }}
-          >
-            {isPaying ? "Processing..." : "Confirm Payment"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-)}
+                    {user?.userType === "contractor" &&
+                      request.status === "accepted" &&
+                      request.paymentStatus !== "escrow_held" && (
+                        <Button
+                          className="w-full mt-3"
+                          onClick={() => setLocation(`/checkout?requestId=${request.id}`)}
+                        >
+                          Pay
+                        </Button>
+                    )}
                 </CardContent>
                 </Card>
             </div>

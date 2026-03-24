@@ -1,7 +1,6 @@
-import { Search, User, Bell, LogOut, MessageSquare } from "lucide-react";
+import { Search, Bell, LogOut, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "./ThemeToggle";
@@ -12,6 +11,7 @@ import { useMessages } from "./ui/MessageContext";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { getFirstLetter } from "../utility/textUtils"
 interface HeaderProps {
   onSearch?: (query: string) => void;
   notificationCount?: number;
@@ -39,15 +39,15 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
     },
     enabled: !!user,
   });
-  const { data: walletData } = useQuery({
-    queryKey: ["/api/wallet/balance"],
-    queryFn: async () => {
-      const res = await fetch("/api/wallet/balance");
-      if (!res.ok) throw new Error("Failed to fetch wallet");
-      return res.json();
-    },
-    enabled: !!user,
-  });
+  // const { data: walletData } = useQuery({
+  //   queryKey: ["/api/wallet/balance"],
+  //   queryFn: async () => {
+  //     const res = await fetch("/api/wallet/balance");
+  //     if (!res.ok) throw new Error("Failed to fetch wallet");
+  //     return res.json();
+  //   },
+  //   enabled: !!user,
+  // });
   const { data: notifications = [] } = useQuery({
     queryKey: ["/api/notifications"],
     queryFn: async () => {
@@ -220,9 +220,7 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                     >
                       {/* Avatar Circle */}
                       <div className="h-9 w-9 rounded-full bg-primary text-white flex items-center justify-center shrink-0 text-sm font-semibold">
-                        {notification.sender?.firstName
-                          ?.charAt(0)
-                          .toUpperCase() || "N"}
+                        {getFirstLetter(notification.sender?.firstName)}
                       </div>
 
                       {/* Content */}
@@ -300,7 +298,7 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                       {user?.email}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground" data-testid="text-user-type">
-                      {user?.userType ? user.userType.charAt(0).toUpperCase() + user.userType.slice(1) : "User"}
+                      {user?.userType ? getFirstLetter(user?.userType) + user.userType.slice(1) : "User"}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -311,11 +309,11 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {user?.userType !== "admin" && (
+            {/* {user?.userType === "vendor" && (
               <div className="px-3 py-1 rounded-md bg-muted text-sm font-semibold">
                 ${Number(walletData?.balance ?? 0).toFixed(2)}
               </div>
-            )}
+            )} */}
           </div>
         </div>
       </div>
