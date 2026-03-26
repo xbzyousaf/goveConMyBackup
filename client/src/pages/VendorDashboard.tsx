@@ -15,10 +15,10 @@ import { cn } from "@/lib/utils";
 import { isCurrentMonth } from "@/helpers/dateHelper";
 import { useToast } from "@/hooks/use-toast";
 import VendorPerformanceTab from "@/components/VendorPerformanceTab";
-import WalletPage from "./vendor/WalletPage";
 import { PRIORITY_STATUSES, REQUEST_STATUSES_LABELS, ServiceRequestStatus } from "../../../constants/serviceRequest";
 import { ServiceRequestCardCompact } from "@/components/service-requests/ServiceRequestCardCompact";
 import { getFirstLetter } from "@/utility/textUtils";
+import StripePayoutTab from "./vendor/WalletPage";
 
 export default function VendorDashboard() {
   
@@ -246,7 +246,7 @@ const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
               <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
               <TabsTrigger value="reviews" data-testid="tab-reviews">Reviews</TabsTrigger>
               <TabsTrigger value="performance" data-testid="tab-performance">Performance</TabsTrigger>
-              <TabsTrigger value="wallet" data-testid="tab-wallet">Wallet</TabsTrigger>
+              <TabsTrigger value="payouts">Payouts</TabsTrigger>
             </TabsList>
 
 
@@ -342,8 +342,8 @@ const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
             <TabsContent value="performance" className="space-y-6">
               <VendorPerformanceTab vendorId={user.id} />
             </TabsContent>
-            <TabsContent value="wallet" className="space-y-6">
-              <WalletPage/>
+            <TabsContent value="payouts" className="space-y-6">
+              <StripePayoutTab />
             </TabsContent>
 
             {/* Profile Tab */}

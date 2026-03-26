@@ -37,15 +37,20 @@ export default function Vendors() {
 } = useQuery<VendorProfile[]>({
   queryKey: ["/api/vendors"],
   queryFn: async () => {
-    const res = await fetch("/api/vendors");
-    const data = await res.json();
+  const res = await fetch("/api/vendors");
+  const data = await res.json();
 
-    if (data?.message === "Access denied") {
-      throw new Error("ACCESS_DENIED");
-    }
+  if (data?.message === "Access denied") {
+    throw new Error("ACCESS_DENIED");
+  }
 
-    return data;
-  },
+  // ✅ Ensure always array
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data;
+},
 });
 
 if (error instanceof Error && error.message === "ACCESS_DENIED") {
@@ -62,14 +67,15 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
     { id: "marketing", label: "Marketing & Branding" },
     { id: "business_tools", label: "Business Tools" },
   ];
+  const safeVendors = Array.isArray(vendors) ? vendors : [];
 
   const locations = [
     { id: "all", label: "All Locations" },
-    ...Array.from(new Set(vendors.map(v => v.location).filter(Boolean)))
+    ...Array.from(new Set(safeVendors.map(v => v.location).filter(Boolean)))
       .map(loc => ({ id: loc!, label: loc! }))
   ];
 
-  const filteredVendors = vendors.filter(vendor => {
+  const filteredVendors = safeVendors.filter(vendor => {
     // Category filter
     if (selectedCategory !== "all" && !vendor.categories?.includes(selectedCategory as any)) {
       return false;
@@ -123,7 +129,7 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2" data-testid="text-page-title">

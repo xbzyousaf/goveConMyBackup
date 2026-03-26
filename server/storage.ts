@@ -46,7 +46,9 @@ import {
   disputes,
   wallets,
   walletTransactions,
-  milestones
+  milestones,
+  subscriptions,
+  InsertSubscription
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
@@ -1931,8 +1933,91 @@ async getEscrowByRequestId(requestId: string) {
   });
 }
 
+async createSubscription(data: InsertSubscription) {
+  const [created] = await db
+    .insert(subscriptions)
+    .values({
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning();
 
+  return created;
+}
+async getSubscriptionByStripeId(stripeSubscriptionId: string) {
+  const [sub] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId));
 
+  return sub;
+}
+async updateSubscriptionStatus(stripeSubscriptionId: string, status: string) {
+  await db
+    .update(subscriptions)
+    .set({ status, updatedAt: new Date() })
+    .where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId));
+}
+async getSubscriptionByUserId(userId: string) {
+  const [sub] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .orderBy(desc(subscriptions.createdAt));
+
+  return sub;
+}
+
+async getActiveSubscriptionByUserId(userId: string) {
+  const [sub] = await db
+    .select()
+    .from(subscriptions)
+    .where(
+      and(
+        eq(subscriptions.userId, userId),
+        eq(subscriptions.status, "active")
+      )
+    );
+
+  return sub;
+}
+async updateSubscriptionDetails(
+  stripeSubscriptionId: string,
+  data: {
+    status?: string;
+    cancelAtPeriodEnd?: boolean;
+    currentPeriodStart?: Date | null;
+    currentPeriodEnd?: Date | null;
+  }
+) {
+  await db
+    .update(subscriptions)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId));
+}
+async updateVendorStripeAccount(
+  userId: string,
+  data: {
+    stripeAccountId: string;
+    stripeDetailsSubmitted: boolean;
+    stripeChargesEnabled: boolean;
+    stripePayoutsEnabled: boolean;
+  }
+) {
+  await db
+    .update(vendorProfiles)
+    .set({
+      stripeAccountId: data.stripeAccountId,
+      stripeDetailsSubmitted: data.stripeDetailsSubmitted,
+      stripeChargesEnabled: data.stripeChargesEnabled,
+      stripePayoutsEnabled: data.stripePayoutsEnabled,
+    })
+    .where(eq(vendorProfiles.userId, userId));
+}
 // end
 }
 export const storage = new DatabaseStorage();

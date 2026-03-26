@@ -27,7 +27,7 @@ interface UserMaturityProfile {
   businessStructureProgress: number | null;
   businessStrategyProgress: number | null;
   executionProgress: number | null;
-  subscriptionTier: 'freemium' | 'startup' | 'growth' | 'scale';
+  subscriptionTier: 'freemium' | 'premium';
   assessmentData: any;
   createdAt: string;
   updatedAt: string;
@@ -564,8 +564,8 @@ useEffect(() => {
                         </CardContent>
                       </Card>
                     </Link>
-
-                    <Card className="opacity-50 border-2 border-gray-500 hover:bg-gray-500 hover:text-white">
+                    <Link href="/billing">
+                    <Card className="border-2 border-gray-500 hover:bg-gray-500 hover:text-white cursor-hand">
                       <CardHeader>
                         <CardTitle className="text-base flex gap-2">
                            <div className="p-2 rounded-lg bg-gray-500 text-white outline">
@@ -576,11 +576,13 @@ useEffect(() => {
                       </CardHeader>
 
                       <CardContent>
-                        <p className="text-sm">
-                          Coming soon
+                        <p className="text-sm mb-3">
+                          Unlock full marketplace access & priority support
                         </p>
+
                       </CardContent>
                     </Card>
+                    </Link>
 
                   </div>
                 )}

@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { wallets, walletTransactions } from "@shared/schema";
+import { vendorProfiles, wallets, walletTransactions } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export const walletStorage = {
@@ -125,6 +125,25 @@ async getWalletTransactions() {
 
     orderBy: (wt, { desc }) => [desc(wt.createdAt)],
   });
+},
+async updateVendorStripeAccount(
+  userId: string,
+  data: {
+    stripeAccountId: string;
+    stripeDetailsSubmitted: boolean;
+    stripeChargesEnabled: boolean;
+    stripePayoutsEnabled: boolean;
+  }
+) {
+  await db
+    .update(vendorProfiles)
+    .set({
+      stripeAccountId: data.stripeAccountId,
+      stripeDetailsSubmitted: data.stripeDetailsSubmitted,
+      stripeChargesEnabled: data.stripeChargesEnabled,
+      stripePayoutsEnabled: data.stripePayoutsEnabled,
+    })
+    .where(eq(vendorProfiles.userId, userId));
 }
 
   // end===============================
