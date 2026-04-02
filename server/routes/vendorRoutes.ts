@@ -3,6 +3,7 @@ import { vendorStorage } from "server/storage/vendorStorage";
 import multer from "multer";
 import * as XLSX from "xlsx";
 import { vendorImportQueue } from "server/queues/vendorImportQueue";
+import { processVendorImport } from "server/services/vendorImportService";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -41,16 +42,27 @@ router.post("/import", (req, res, next) => {upload.single("file")(req, res, func
       });
 
       // ✅ async background (non-blocking)
-      await vendorImportQueue.add("import-job", {
-        importId: importRecord.id,
-        rows,
-      }, {
-        attempts: 3,
-        backoff: {
-          type: "exponential",
-          delay: 5000,
-        },
+      setImmediate(async () => {
+        try {
+          await processVendorImport(importRecord.id, rows);
+        } catch (err) {
+          console.error("Import failed:", err);
+
+          await vendorStorage.updateVendorImport(importRecord.id, {
+            status: "failed",
+          });
+        }
       });
+      // await vendorImportQueue.add("import-job", {
+      //   importId: importRecord.id,
+      //   rows,
+      // }, {
+      //   attempts: 3,
+      //   backoff: {
+      //     type: "exponential",
+      //     delay: 5000,
+      //   },
+      // });
 
       return res.json({
         message: "Import started",
