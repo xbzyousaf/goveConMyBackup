@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { wallets, walletTransactions } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { escrows, vendorImports, vendorProfiles, wallets, walletTransactions } from "@shared/schema";
+import { and, count, desc, eq } from "drizzle-orm";
 
 export const walletStorage = {
  async creditWallet(userId: string, amount: number, type: string, referenceId?: string) {
@@ -125,7 +125,61 @@ async getWalletTransactions() {
 
     orderBy: (wt, { desc }) => [desc(wt.createdAt)],
   });
-}
+},
+async updateVendorStripeAccount(
+  userId: string,
+  data: {
+    stripeAccountId: string;
+    stripeDetailsSubmitted: boolean;
+    stripeChargesEnabled: boolean;
+    stripePayoutsEnabled: boolean;
+  }
+) {
+  await db
+    .update(vendorProfiles)
+    .set({
+      stripeAccountId: data.stripeAccountId,
+      stripeDetailsSubmitted: data.stripeDetailsSubmitted,
+      stripeChargesEnabled: data.stripeChargesEnabled,
+      stripePayoutsEnabled: data.stripePayoutsEnabled,
+    })
+    .where(eq(vendorProfiles.userId, userId));
+},
+
+async getVendorEarnings(userId: string, page: number = 1, limit: number = 5) {
+  const offset = (page - 1) * limit;
+
+  // ✅ total count
+  const totalResult = await db
+    .select({ count: count() })
+    .from(escrows)
+    .where(
+      and(
+        eq(escrows.vendorId, userId),
+        eq(escrows.status, "released")
+      )
+    );
+
+  const total = totalResult[0]?.count ?? 0;
+
+  // ✅ paginated data
+  const data = await db.query.escrows.findMany({
+    where: and(
+      eq(escrows.vendorId, userId),
+      eq(escrows.status, "released")
+    ),
+    orderBy: [desc(escrows.heldAt)],
+    limit,
+    offset,
+  });
+
+  return {
+    data,
+    total,
+    totalPages: Math.ceil(total / limit),
+    currentPage: page,
+  };
+},
 
   // end===============================
 }

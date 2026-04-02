@@ -24,6 +24,8 @@ import { canTransition } from './services/statusEngine';
 import { eq , and} from "drizzle-orm";
 import { processes, stages, milestones } from '@shared/schema';
 import { db } from "./db";
+import express from "express";
+import bodyParser from "body-parser";
 // recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -156,6 +158,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate verification token
       const verificationToken = AuthService.generateVerificationToken();
       const verificationExpiry = AuthService.generateTokenExpiry();
+      if (!verificationToken || !verificationExpiry) {
+        return res.status(400).json({ message: "Failed to generate verification token" });
+      }
+      const emailPrefix = validatedData.email.split("@")[0].trim();
+      // ensure unique username
+      let finalUsername = emailPrefix;
+      let counter = 1;
+
+      while (await storage.getUserByUsername(finalUsername)) {
+        finalUsername = `${emailPrefix}${counter}`;
+        counter++;
+      }
       
       // Create user (using upsertUser which accepts all fields)
       const user = await storage.createUser({
@@ -163,14 +177,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: hashedPassword,
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
-        username: validatedData.username,
+        username: finalUsername,
         profileImageUrl: validatedData.profileImageUrl,
         emailVerificationToken: verificationToken,
         emailVerificationExpiry: verificationExpiry,
         userType: intent,
         isEmailVerified: false,
       });
-      await storage.createWallet(user.id);
+      // await storage.createWallet(user.id);
       
       // Send verification email
       await EmailService.sendVerificationEmail(
@@ -736,7 +750,11 @@ Otherwise, continue the conversation by asking relevant follow-up questions.`;
       }
       const user = await storage.getUser(userId);
       if (user?.userType == "vendor") {
-        return res.status(403).json({ message: "Access denied" });
+        return res.status(403).json({
+  success: false,
+  data: [],
+  message: "Access denied"
+});
       }
 
       const { category, location } = req.query;
@@ -2104,37 +2122,98 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
   try {
     const contractorId = getUserId(req);
     const { id } = req.params;
+    const { paymentIntentId } = req.body;
 
-    const request = await storage.getServiceRequest(id);
-    if (!request) {
-      return res.status(404).json({ message: "Request not found" });
-    }
-    if (request.status !== "accepted") {
-      return res.status(400).json({ message: "Invalid state for payment" });
-    }
-
-    if (request.contractorId !== contractorId) {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-    if (request.paymentStatus === "escrow_held") {
+    // 🔒 Validate input
+    if (!paymentIntentId) {
       return res.status(400).json({
-        message: "Escrow already funded"
+        message: "Missing paymentIntentId",
       });
     }
 
+    // 🔒 Prevent duplicate escrow
+    const existingEscrow = await storage.getEscrowByRequestId(id);
+    if (existingEscrow) {
+      return res.status(400).json({
+        message: "Escrow already exists",
+      });
+    }
+
+    // 🔄 Retrieve PaymentIntent with retry (for charge availability)
+    let finalPI: any = null;
+    let chargeId: string | null = null;
+
+    for (let i = 0; i < 5; i++) {
+      const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+        expand: ["latest_charge", "charges"],
+      });
+
+      // ✅ Extract chargeId safely
+      chargeId =
+        typeof pi.latest_charge === "string"
+          ? pi.latest_charge
+          : pi.latest_charge?.id ?? null;
+
+      if (!chargeId && pi.charges?.data?.length > 0) {
+        chargeId = pi.charges.data[0].id;
+      }
+
+      // ✅ Check success + charge ready
+      if (pi.status === "succeeded" && chargeId) {
+        finalPI = pi;
+        break;
+      }
+
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+
+    if (!finalPI || !chargeId) {
+      throw new Error("Payment not fully processed yet. Try again.");
+    }
+
+    // 🔍 Fetch request
+    const request = await storage.getServiceRequest(id);
+
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+
+    if (request.status !== "accepted") {
+      return res.status(400).json({
+        message: "Invalid state for payment",
+      });
+    }
+
+    if (request.contractorId !== contractorId) {
+      return res.status(403).json({
+        message: "Unauthorized",
+      });
+    }
+
+    if (request.paymentStatus === "escrow_held") {
+      return res.status(400).json({
+        message: "Escrow already funded",
+      });
+    }
+
+    // 💰 Validate amount
     const finalPrice = Number(request.proposedPrice) ?? 0;
 
+    if (finalPI.amount !== Math.round(finalPrice * 100)) {
+      return res.status(400).json({
+        message: "Payment amount mismatch",
+      });
+    }
+
+    if (finalPI.currency !== "usd") {
+      throw new Error("Invalid currency");
+    }
+
+    // 💰 Calculate split
     const platformFee = finalPrice * 0.1;
     const vendorEarning = finalPrice - platformFee;
-    // const wallet = await walletStorage.getWalletByUserId(contractorId);
 
-    // if (!wallet) {
-    //   return res.status(400).json({ message: "Wallet not found" });
-    // }
-    // if (Number(wallet.balance) < finalPrice) {
-    //   return res.status(400).json({ message: "Insufficient balance" });
-    // }
-    // 1️⃣ Create escrow
+    // 🧾 Create escrow
     await storage.createEscrow({
       serviceRequestId: id,
       contractorId,
@@ -2142,15 +2221,18 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
       amount: finalPrice.toString(),
       platformFee: platformFee.toString(),
       vendorEarning: vendorEarning.toString(),
-      status: "held"
+      paymentIntentId: finalPI.id,
+      chargeId: chargeId,
     });
 
-    // 2️⃣ Update service request
+    // 🔄 Update request
     await storage.updateServiceRequest(id, {
       paymentStatus: "escrow_held",
       finalPrice: finalPrice.toString(),
-      status: "in_progress"
+      status: "in_progress",
     });
+
+    // 📝 Logs
     await storage.createRequestLog({
       serviceRequestId: id,
       action: "ESCROW_CREATED",
@@ -2158,8 +2240,10 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
       previousStatus: request.status,
       newStatus: "escrow_held",
     });
+
+    // 🔔 Notify vendor
     await storage.createNotification({
-      userId: request?.vendorId,
+      userId: request.vendorId,
       triggeredBy: contractorId,
       type: "payment_created",
       title: "Payment Created",
@@ -2170,17 +2254,11 @@ app.post("/api/service-requests/:id/pay", isAuthenticated, async (req, res) => {
     return res.json({ success: true });
 
   } catch (error) {
-      if (error instanceof Error) {
-        console.error(error.message);
-        return res.status(400).json({
-          message: error.message
-        });
-      }
-
-      res.status(500).json({
-        message: "Internal server error"
-      });
-    }
+    console.error("PAYMENT ERROR:", error);
+    return res.status(400).json({
+      message: error instanceof Error ? error.message : "Payment failed",
+    });
+  }
 });
 app.get("/api/vendor/payments", isAuthenticated, async (req, res) => {
   try {
@@ -2414,7 +2492,139 @@ app.post("/api/payments/create-intent", async (req, res) => {
     res.status(500).json({ error: "PaymentIntent creation failed" });
   }
 });
+  app.post("/api/stripe/create-subscription", async (req, res) => {
+    try{
+      const userId = getUserId(req); // make sure user exists
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const user = await storage.getUser(userId);
+      const profile = await storage.getUserMaturityProfile(userId);
 
+      let customerId = profile?.stripeCustomerId;
+      if (!user) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+        });
+
+        customerId = customer.id;
+
+        await storage.upsertUserMaturityProfile({
+          userId: user.id,
+          stripeCustomerId: customerId,
+        });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ["card"],
+        mode: "subscription",
+
+        line_items: [
+          {
+            price: "price_1TEOkSLr9p1JppjQqEuK2V0T",
+            quantity: 1,
+          },
+        ],
+
+        client_reference_id: user.id, // 🔥 IMPORTANT
+        subscription_data: {
+          metadata: {
+            userId: user.id,
+          },
+        },
+
+        success_url: `${process.env.APP_URL}/billing`,
+        cancel_url: `${process.env.APP_URL}/marketplace`,
+      });
+
+      res.json({ url: session.url });
+    } catch (error) {
+      if (error instanceof Error) {
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+      res.status(500).json({
+        message: "Internal server error"
+      });
+    }
+  });
+  app.get("/api/subscription/current", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const sub = await storage.getSubscriptionByUserId(userId);
+
+    res.json(sub || null);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+app.post("/api/subscription/cancel", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const sub = await storage.getActiveSubscriptionByUserId(userId);
+    console.log('new', sub, userId)
+    if (!sub) {
+      return res.status(404).json({ message: "No active subscription" });
+    }
+
+    const updated = await stripe.subscriptions.update(
+      sub.stripeSubscriptionId!,
+      {
+        cancel_at_period_end: true,
+      }
+    );
+
+    // 🔥 ADD THIS LINE
+    await storage.updateSubscriptionDetails(sub.stripeSubscriptionId!, {
+      cancelAtPeriodEnd: true,
+    });
+
+    res.json({ message: "Subscription will cancel at period end" });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+app.post("/api/subscription/resume", async (req, res) => {
+  try {
+    const userId = getUserId(req);
+
+    const sub = await storage.getActiveSubscriptionByUserId(userId);
+
+    if (!sub) {
+      return res.status(404).json({ message: "No subscription found" });
+    }
+
+   const updated = await stripe.subscriptions.update(
+      sub.stripeSubscriptionId!,
+      {
+        cancel_at_period_end: false,
+      }
+    );
+
+    // 🔥 ADD THIS
+    await storage.updateSubscriptionDetails(sub.stripeSubscriptionId!, {
+      cancelAtPeriodEnd: false,
+    });
+
+    res.json({ message: "Subscription resumed" });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
   const httpServer = createServer(app);
   return httpServer;

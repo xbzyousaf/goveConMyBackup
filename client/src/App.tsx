@@ -38,12 +38,14 @@ import AdminRequestLogs from "./pages/admin/AdminRequestLogs";
 import AdminDisputes from "./pages/admin/AdminDisputes";
 
 import VendorPayments from "./pages/vendor/payments";
-import WalletPage from "./pages/vendor/WalletPage";
 import Transactions from "./pages/admin/Transactions";
 import AdminServices from "./pages/admin/AdminServices";
 import CreateMilestone from "./pages/admin/Content";
 import Checkout from "./pages/checkout";
 import AdminMilestones from "./pages/admin/AdminMilestones";
+import BillingPage from "./pages/Billing";
+import StripePayoutTab from "./pages/vendor/WalletPage";
+import AdminVendorImports from "./pages/admin/AdminVendorImports";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -119,10 +121,12 @@ function Router() {
           <Route path="/vendor/requests/:id" component={RequestDetails} />
           <Route path="/admin/request-logs" component={AdminRequestLogs} />
           <Route path="/vendors/payment" component={VendorPayments} />
-          <Route path="/vendor/wallet" component={WalletPage} />
+          <Route path="/vendor/payouts" component={StripePayoutTab} />
           <Route path="/admin/transactions" component={Transactions} />
           <Route path="/admin/guideness" component={AdminMilestones} />
           <Route path="/admin/milestones/create" component={CreateMilestone} />
+          <Route path="/admin/vendor-imports" component={AdminVendorImports} />
+          <Route path="/billing" component={BillingPage} />
           <Route component={NotFound} />
         </>
       ) : (

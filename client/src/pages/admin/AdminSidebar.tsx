@@ -9,6 +9,7 @@ import {
   FileText,
   Receipt,
   Briefcase,
+  Import,
 } from "lucide-react";
 
 const nav = [
@@ -22,6 +23,7 @@ const nav = [
   { label: "Growth Checklists", href: "/admin/guideness", icon: Briefcase },
   { label: "Analytics", href: "/admin/analytics", icon: BarChart },
   { label: "Request Logs", href: "/admin/request-logs", icon: FileText },
+  { label: "Vendor Imports", href: "/admin/vendor-imports", icon: Import },
 
 ];
 

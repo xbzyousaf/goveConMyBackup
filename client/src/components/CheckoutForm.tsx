@@ -38,10 +38,17 @@ export default function CheckoutForm({ requestId, clientSecret }: Props) {
       });
 
     } else if (result.paymentIntent?.status === "succeeded") {
-      await fetch(`/api/service-requests/${requestId}/pay`, {
-        method: "POST",
-        credentials: "include",
-      });
+     await fetch(`/api/service-requests/${requestId}/pay`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        paymentIntentId: result.paymentIntent.id,
+      }),
+      
+    });
 
       toast({
         title: "Payment successful 🎉",

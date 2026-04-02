@@ -3,6 +3,7 @@ import { pgTable, text, varchar, timestamp, integer, boolean, decimal, pgEnum, j
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { uniqueIndex } from "drizzle-orm/pg-core";
+import { float } from "drizzle-orm/mysql-core";
 // Session storage table for Replit Auth
 export const sessions = pgTable(
   "sessions",
@@ -21,7 +22,7 @@ export const serviceCategoryEnum = pgEnum("service_category", ["legal", "hr", "f
 export const maturityStageEnum = pgEnum("maturity_stage", ["startup", "growth", "scale"]);
 export const coreProcessEnum = pgEnum("core_process", ["business_structure", "business_strategy", "execution"]);
 export const contentTypeEnum = pgEnum("content_type", ["playbook", "template", "guide", "webinar", "faq", "checklist"]);
-export const subscriptionTierEnum = pgEnum("subscription_tier", ["freemium", "startup", "growth", "scale"]);
+export const subscriptionTierEnum = pgEnum("subscription_tier", ["freemium", "premium"]);
 export const vendorJourneyStageEnum = pgEnum("vendor_journey_stage", ["awareness", "application", "vetting", "onboarding", "active", "inactive"]);
 export const serviceTierEnum = pgEnum("service_tier", ["free","standard","premium"]);
 export const messageTypeEnum = pgEnum("message_type", ["text", "system", "file", ]);
@@ -79,6 +80,10 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   leadCreditsBalance: integer("lead_credits_balance").default(0),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
+  stripeAccountId: text("stripe_account_id"),
+  stripeChargesEnabled: boolean("stripe_charges_enabled").default(false),
+  stripePayoutsEnabled: boolean("stripe_payouts_enabled").default(false),
+  stripeDetailsSubmitted: boolean("stripe_details_submitted").default(false),
   // Analytics
   profileViews: integer("profile_views").default(0),
   leadsReceived: integer("leads_received").default(0),
@@ -234,6 +239,8 @@ export const serviceTiers = pgTable("service_tiers", {
   vendorEarning: decimal("vendor_earning", { precision: 10, scale: 2 }).notNull(),
   status: escrowStatusEnum("status").default("held").notNull(),
   heldAt: timestamp("held_at").defaultNow(),
+  paymentIntentId: text("payment_intent_id"),
+  chargeId: text("charge_id"),
   releasedAt: timestamp("released_at"),
   refundedAt: timestamp("refunded_at"),
 });
@@ -378,6 +385,32 @@ export const userMaturityProfiles = pgTable("user_maturity_profiles", {
   contractorScore: decimal("contractor_score", { precision: 5, scale: 2 }).default("0"),
   disputesLost: integer("disputes_lost").default(0),
   autoCompletionPenalty: integer("auto_completion_penalty").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+export const subscriptions = pgTable("subscriptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+
+  status: text("status"),
+
+  priceId: text("price_id"),
+  planName: text("plan_name"),
+
+  interval: text("interval"),
+  amount: text("amount"),
+  currency: text("currency"),
+
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+
+  cancelAtPeriodEnd: boolean("cancel_at_period_end"),
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -533,6 +566,23 @@ export const requestLogs = pgTable("request_logs", {
   newStatus: varchar("new_status", { length: 50 }),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export const vendorImports = pgTable("vendor_imports", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  fileName: text("file_name"),
+  totalRecords: integer("total_records").default(0),
+  processedRecords: integer("processed_records").default(0),
+  successRecords: integer("success_records").default(0),
+  failedRecords: integer("failed_records").default(0),
+
+  status: text("status").default("pending"), // pending | processing | completed | failed
+  progress: integer("progress").default(0),
+
+  errors: jsonb("errors"), // [{ row, message }]
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Relations
@@ -743,7 +793,33 @@ export const insertUserSchema = createInsertSchema(users).omit({
   userType: z.enum(["contractor", "vendor"]),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  userId: z.string().uuid(),
 
+  stripeCustomerId: z.string().nullable().optional(),
+  stripeSubscriptionId: z.string().nullable().optional(),
+
+  status: z.string(),
+
+  priceId: z.string().nullable().optional(),
+  productId: z.string().nullable().optional(),
+
+  planName: z.string().nullable().optional(),
+
+  amount: z.string().nullable().optional(),
+  currency: z.string().nullable().optional(),
+
+  interval: z.string().nullable().optional(),
+
+  currentPeriodStart: z.date().nullable().optional(),
+  currentPeriodEnd: z.date().nullable().optional(),
+
+  cancelAtPeriodEnd: z.boolean().optional(),
+});
 export const insertVendorProfileSchema = createInsertSchema(vendorProfiles).omit({
   id: true,
   createdAt: true,
@@ -828,6 +904,7 @@ export const serviceTiersRelations = relations(serviceTiers, ({ one }) => ({
 }));
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type User = typeof users.$inferSelect;
 export type Service = typeof services.$inferSelect;
 export type Milestone = typeof milestones.$inferSelect;
