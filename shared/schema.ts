@@ -239,6 +239,8 @@ export const serviceTiers = pgTable("service_tiers", {
   vendorEarning: decimal("vendor_earning", { precision: 10, scale: 2 }).notNull(),
   status: escrowStatusEnum("status").default("held").notNull(),
   heldAt: timestamp("held_at").defaultNow(),
+  paymentIntentId: text("payment_intent_id"),
+  chargeId: text("charge_id"),
   releasedAt: timestamp("released_at"),
   refundedAt: timestamp("refunded_at"),
 });
@@ -564,6 +566,23 @@ export const requestLogs = pgTable("request_logs", {
   newStatus: varchar("new_status", { length: 50 }),
   metadata: jsonb("metadata"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export const vendorImports = pgTable("vendor_imports", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  fileName: text("file_name"),
+  totalRecords: integer("total_records").default(0),
+  processedRecords: integer("processed_records").default(0),
+  successRecords: integer("success_records").default(0),
+  failedRecords: integer("failed_records").default(0),
+
+  status: text("status").default("pending"), // pending | processing | completed | failed
+  progress: integer("progress").default(0),
+
+  errors: jsonb("errors"), // [{ row, message }]
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Relations

@@ -159,12 +159,12 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return user;
   }
-  async createWallet(userId: string): Promise<void> {
-    await db.insert(wallets).values({
-      userId: userId,
-      balance: "100000.00",
-    });
-  }
+  // async createWallet(userId: string): Promise<void> {
+  //   await db.insert(wallets).values({
+  //     userId: userId,
+  //     balance: "100000.00",
+  //   });
+  // }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
@@ -1712,6 +1712,8 @@ async createEscrow(data: {
   amount: string;
   platformFee: string;
   vendorEarning: string;
+  paymentIntentId:string;
+  chargeId:string;
 }) {
   return await db.insert(escrows).values({
     serviceRequestId: data.serviceRequestId,
@@ -1720,7 +1722,8 @@ async createEscrow(data: {
     amount: data.amount,
     platformFee: data.platformFee,
     vendorEarning: data.vendorEarning,
-    status: "held",
+    paymentIntentId:data.paymentIntentId ?? null,
+    chargeId:data.chargeId ?? null,
     heldAt: new Date(),
   }).returning();
 }

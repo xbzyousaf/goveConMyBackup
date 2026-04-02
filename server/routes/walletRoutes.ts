@@ -2,7 +2,17 @@ import { RequestHandler, Router } from "express";
 import { storage } from "server/storage";
 import { walletStorage } from "server/storage/walletStorage";
 import { stripe } from "server/lib/stripe";
+import { processVendorImport } from "server/services/vendorImportService";
+import multer from "multer";
+import * as XLSX from "xlsx";
+import { vendorImportQueue } from "server/queues/vendorImportQueue";
 
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // ✅ 5MB limit
+  },
+});
 const router = Router();
 const getUserId = (req: any): string | null => {
   return (req.session as any)?.userId || null;
@@ -65,31 +75,30 @@ router.get("/connect-status", isAuthenticated, async (req: any, res) => {
     const vendor = await storage.getVendorProfile(userId);
 
     if (!vendor?.stripeAccountId) {
-      return res.json({ status: "not_connected" });
+      return res.json({ connected: false });
     }
 
     const account = await stripe.accounts.retrieve(
       vendor.stripeAccountId
     );
-console.log("🔍 STRIPE ACCOUNT:", {
-  details_submitted: account.details_submitted,
-  payouts_enabled: account.payouts_enabled,
-  charges_enabled: account.charges_enabled,
-  requirements: account.requirements,
-});
-    if (!account.details_submitted) {
-  return res.json({ status: "not_connected" });
-}
 
-if (account.details_submitted && !account.payouts_enabled) {
-  return res.json({ status: "pending_verification" });
-}
+    return res.json({
+      connected: true,
+      accountId: account.id,
+      type: account.type,
 
-if (account.payouts_enabled) {
-  return res.json({ status: "verified" });
-}
+      chargesEnabled: account.charges_enabled,
+      payoutsEnabled: account.payouts_enabled,
+      detailsSubmitted: account.details_submitted,
 
-    return res.json({ status: "verified" });
+      email: account.email,
+
+      requirements: {
+        currentlyDue: account.requirements?.currently_due || [],
+        pendingVerification: account.requirements?.pending_verification || [],
+        disabledReason: account.requirements?.disabled_reason || null,
+      }
+    });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -138,7 +147,8 @@ router.post("/connect-account", isAuthenticated, async (req, res) => {
   try {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
+    const user= await storage.getUser(userId);
+    if (!user) return res.status(401).json({ message: "User not found" });
     let vendor = await storage.getVendorProfile(userId);
     if (!vendor) return res.status(401).json({ message: "No vendor profile" });
 
@@ -149,7 +159,7 @@ router.post("/connect-account", isAuthenticated, async (req, res) => {
       const account = await stripe.accounts.create({
         type: "express",
         country: "US",
-        email: "test@test.com",
+        email: user.email ?? "user@user.com",
         capabilities: {
           transfers: { requested: true },
         },
@@ -182,4 +192,33 @@ router.post("/connect-account", isAuthenticated, async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 });
+router.get("/vendor/earnings", isAuthenticated, async (req, res) => {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 5);
+
+    const result = await walletStorage.getVendorEarnings(
+      userId,
+      page,
+      limit
+    );
+
+    return res.json({
+      data: result.data,
+      total: result.total,
+      totalPages: result.totalPages,
+      currentPage: result.currentPage,
+    });
+
+  } catch (err: any) {
+    console.error("ERROR:", err);
+    return res.status(400).json({ message: err.message });
+  }
+});
+
 export default router;

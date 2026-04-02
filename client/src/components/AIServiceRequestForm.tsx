@@ -48,18 +48,27 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
       }
       return data;
     },
-     onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: ["/api/service-requests"],
-      });
-      setMatches(data.matchedVendors || []);
-      toast({
-        title: "Request submitted successfully",
-        description: "Request submitted successfully",
-      });
-      onSubmit?.(data.description);
-      navigate(`/`);
+    onSuccess: (data) => {
+  queryClient.setQueriesData(
+  {
+    predicate: (query) => {
+      const key = query.queryKey[0];
+      return typeof key === "string" && key.startsWith("/api/service-requests");
     },
+  },
+  (old: any) => {
+    if (!old) return old;
+
+    return {
+      ...old,
+      data: [data, ...(old.data || [])],
+      total: (old.total || 0) + 1,
+    };
+  }
+);
+
+  navigate("/?page=1&status=priority");
+},
     onError: (error: any) => {
       toast({
         variant: "destructive",

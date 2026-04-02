@@ -26,6 +26,7 @@ export default function VendorDashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("requests");
   const PAGE_SIZE = 5;
 type StatusFilter = "priority" | "all" | ServiceRequestStatus;
 const [page, setPage] = useState(1);
@@ -49,9 +50,25 @@ const { data } = useQuery<{
     return res.json();
   }
 });
+const applyFilter = (requests: ServiceRequest[]) => {
+  return requests.filter((request) => {
+    const statusMatch =
+      statusFilter === "all" ||
+      (statusFilter === "priority" && PRIORITY_STATUSES.includes(request.status)) ||
+      request.status === statusFilter;
 
-const serviceRequests = data?.data ?? [];
-const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
+    const searchMatch =
+      search === "" ||
+      request.title?.toLowerCase().includes(search.toLowerCase()) ||
+      request.description?.toLowerCase().includes(search.toLowerCase()) ||
+      request.service?.name?.toLowerCase().includes(search.toLowerCase());
+
+    return statusMatch && searchMatch;
+  });
+};
+const rawRequests = data?.data ?? [];
+const serviceRequests = applyFilter(rawRequests);
+const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
   // Fetch vendor profile
   const { data: vendorProfile, isLoading: profileLoading } = useQuery({
     queryKey: ["/api/vendor-profile"],
@@ -213,10 +230,11 @@ const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
           </Card>
         ) : vendorProfile && (
           // Profile Exists - Show Dashboard
-          <Tabs defaultValue="requests" className="space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
 
             {/* LEFT SIDE → Search + Status */}
+            {activeTab === "requests" && (
             <div className="flex items-center gap-4">
 
               <input
@@ -239,8 +257,9 @@ const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
                 </select>
 
             </div>
+            )}
             {/* RIGHT SIDE → Tabs */}
-            <TabsList data-testid="tabs-dashboard">
+            <TabsList data-testid="tabs-dashboard" className="ml-auto">
               {/* <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger> */}
               <TabsTrigger value="requests" data-testid="tab-requests">Service Requests</TabsTrigger>
               <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
@@ -572,7 +591,6 @@ const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
               </Card>
             </TabsContent>
             {/* Requests Tab */}
-            <TabsContent value="requests" className="space-y-6">
               <Card data-testid="card-service-requests">
                 {/* Requests Tab */}
                 <TabsContent value="requests" className="space-y-6">
@@ -617,7 +635,6 @@ const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
                 </TabsContent>
 
               </Card>
-            </TabsContent>
 
             {/* Reviews Tab */}
             <TabsContent value="reviews" className="space-y-6">

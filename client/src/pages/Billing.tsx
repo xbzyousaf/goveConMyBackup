@@ -55,6 +55,7 @@ export default function BillingPage() {
   const subscribe = async (plan: "monthly" | "yearly") => {
     const res = await fetch("/api/stripe/create-subscription", {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -62,6 +63,11 @@ export default function BillingPage() {
     });
 
     const data = await res.json();
+    console.log("Stripe response:", data);
+    if (!data?.url) {
+      console.error("Stripe URL missing", data);
+      return alert(data?.message || "Checkout failed");
+    }
     window.location.href = data.url;
   };
 
