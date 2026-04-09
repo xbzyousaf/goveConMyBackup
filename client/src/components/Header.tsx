@@ -39,15 +39,6 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
     },
     enabled: !!user,
   });
-  // const { data: walletData } = useQuery({
-  //   queryKey: ["/api/wallet/balance"],
-  //   queryFn: async () => {
-  //     const res = await fetch("/api/wallet/balance");
-  //     if (!res.ok) throw new Error("Failed to fetch wallet");
-  //     return res.json();
-  //   },
-  //   enabled: !!user,
-  // });
   const { data: notifications = [] } = useQuery({
     queryKey: ["/api/notifications"],
     queryFn: async () => {

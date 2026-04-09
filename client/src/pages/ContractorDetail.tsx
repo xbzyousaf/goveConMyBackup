@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, MessageSquare, Star, MapPin } from "lucide-react";
+import { ArrowLeft, MessageSquare, Star, MapPin, Mail } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function ContractorDetail() {
@@ -21,7 +20,7 @@ export default function ContractorDetail() {
 
   const { data: reviews = [] } = useQuery<any[]>({
     queryKey: contractorId
-      ? [`/api/contractors/${contractorId}/reviews`]
+      ? [`/api/contractor/${contractorId}/reviews`]
       : ["disabled"],
     enabled: !!contractorId,
   });
@@ -84,19 +83,16 @@ export default function ContractorDetail() {
 
                   <div className="flex-1">
                     <h1 className="text-3xl font-bold mb-2">{fullName}</h1>
+                    <p className="mb-2">@{contractor.username ?? "username"}</p>
 
-                    {contractor.location && (
                       <div className="flex items-center gap-2 text-muted-foreground mb-2">
                         <MapPin className="w-4 h-4" />
-                        {contractor.location}
-                      </div>
-                    )}
+                        {contractor.location ? contractor.location : 'address'}
 
-                    <div className="flex items-center gap-2">
                       <Star className="w-4 h-4 text-yellow-400 fill-current" />
                       <span>
-                        {contractor.rating ?? "No rating"} (
-                        {contractor.reviewCount ?? 0} reviews)
+                        {reviews.length > 0 ? reviews[0].rating : "No rating"} (
+                        {reviews.length ?? 0} reviews)
                       </span>
                     </div>
                   </div>
@@ -123,26 +119,72 @@ export default function ContractorDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {reviews.length > 0 ? (
-                  reviews.map((review, index) => (
-                    <div key={index} className="border-b pb-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < (review.rating ?? 0)
-                                ? "text-yellow-400 fill-current"
-                                : "text-muted-foreground"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-muted-foreground">{review.comment}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground">No reviews yet.</p>
-                )}
+  <div className="space-y-4">
+    {reviews.map((review, index) => (
+      <Card key={review.id || index}>
+        <CardContent className="p-6">
+          <div className="flex gap-4">
+
+            {/* Avatar */}
+            <Avatar className="w-10 h-10">
+              <AvatarFallback>
+                {review?.vendorName?.[0] || "U"}
+              </AvatarFallback>
+            </Avatar>
+
+            {/* Content */}
+            <div className="flex-1 space-y-2">
+
+              {/* Name + Date */}
+              <div className="flex justify-between items-center">
+                <p className="font-medium">
+                  {review.vendorName ?? "User"}
+                </p>
+
+                <span className="text-xs text-muted-foreground">
+                  {review.createdAt
+                    ? new Date(review.createdAt).toLocaleDateString()
+                    : ""}
+                </span>
+              </div>
+
+              {/* Rating */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">
+                  {review.rating}/5
+                </span>
+
+                <div className="flex gap-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${
+                        i < review.rating
+                          ? "text-yellow-400 fill-yellow-400"
+                          : "text-muted-foreground"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Comment */}
+              {review.comment && (
+                <p className="text-sm text-muted-foreground">
+                  {review.comment}
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+) : (
+  <p className="text-muted-foreground text-center py-6">
+    No reviews yet.
+  </p>
+)}
               </CardContent>
             </Card>
           </div>
@@ -154,13 +196,13 @@ export default function ContractorDetail() {
                 <CardTitle>Contact</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                {contractor.phoneNumber ? (
-                    <div className="text-center font-medium text-lg">
-                    📞 {contractor.phoneNumber}
+                {contractor.email ? (
+                    <div className="flex items-center justify-center font-medium text-lg">
+                    <Mail className="w-4 h-4 mr-2" /> {contractor.email}
                     </div>
                 ) : (
                     <div className="text-center text-muted-foreground">
-                    No phone number available
+                    No email available
                     </div>
                 )}
 

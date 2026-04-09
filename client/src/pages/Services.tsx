@@ -54,7 +54,7 @@ export default function Services() {
   ];
   
   const { data: allServices } = useQuery<any>({
-    queryKey: isContractor ? ['/api/all-services'] : ['/api/services'],
+    queryKey: isContractor ? ['/api/admin/all-services'] : ['/api/services'],
   });
 
   const processSteps = [

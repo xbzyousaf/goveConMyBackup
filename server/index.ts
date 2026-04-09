@@ -3,8 +3,9 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import path from "path";
-import walletRoutes from "./routes/walletRoutes";
-import vendorRoutes from "./routes/vendorRoutes";
+import vendorRoutes from "./routes/vendor.routes";
+import contractorRoutes from "./routes/contractor.routes";
+import adminRoutes from "./routes/admin.routes";
 import fs from "fs";  
 import bodyParser from "body-parser";
 import { stripe } from "./lib/stripe";
@@ -242,9 +243,12 @@ app.post("/api/stripe/webhook", bodyParser.raw({ type: "application/json" }), as
     }
   }
 );
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
   const server = await registerRoutes(app);
-  app.use("/api/wallet", walletRoutes);
-  app.use("/api/vendor", vendorRoutes);
+  app.use("/api", vendorRoutes);
+  app.use("/api", contractorRoutes);
+  app.use("/api/admin", adminRoutes);
+  
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

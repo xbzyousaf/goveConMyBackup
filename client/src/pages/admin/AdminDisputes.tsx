@@ -27,9 +27,9 @@ export default function AdminDisputes() {
 
   // Fetch disputes
   const { data: disputes = [], isLoading } = useQuery<ServiceRequest[]>({
-    queryKey: ["/api/service-requests"],
+    queryKey: ["/api/admin/disputed-requests"],
     queryFn: async () => {
-      const res = await fetch("/api/service-requests");
+      const res = await fetch("/api/admin/disputed-requests");
       if (!res.ok) throw new Error("Failed to fetch disputes");
 
       const data = await res.json();

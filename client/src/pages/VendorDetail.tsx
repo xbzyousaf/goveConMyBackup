@@ -7,18 +7,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, DollarSign, Clock, Star, CheckCircle, ArrowLeft, ArrowRight,MessageSquare, Award, Shield, TrendingUp, Calendar, FileText } from "lucide-react";
+import { MapPin, DollarSign, Clock, Star, CheckCircle, ArrowLeft, ArrowRight,MessageSquare, Award, Shield, TrendingUp, Calendar, FileText, Building, Mail } from "lucide-react";
 import type { VendorProfile, Review } from "@shared/schema";
 import { useLocation } from "wouter";
 import type { Service } from "@shared/schema";
 import { useState } from "react";
-import { getFirstLetter } from "../utility/textUtils"
+import { getFirstLetter, truncateText } from "../utility/textUtils"
 
 export default function VendorDetail() {
   const [, params] = useRoute("/vendor/:id");
   const vendorId = params?.id;
   const [, setLocation] = useLocation();
-  const { data: vendor, isLoading } = useQuery<VendorProfile>({
+  const { data: vendor, isLoading } = useQuery<any>({
     queryKey: vendorId ? [`/api/vendors/${vendorId}`] : ["disabled"],
     enabled: !!vendorId,
   });
@@ -55,7 +55,7 @@ export default function VendorDetail() {
             The vendor you're looking for doesn't exist or has been removed.
           </p>
           <Link href="/vendors">
-            <Button>
+            <Button variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Vendors
             </Button>
@@ -76,10 +76,10 @@ export default function VendorDetail() {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Back Button */}
         <Link href="/vendors">
-          <Button variant="ghost" className="mb-6" data-testid="button-back">
+          <Button variant="outline" className="mb-6" data-testid="button-back">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Vendors
           </Button>
@@ -93,16 +93,18 @@ export default function VendorDetail() {
               <CardContent className="p-8">
                 <div className="flex items-start gap-6">
                   <Avatar className="w-24 h-24">
-  <AvatarImage src={vendor?.avatar ?? ""} />
-  <AvatarFallback className="text-2xl">
-    {getFirstLetter(vendor?.companyName, "C")}
-  </AvatarFallback>
-</Avatar>
+                    <AvatarImage src={vendor?.avatar ?? ""} />
+                    <AvatarFallback className="text-2xl">
+                      {getFirstLetter(vendor?.username, "C")}
+                    </AvatarFallback>
+                  </Avatar>
                   
                   <div className="flex-1">
-                    <div className="flex flex-wrap items-start gap-2 mb-2">
+                    <div className="flex flex-wrap items-start gap-2">
                       <h1 className="text-3xl font-bold" data-testid="text-vendor-title">
-                        {vendor.companyName}
+                       {(vendor.firstName || vendor.lastName)
+                          ? `${vendor.firstName || ""} ${vendor.lastName || ""}`.trim()
+                          : vendor.username || "Vendor"}
                       </h1>
                       {vendor.isApproved && (
                         <Badge variant="default" className="flex items-center gap-1" data-testid="badge-verified">
@@ -123,37 +125,28 @@ export default function VendorDetail() {
                         </Badge>
                       )}
                     </div>
-
-                    {vendor.title && (
-                      <p className="text-lg text-muted-foreground mb-3" data-testid="text-company-name">
+                    <div>
+                      {vendor.username && (
+                        <p className="text-sm text-muted-foreground">
+                          @{vendor.username}
+                        </p>
+                      )}
+                    </div>
+                    {vendor.companyName && (
+                    <div className="flex mt-2">
+                      <Building className="h-5 w-5 mt-1"/>
+                      <p className="text-lg">{vendor.companyName}</p>
+                                    
+                    </div>
+                     )}
+                     <div>
+                      {vendor.title && (
+                      <p className="text-sm text-muted-foreground mb-3" data-testid="text-company-name">
                         {vendor.title}
                       </p>
                     )}
+                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4 text-sm">
-                      {vendor.location && (
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <MapPin className="w-4 h-4" />
-                          <span data-testid="text-location">{vendor.location}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                        <span className="font-medium" data-testid="text-rating">
-                          {vendor.rating ? Number(vendor.rating).toFixed(2) : "N/A"}
-                        </span>
-                        {(vendor.reviewCount ?? 0) > 0 && (
-                          <span className="text-muted-foreground">
-                            ({vendor.reviewCount} reviews)
-                          </span>
-                        )}
-                      </div>
-                      {vendor.availability && (
-                        <Badge variant={vendor.availability === "Available" ? "secondary" : "outline"} data-testid="badge-availability">
-                          {vendor.availability}
-                        </Badge>
-                      )}
-                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -481,7 +474,7 @@ export default function VendorDetail() {
                       <DollarSign className="w-4 h-4" />
                       <span>Hourly Rate</span>
                     </div>
-                    <span className="font-semibold" data-testid="text-hourly-rate">
+                    <span data-testid="text-hourly-rate">
                       {vendor.hourlyRate}/hr
                     </span>
                   </div>
@@ -493,11 +486,29 @@ export default function VendorDetail() {
                       <Clock className="w-4 h-4" />
                       <span>Response Time</span>
                     </div>
-                    <span className="font-semibold" data-testid="text-response-time">
-                      {vendor.responseTime}
+                    <span data-testid="text-response-time">
+                      {vendor.responseTime ?? "N/A"}
                     </span>
                   </div>
                 )}
+                 {vendor.email && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Mail className="w-4 h-4" />
+                        <span>Mail</span>
+                      </div>
+                      <span data-testid="text-email">{vendor.email ?? "N/A"}</span>
+                    </div>
+                 )}
+                 {vendor.businessType && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Mail className="w-4 h-4" />
+                        <span>Business with</span>
+                      </div>
+                      <span data-testid="text-business-type">{vendor.businessType ?? "N/A"}</span>
+                    </div>
+                 )}
 
                 <Separator />
 

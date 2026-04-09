@@ -29,6 +29,10 @@ export const messageTypeEnum = pgEnum("message_type", ["text", "system", "file",
 export const extentionStatusEnum = pgEnum("status", ["pending", "accepted", "rejected", ]);
 export const escrowStatusEnum = pgEnum("escrow_status", ["held", "released", "refunded", "disputed"]);
 export const paymentStatus = pgEnum("payment_status", ["payment_pending", "payment_received", "escrow_held", "released", "refunded", "failed"]);
+export const businessTypeEnum = pgEnum("business_type", ["commercial", "government", "both",]);
+
+
+export type BusinessType = (typeof businessTypeEnum.enumValues)[number];
 
 // Users table - custom email/password authentication
 export const users = pgTable("users", {
@@ -49,6 +53,7 @@ export const users = pgTable("users", {
   passwordResetToken: text("password_reset_token"),
   passwordResetExpiry: timestamp("password_reset_expiry"),
   skipAssessment: boolean("skip_assessment").default(false),
+  businessType: businessTypeEnum("business_type").default("commercial"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -385,6 +390,7 @@ export const userMaturityProfiles = pgTable("user_maturity_profiles", {
   contractorScore: decimal("contractor_score", { precision: 5, scale: 2 }).default("0"),
   disputesLost: integer("disputes_lost").default(0),
   autoCompletionPenalty: integer("auto_completion_penalty").default(0),
+  gaps: jsonb("gaps"), // Identified gaps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -424,6 +430,7 @@ export const assessments = pgTable("assessments", {
   readinessScore: integer("readiness_score").notNull(),
   aiAnalysis: text("ai_analysis"), // Summary of strengths/gaps
   recommendations: jsonb("recommendations"), // Suggested next steps
+  gaps: jsonb("gaps"), // Identified gaps
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -792,6 +799,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
   email: z.string().email(),
   userType: z.enum(["contractor", "vendor"]),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  businessType: z.enum(["commercial", "government", "both"]).optional(),
 });
 export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
   id: true,

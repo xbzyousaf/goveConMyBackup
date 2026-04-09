@@ -15,6 +15,13 @@
       "when": 1774331050794,
       "tag": "0001_many_hemingway",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775728841559,
+      "tag": "0002_flashy_vargas",
+      "breakpoints": true
     }
   ]
 }

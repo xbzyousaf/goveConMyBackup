@@ -125,21 +125,16 @@ useEffect(() => {
     }>({
       queryKey: [`/api/service-requests?page=${page}&limit=${PAGE_SIZE}&status=${statusFilter}`],
     });
-    const { data: services } = useQuery<{
-      page: number;
-      limit: number;
-      total: number;
-      data: Service[];
-    }>({
-      queryKey: [`/api/marketplace/services?page=${page}&limit=${PAGE_SIZE}`],
+    const { data: services = [] } = useQuery<Service[]>({
+      queryKey: ['/api/recommended-services'],
     });
+    console.log("Recommended services:", services);
     const serviceRequests = data?.data ?? [];
-    const servicesData = Array.isArray(services?.data) ? services.data : [];
+    const servicesData = services;
     const filteredRequests = applyFilter(serviceRequests);
     const paginatedRequests = filteredRequests;
     const [activeTab, setActiveTab] = useState("recent");
     const totalPages = Math.ceil(data?.total / PAGE_SIZE);
-    const servicesTotalPages = Math.ceil((services?.total ?? 0) / PAGE_SIZE);
   
   const {
   data: user,
@@ -592,6 +587,7 @@ useEffect(() => {
           </Card>
         <div>
         {/* // Recmonded Services card */}
+      
           <Card data-testid="card-recent-requests"
             className="col-span-full border-2 border-orange-500">
             <CardHeader >
@@ -602,6 +598,11 @@ useEffect(() => {
                   <CardTitle className="text-orange-600 mt-1">Recmonded Services</CardTitle>
                 </CardTitle>
               <CardDescription className="font-semibold text-orange-600">Explore below these services are matched with your profile and interests</CardDescription>
+                {servicesData.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center mt-2">
+              No recommended services yet. Complete your assessment or reload.
+            </p>
+          )}
             </CardHeader>
             <CardContent className="w-full">
 
@@ -609,38 +610,16 @@ useEffect(() => {
               <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
                 <div className="grid grid-cols-1 gap-6 w-full">
                   {servicesData.map((service, index) => (
+                    console.log("Rendering service:", service),
                     <ServiceCardCompact
                       key={index}
                       service={service}
-                      detailsUrl={`/services/${service.serviceId}`}
+                      detailsUrl={`/services/${service.id}`}
                     />
                   ))}
                 </div>
 
               </div>
-            {servicesTotalPages > 1 && (
-              <div className="flex justify-center gap-4 mt-4">
-
-                <Button className="bg-orange-500"
-                  disabled={page === 1}
-                  onClick={() => setPage(page - 1)}
-                >
-                  Previous
-                </Button>
-
-                <span className="text-sm mt-2">
-                  Page {page} of {servicesTotalPages}
-                </span>
-
-                <Button className="bg-orange-500"
-                  disabled={page === servicesTotalPages}
-                  onClick={() => setPage(page + 1)}
-                >
-                  Next
-                </Button>
-
-              </div>
-            )}
             </CardContent>
           </Card>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -845,7 +824,7 @@ useEffect(() => {
         </div>
 
           {/* Recommended Next Steps (from AI assessment) */}
-          {profile.assessmentData?.recommendations && (
+          {/* {profile.assessmentData?.recommendations && (
             <Card className="border-2 border-orange-500">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -871,6 +850,49 @@ useEffect(() => {
                       ))
                     : <p className="text-sm text-muted-foreground">No recommendations available</p>
                   }
+                </ul>
+              </CardContent>
+            </Card>
+          )} */}
+          {/* Gap Next Steps (from AI assessment) */}
+          {profile.assessmentData?.gaps && (
+            <Card className="border-2 border-orange-500">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-orange-500 text-white outline">
+                    <Lightbulb className="h-5 w-5" />
+                  </div>
+                  <div className="text-orange-500">
+                    Your Identified Gaps
+                  </div>
+                </CardTitle>
+                <CardDescription className="text-sm text-orange-500 font-semibold">
+                  Areas you need to improve
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent>
+                <ul className="space-y-4">
+                  {Array.isArray(profile.assessmentData.gaps) ? (
+                    profile.assessmentData.gaps.map((gap: any, i: number) => (
+                      <li key={i} className="flex gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-orange-500 flex-shrink-0 mt-1" />
+
+                        <div className="text-sm">
+                          <p className="font-semibold capitalize">
+                            {gap.type.replace("_", " ")}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {gap.problem}
+                          </p>
+                        </div>
+                      </li>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No gaps available
+                    </p>
+                  )}
                 </ul>
               </CardContent>
             </Card>

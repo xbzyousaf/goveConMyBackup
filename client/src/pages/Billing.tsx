@@ -53,7 +53,7 @@ export default function BillingPage() {
   });
 
   const subscribe = async (plan: "monthly" | "yearly") => {
-    const res = await fetch("/api/stripe/create-subscription", {
+    const res = await fetch("/api/subscription", {
       method: "POST",
       credentials: "include",
       headers: {

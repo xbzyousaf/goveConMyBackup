@@ -10,7 +10,7 @@ export default function StripePayoutTab() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch("/api/wallet/connect-status", {
+    fetch("/api/connect-status", {
       credentials: "include",
       cache: "no-store",
     })
@@ -32,7 +32,7 @@ const loadEarnings = async (pageNumber: number) => {
 
   try {
     const res = await fetch(
-      `/api/wallet/vendor/earnings?page=${pageNumber}&limit=5`,
+      `/api/vendor/earnings?page=${pageNumber}&limit=5`,
       { credentials: "include" }
     );
 
@@ -60,27 +60,13 @@ const handleNext = () => {
   }
 };
   const connectStripe = async () => {
-    const res = await fetch("/api/wallet/connect-account", {
+    const res = await fetch("/api/connect-account", {
       method: "POST",
       credentials: "include",
     });
 
     const data = await res.json();
     window.location.href = data.url;
-  };
-
-  const withdraw = async () => {
-    await fetch("/api/wallet/withdraw", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({ amount: Number(amount) }),
-    });
-
-    alert("Withdraw successful");
-    window.location.reload();
   };
 
   if (!account) return <p>Loading...</p>;

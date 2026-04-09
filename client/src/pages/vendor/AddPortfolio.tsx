@@ -46,7 +46,7 @@ export default function CreatePortfolio() {
       formData.append("endDate", form.endDate);
       if (form.attachment) formData.append("attachment", form.attachment);
 
-      const res = await fetch("/api/vendor-portfolio", {
+      const res = await fetch("/api/portfolio", {
         method: "POST",
         body: formData, // must NOT set Content-Type; browser handles it
       });
@@ -60,7 +60,7 @@ export default function CreatePortfolio() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey:  ["/api/vendor-portfolio"],
+        queryKey:  ["/api/portfolio"],
       });
       toast({ title: "Portfolio created successfully" });
       setLocation("/vendor-dashboard");

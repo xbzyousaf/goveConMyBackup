@@ -75,11 +75,11 @@ const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
     retry: false,
   });
   const { data: vendorPortfolios, isLoading: portfoliosLoading } = useQuery({
-    queryKey: ["/api/vendor-portfolio"],
+    queryKey: ["/api/portfolio"],
     retry: false,
   });
   const { data: vendorCertificates, isLoading: certificatesLoading } = useQuery({
-    queryKey: ["/api/vendor-certificate"],
+    queryKey: ["/api/certificate"],
     retry: false,
   });
   const { data: reviews = [] } = useQuery<{
@@ -492,7 +492,7 @@ const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
                 </CardContent>
               </Card>
               {/* Portfolio Card */}
-              <Card data-testid="card-vendor-portfolio">
+              <Card data-testid="card-portfolio">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Portfolio</CardTitle>
                   <Button
@@ -538,7 +538,7 @@ const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
                 </CardContent>
               </Card>
               {/* Certificates Card */}
-              <Card data-testid="card-vendor-certificates">
+              <Card data-testid="card-certificates">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>
                     Certificates
