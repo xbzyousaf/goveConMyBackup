@@ -36,13 +36,13 @@ export default function ServiceDetails() {
 
       <main className="py-6">
         <div className="max-w-6xl mx-auto space-y-6">
-
-          <Link href="/marketplace">
-            <Button variant="outline">
+            <Button
+              variant="outline"
+              onClick={() => window.history.back()}
+            >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Services
+              Go Back
             </Button>
-          </Link>
 
           <Card>
             <CardHeader>

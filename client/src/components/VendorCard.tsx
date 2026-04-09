@@ -2,18 +2,19 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, MapPin, Clock, CheckCircle, Award, TrendingUp, Shield } from "lucide-react";
-import { getFirstLetter } from "@/utility/textUtils";
+import { Star, MapPin, Clock, CheckCircle, Award, TrendingUp, Shield, Building } from "lucide-react";
+import { getFirstLetter, truncateText } from "@/utility/textUtils";
 
 interface VendorCardProps {
   name: string;
-  title: string;
+  companyName: string;
   category: string;
   rating: number;
   reviewCount: number;
   location: string;
   responseTime: string;
   hourlyRate?: number;
+  username?: string;
   isVerified?: boolean;
   isFeatured?: boolean;
   certifications?: string[];
@@ -26,13 +27,14 @@ interface VendorCardProps {
 
 export function VendorCard({
   name,
-  title,
+  companyName,
   category,
   rating,
   reviewCount,
   location,
   responseTime,
   hourlyRate,
+  username,
   isVerified = false,
   isFeatured = false,
   certifications = [],
@@ -66,22 +68,35 @@ export function VendorCard({
               </AvatarFallback>
             )}
           </Avatar>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold" data-testid={`text-vendor-name-${name.toLowerCase().replace(/\s+/g, '-')}`}>
-                {name}
-              </h3>
-              {isVerified && (
-                <CheckCircle className="h-4 w-4 text-primary" data-testid="icon-verified" />
-              )}
-              {isTopRated && (
+          <div className="">
+              <div>
+                <h3 className="font-semibold" data-testid={`text-vendor-name-${name.toLowerCase().replace(/\s+/g, '-')}`}>
+                  {name}
+                </h3>
+                {username && (
+                  <p className="text-xs text-muted-foreground">
+                    @{username}
+                  </p>
+                )}
+              </div>
+             
+            <div className="flex mt-1">
+              <Building className="h-4 w-4 text-muted-foreground"/>
+              <p className="text-sm text-muted-foreground">{truncateText(companyName, 20)}</p>
+              <div className="ml-2">
+                {isVerified && (
+                  <CheckCircle className="h-4 w-4 text-primary" data-testid="icon-verified" />
+                )}
+              </div>              
+            </div>
+            <div>
+                 {isTopRated && (
                 <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" data-testid="badge-top-rated">
                   <Star className="w-3 h-3 mr-1 fill-current" />
                   Top Rated
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">{title}</p>
           </div>
         </div>
         <Badge variant="secondary" className="text-xs">
@@ -101,30 +116,34 @@ export function VendorCard({
         </div>
       )}
 
-      <div className="flex items-center gap-4 mb-4 text-sm text-muted-foreground flex-wrap">
-        <div className="flex items-center gap-1">
-          <Star className="h-4 w-4 fill-current text-yellow-400" />
-          <span className="font-medium">{rating}</span>
-          <span>({reviewCount} reviews)</span>
+      <div className="items-center gap-4 mb-4 text-sm text-muted-foreground flex-wrap">
+        <div className="flex mb-2">
+          <div className="flex items-center gap-1">
+            <Star className="h-4 w-4" />
+            <span className="font-medium">{rating}</span>
+            <span>({reviewCount} reviews)</span>
+          </div>
+          <div className="flex items-center gap-1 ml-12">
+            <Clock className="h-4 w-4" />
+            <span>{responseTime}</span>
+          </div>
         </div>
+
         <div className="flex items-center gap-1">
           <MapPin className="h-4 w-4" />
-          <span>{location}</span>
+          <span>{truncateText(location, 40)}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <Clock className="h-4 w-4" />
-          <span>{responseTime}</span>
-        </div>
-        {availability && (
-          <div className="flex items-center gap-1">
+       
+      </div>
+
+      <div className="mb-4 flex">
+         {availability && (
+          <div className="flex items-center gap-1 mr-2">
             <Badge variant={availability === "Available" ? "secondary" : "outline"} className="text-xs" data-testid="badge-availability">
               {availability}
             </Badge>
           </div>
         )}
-      </div>
-
-      <div className="mb-4">
         <div className="flex flex-wrap gap-2">
           {skills.slice(0, 3).map((skill, index) => (
             <Badge key={index} variant="outline" className="text-xs">
@@ -141,11 +160,9 @@ export function VendorCard({
 
       <div className="flex items-center justify-between">
         <div>
-          {hourlyRate && (
-            <div className="text-lg font-semibold">
-              ${hourlyRate}/hr
-            </div>
-          )}
+          <div className="font-semibold">
+            {hourlyRate ? `$${hourlyRate}/hr` : "Not specified"}
+          </div>
         </div>
         <div className="flex gap-2">
           <Button 

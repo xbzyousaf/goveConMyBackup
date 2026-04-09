@@ -1,7 +1,4 @@
-// server/services/escrowService.ts
-
 import { storage } from "../storage";
-import { walletStorage } from "server/storage/walletStorage";
 import { stripe } from "server/lib/stripe";
 
 export async function releaseEscrow(
@@ -30,17 +27,6 @@ export async function releaseEscrow(
   const vendorEarning = Number(escrow.vendorEarning);
   const platformFee = Number(escrow.platformFee);
 
-  // Vendor wins
-  // if (winner === "vendor") {
-
-  //   await walletStorage.creditWallet(
-  //     serviceRequest.vendorId,
-  //     vendorEarning,
-  //     "escrow_release",
-  //     serviceRequest.id
-  //   );
-
-  // }
   if (winner === "vendor") {
   const vendor = await storage.getVendorProfile(serviceRequest.vendorId);
 

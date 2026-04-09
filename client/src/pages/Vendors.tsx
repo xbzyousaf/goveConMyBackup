@@ -5,21 +5,33 @@ import { Header } from "@/components/Header";
 import { VendorCard } from "@/components/VendorCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, Filter, X } from "lucide-react";
 import type { VendorProfile } from "@shared/schema";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { GAP_CATEGORY_MAP } from "../../../constants/gapCategoryMap";
+import type { GapType } from "@shared/types/gaps";
+import type { ServiceCategory } from "@shared/types/service";
 
 export default function Vendors() {
   const [location] = useLocation();
-  const searchParams = new URLSearchParams(location.split('?')[1]);
-  const categoryParam = searchParams.get('category');
-  
+  const searchParams = new URLSearchParams(location.split("?")[1]);
+  const categoryParam = searchParams.get("category");
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>(categoryParam || "all");
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    categoryParam || "all",
+  );
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const navigate = useNavigate();
@@ -29,34 +41,67 @@ export default function Vendors() {
       setSelectedCategory(categoryParam);
     }
   }, [categoryParam]);
+  const { data: recommended = [] } = useQuery({
+    queryKey: ["/api/recommended-services"],
+    queryFn: async () => {
+      const res = await fetch("/api/recommended-services");
+      return res.json();
+    },
+  });
 
-  const {
-  data: vendors = [],
-  isLoading,
-  error,
-} = useQuery<VendorProfile[]>({
-  queryKey: ["/api/vendors"],
-  queryFn: async () => {
-  const res = await fetch("/api/vendors");
-  const data = await res.json();
+  const gapCategories: ServiceCategory[] = Array.from(
+    new Set(
+      recommended
+        .map((item: any) => {
+          const key = item.recommendedFor as GapType;
+          return GAP_CATEGORY_MAP[key];
+        })
+        .filter(Boolean),
+    ),
+  );
+const isUserSelected = selectedCategory !== "all";
 
-  if (data?.message === "Access denied") {
-    throw new Error("ACCESS_DENIED");
-  }
+const finalCategories: ServiceCategory[] =
+  hasUserInteracted
+    ? selectedCategory === "all"
+      ? [] // ✅ TRUE ALL
+      : [selectedCategory as ServiceCategory]
+    : gapCategories.length > 0
+    ? gapCategories // ✅ ONLY first load
+    : [];
 
-  // ✅ Ensure always array
-  if (!Array.isArray(data)) {
-    return [];
-  }
+  const { data: vendors = [], isLoading } = useQuery({
+    queryKey: ["vendors", finalCategories, selectedLocation, verifiedOnly, searchQuery],
 
-  return data;
-},
-});
+    enabled: true, // ✅ important
 
-if (error instanceof Error && error.message === "ACCESS_DENIED") {
-  toast({ title: "Access denied" });
-  navigate("/vendor-dashboard");
-}
+    queryFn: async () => {
+      const params = new URLSearchParams();
+
+      if (searchQuery) {
+        params.append("search", searchQuery);
+      }
+
+      if (finalCategories.length > 0) {
+        params.append("categories", finalCategories.join(","));
+      }
+
+      if (selectedLocation !== "all") {
+        params.append("location", selectedLocation);
+      }
+
+      if (verifiedOnly) {
+        params.append("verified", "true");
+      }
+      const url = `/api/vendors?${params.toString()}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed");
+      }
+      return res.json();
+    },
+  });
 
   const categories = [
     { id: "all", label: "All Categories" },
@@ -71,64 +116,68 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
 
   const locations = [
     { id: "all", label: "All Locations" },
-    ...Array.from(new Set(safeVendors.map(v => v.location).filter(Boolean)))
-      .map(loc => ({ id: loc!, label: loc! }))
+    ...Array.from(
+      new Set(safeVendors.map((v) => v.location).filter(Boolean)),
+    ).map((loc) => ({ id: loc!, label: loc! })),
   ];
 
-  const filteredVendors = safeVendors.filter(vendor => {
-    // Category filter
-    if (selectedCategory !== "all" && !vendor.categories?.includes(selectedCategory as any)) {
-      return false;
-    }
+  const filteredVendors = safeVendors
+    .filter((vendor) => {
+      // Location filter
+      if (selectedLocation !== "all" && vendor.location !== selectedLocation) {
+        return false;
+      }
+      // Verified filter
+      // if (verifiedOnly && !vendor.isApproved) {
+      //   return false;
+      // }
+      // Search query
+      // if (searchQuery) {
+      //   const query = searchQuery.toLowerCase();
+      //   const matchesTitle = vendor.title?.toLowerCase().includes(query);
+      //   const matchesCompany = vendor.companyName
+      //     ?.toLowerCase()
+      //     .includes(query);
+      //   const matchesSkills = vendor.skills?.some((skill) =>
+      //     skill.toLowerCase().includes(query),
+      //   );
+      //   const matchesDescription = vendor.description
+      //     ?.toLowerCase()
+      //     .includes(query);
 
-    // Location filter
-    if (selectedLocation !== "all" && vendor.location !== selectedLocation) {
-      return false;
-    }
+      //   return (
+      //     matchesTitle || matchesCompany || matchesSkills || matchesDescription
+      //   );
+      // }
 
-    // Verified filter
-    if (verifiedOnly && !vendor.isApproved) {
-      return false;
-    }
-
-    // Search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesTitle = vendor.title?.toLowerCase().includes(query);
-      const matchesCompany = vendor.companyName?.toLowerCase().includes(query);
-      const matchesSkills = vendor.skills?.some(skill => 
-        skill.toLowerCase().includes(query)
-      );
-      const matchesDescription = vendor.description?.toLowerCase().includes(query);
-      
-      return matchesTitle || matchesCompany || matchesSkills || matchesDescription;
-    }
-
-    return true;
-  }).sort((a, b) => {
-    // Featured vendors first
-    if (a.isFeatured && !b.isFeatured) return -1;
-    if (!a.isFeatured && b.isFeatured) return 1;
-    // Then by rating
-    return Number(b.rating) - Number(a.rating);
-  });
+      return true;
+    })
+    .sort((a, b) => {
+      // Featured vendors first
+      if (a.isFeatured && !b.isFeatured) return -1;
+      if (!a.isFeatured && b.isFeatured) return 1;
+      // Then by rating
+      return Number(b.rating) - Number(a.rating);
+    });
 
   const clearFilters = () => {
     setSelectedCategory("all");
     setSelectedLocation("all");
     setVerifiedOnly(false);
     setSearchQuery("");
+    setHasUserInteracted(false); 
   };
 
-  const activeFiltersCount = 
+  const activeFiltersCount =
     (selectedCategory !== "all" ? 1 : 0) +
     (selectedLocation !== "all" ? 1 : 0) +
-    (verifiedOnly ? 1 : 0);
+    (verifiedOnly ? 1 : 0) +
+    (selectedCategory === "all" && gapCategories.length > 0 ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Page Header */}
         <div className="mb-8">
@@ -136,7 +185,8 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
             Browse Vendors
           </h1>
           <p className="text-lg text-muted-foreground">
-            Discover vetted service providers for your government contracting needs
+            Discover vetted service providers for your government contracting
+            needs
           </p>
         </div>
 
@@ -158,12 +208,18 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
 
               {/* Filter Row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <Select
+                    value={selectedCategory}
+                    onValueChange={(value) => {
+                      setSelectedCategory(value);
+                      setHasUserInteracted(true); // 👈 IMPORTANT
+                    }}
+                  >
                   <SelectTrigger data-testid="select-category">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map(cat => (
+                    {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         {cat.label}
                       </SelectItem>
@@ -171,12 +227,15 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
                   </SelectContent>
                 </Select>
 
-                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                <Select
+                  value={selectedLocation}
+                  onValueChange={setSelectedLocation}
+                >
                   <SelectTrigger data-testid="select-location">
                     <SelectValue placeholder="Location" />
                   </SelectTrigger>
                   <SelectContent>
-                    {locations.map(loc => (
+                    {locations.map((loc) => (
                       <SelectItem key={loc.id} value={loc.id}>
                         {loc.label}
                       </SelectItem>
@@ -194,7 +253,7 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
                     <Filter className="w-4 h-4 mr-2" />
                     Verified Only
                   </Button>
-                  
+
                   {activeFiltersCount > 0 && (
                     <Button
                       variant="ghost"
@@ -211,19 +270,36 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
               {/* Active Filters */}
               {activeFiltersCount > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  <span className="text-sm text-muted-foreground">Active filters:</span>
+                  <span className="text-sm text-muted-foreground">
+                    Active filters:
+                  </span>
+                  {/* Selected Category */}
                   {selectedCategory !== "all" && (
-                    <Badge variant="secondary" data-testid="badge-filter-category">
-                      {categories.find(c => c.id === selectedCategory)?.label}
+                    <Badge>
+                      {categories.find((c) => c.id === selectedCategory)?.label}
                     </Badge>
                   )}
+
+                  {/* Recommended Categories */}
+                  {selectedCategory === "all" && gapCategories.length > 0 &&
+                    gapCategories.map((cat: ServiceCategory) => (
+                      <Badge key={cat}>
+                        {categories.find((c) => c.id === cat)?.label || cat}
+                      </Badge>
+                    ))}
                   {selectedLocation !== "all" && (
-                    <Badge variant="secondary" data-testid="badge-filter-location">
+                    <Badge
+                      variant="secondary"
+                      data-testid="badge-filter-location"
+                    >
                       {selectedLocation}
                     </Badge>
                   )}
                   {verifiedOnly && (
-                    <Badge variant="secondary" data-testid="badge-filter-verified">
+                    <Badge
+                      variant="secondary"
+                      data-testid="badge-filter-verified"
+                    >
                       Verified Only
                     </Badge>
                   )}
@@ -241,8 +317,12 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
         ) : (
           <>
             <div className="mb-6 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground" data-testid="text-results-count">
-                Showing {filteredVendors.length} {filteredVendors.length === 1 ? 'vendor' : 'vendors'}
+              <p
+                className="text-sm text-muted-foreground"
+                data-testid="text-results-count"
+              >
+                Showing {filteredVendors.length}{" "}
+                {filteredVendors.length === 1 ? "vendor" : "vendors"}
               </p>
             </div>
 
@@ -252,8 +332,11 @@ if (error instanceof Error && error.message === "ACCESS_DENIED") {
                   <Link key={vendor.userId} href={`/vendor/${vendor.userId}`}>
                     <div className="cursor-pointer">
                       <VendorCard
-                        name={vendor.title}
-                        title={vendor.companyName || vendor.title}
+                        name={`${vendor.firstName || ""} ${vendor.lastName || ""}`.trim() ||
+                                vendor.username ||
+                                "Vendor" }
+                        username={vendor.username}
+                        companyName={vendor.companyName || vendor.title}
                         category={vendor.categories?.[0] || "General"}
                         rating={Number(vendor.rating).toFixed(2) || 0}
                         reviewCount={vendor.reviewCount || 0}

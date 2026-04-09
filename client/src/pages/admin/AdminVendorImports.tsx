@@ -15,7 +15,7 @@ export default function AdminVendorImports() {
   });
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const fetchImports = async () => {
-    const res = await fetch("/api/vendor/imports");
+    const res = await fetch("/api/admin/vendor/imports");
     return res.json();
   };
 
@@ -23,7 +23,7 @@ export default function AdminVendorImports() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("/api/vendor/import", {
+    const res = await fetch("/api/admin/vendor/import", {
       method: "POST",
       body: formData,
     });

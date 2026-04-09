@@ -11,9 +11,9 @@ export default function AdminMilestones() {
 
   // Fetch milestones
   const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
-    queryKey: ["/api/milestones"],
+    queryKey: ["/api/admin/milestones"],
     queryFn: async () => {
-      const res = await fetch("/api/milestones");
+      const res = await fetch("/api/admin/milestones");
       if (!res.ok) throw new Error("Failed to fetch milestones");
       return res.json();
     },

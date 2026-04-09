@@ -33,7 +33,7 @@ export default function CreateCertificate() {
       formData.append("yearReceived", form.yearReceived);
       if (form.image) formData.append("image", form.image);
 
-      const res = await fetch("/api/vendor-certificate", {
+      const res = await fetch("/api/certificate", {
         method: "POST",
         body: formData, // browser handles Content-Type for multipart
       });
@@ -46,7 +46,7 @@ export default function CreateCertificate() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/vendor-certificate"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/certificate"] });
       toast({ title: "Certificate created successfully" });
       setLocation("/vendor-dashboard");
     },

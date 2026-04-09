@@ -1,3 +1,4 @@
+import { BusinessType, businessTypeEnum } from './../shared/schema';
 // From javascript_database integration
 import { 
   users, 
@@ -10,7 +11,6 @@ import {
   assessments,
   contentLibrary,
   userJourneys,
-  userContentActivity,
   type User, 
   type InsertUser,
   type UpsertUser,
@@ -29,13 +29,9 @@ import {
   type Assessment,
   type InsertAssessment,
   type ContentLibrary,
-  type InsertContentLibrary,
   type UserJourney,
   type InsertUserJourney,
-  type UserContentActivity,
-  type InsertUserContentActivity,
   services,
-  serviceTiers,
   InsertNotification,
   requestLogs,
   portfolios,
@@ -44,19 +40,19 @@ import {
   Certificate,
   escrows,
   disputes,
-  wallets,
-  walletTransactions,
   milestones,
   subscriptions,
-  InsertSubscription
+  InsertSubscription,
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
 import { notifications } from "@shared/schema"; // adjust path correctly
 import { deliveries, deliveryAttachments } from "@shared/schema";
-import { Avatar } from "@radix-ui/react-avatar";
 import { PRIORITY_STATUSES } from "constants/serviceRequest";
-// Enhanced IStorage interface with marketplace functionality
+import { Gap, GapType } from '@shared/types/gaps';
+import { ServiceCategory } from '@shared/types/service';
+import { GAP_CATEGORY_MAP } from './../constants/gapCategoryMap';
+
 export interface IStorage {
   // User management
   getUser(id: string): Promise<User | undefined>;
@@ -69,8 +65,6 @@ export interface IStorage {
   // Vendor management
   getVendorProfile(userId: string): Promise<VendorProfile | undefined>;
   getVendorProfileById(id: string): Promise<VendorProfile | undefined>;
-  createVendorProfile(profile: InsertVendorProfile, userId: string): Promise<VendorProfile>;
-  updateVendorProfile(id: string, updates: Partial<InsertVendorProfile>): Promise<VendorProfile>;
   getVendors(filters?: { category?: string; location?: string; verified?: boolean }): Promise<VendorProfile[]>;
   
   // Service request management
@@ -115,17 +109,6 @@ export interface IStorage {
   deleteUserMaturityProfile(userId: string): Promise<void>;
   deleteUserAssessments(userId: string): Promise<void>;
   deleteUserJourneys(userId: string): Promise<void>;
-  // Deliveries
-  createDelivery(data: {
-    serviceRequestId: string;
-    deliveredBy: string;
-    message: string;
-    attachments?: {
-      filePath: string;
-      fileName: string;
-      fileSize?: number;
-    }[];
-  }): Promise<any>;
 
 }
 
@@ -159,12 +142,6 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return user;
   }
-  // async createWallet(userId: string): Promise<void> {
-  //   await db.insert(wallets).values({
-  //     userId: userId,
-  //     balance: "100000.00",
-  //   });
-  // }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
@@ -195,20 +172,7 @@ export class DatabaseStorage implements IStorage {
     const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, userId));
     return profile || undefined;
   }
-  async getVendorPortfolios(vendorId: string): Promise<Portfolio[]> {
-    return await db
-      .select()
-      .from(portfolios)
-      .where(eq(portfolios.vendorId, vendorId))
-      .orderBy(desc(portfolios.createdAt)); // optional: latest first
-  }
-  async getVendorCertificates(vendorId: string): Promise<Certificate[]> {
-    return await db
-      .select()
-      .from(certificates)
-      .where(eq(certificates.vendorId, vendorId))
-      .orderBy(desc(certificates.createdAt)); // optional: latest first
-  }
+
   async getContractorById(id: string) {
     const result = await db
       .select({
@@ -239,6 +203,14 @@ export class DatabaseStorage implements IStorage {
     .select({
       // ✅ vendor profile fields
       id: vendorProfiles.id,
+      // ✅ user fields (aggregated)
+      username: sql<string>`MAX(${users.username})`,
+      firstName: sql<string>`MAX(${users.firstName})`,
+      lastName: sql<string>`MAX(${users.lastName})`,
+      email: sql<string>`MAX(${users.email})`,
+      businessType: sql<string>`MAX(${users.businessType})`,
+      profileImageUrl: sql<string>`MAX(${users.profileImageUrl})`,
+      isEmailVerified: sql<boolean>`BOOL_OR(${users.isEmailVerified})`,
       userId: vendorProfiles.userId,
       title: vendorProfiles.title,
       companyName: vendorProfiles.companyName,
@@ -265,6 +237,7 @@ export class DatabaseStorage implements IStorage {
       reviews,
       eq(reviews.revieweeId, vendorProfiles.userId)
     )
+    .leftJoin(users, eq(users.id, vendorProfiles.userId))
     .where(eq(vendorProfiles.userId, id))
     .groupBy(vendorProfiles.id)
     .limit(1);
@@ -273,97 +246,80 @@ export class DatabaseStorage implements IStorage {
 
   return {
     ...result[0],
+    username: result[0].username,
+    firstName: result[0].firstName,
+    lastName: result[0].lastName,
+    email: result[0].email,
+    businessType: result[0].businessType,
+    profileImageUrl: result[0].profileImageUrl,
+    isEmailVerified: result[0].isEmailVerified,
     rating: Number(result[0].rating),
     reviewCount: Number(result[0].reviewCount),
   };
 }
 
-
-  async createVendorProfile(
-profile: InsertVendorProfile,
-userId: string
-): Promise<VendorProfile> {
-
-const sanitizedProfile: InsertVendorProfile = { ...profile };
-
-// Parse skills if string
-if (typeof sanitizedProfile.skills === "string") {
-try {
-sanitizedProfile.skills = JSON.parse(sanitizedProfile.skills);
-} catch (e) {
-console.warn("Failed to parse skills:", sanitizedProfile.skills);
-sanitizedProfile.skills = [];
-}
-}
-
-// Parse categories if string
-if (typeof sanitizedProfile.categories === "string") {
-try {
-sanitizedProfile.categories = JSON.parse(sanitizedProfile.categories);
-} catch (e) {
-console.warn("Failed to parse categories:", sanitizedProfile.categories);
-sanitizedProfile.categories = [];
-}
-}
-
-sanitizedProfile.updatedAt = new Date();
-
-const [vendorProfile] = await db
-.insert(vendorProfiles)
-.values({
-...sanitizedProfile,
-responseTime: '0 min', // default value
-userId: userId
-})
-.returning();
-
-return vendorProfile;
-}
-
-  async updateVendorProfile(
-    id: string,
-    updates: Partial<InsertVendorProfile> & { skills?: any; categories?: any; avatar?: string }
-  ): Promise<VendorProfile> {
-    const sanitizedUpdates: Partial<InsertVendorProfile> = { ...updates };
-    // Parse skills/categories if they are strings
-    if (typeof sanitizedUpdates.skills === "string") {
-      try {
-        sanitizedUpdates.skills = JSON.parse(sanitizedUpdates.skills);
-      } catch (e) {
-        console.warn("Failed to parse skills:", sanitizedUpdates.skills);
-        sanitizedUpdates.skills = [];
-      }
-    }
-    if (typeof sanitizedUpdates.categories === "string") {
-      try {
-        sanitizedUpdates.categories = JSON.parse(sanitizedUpdates.categories);
-      } catch (e) {
-        console.warn("Failed to parse categories:", sanitizedUpdates.categories);
-        sanitizedUpdates.categories = [];
-      }
-    }
-    // Only set updatedAt automatically
-    sanitizedUpdates.updatedAt = new Date();
-    const [profile] = await db
-      .update(vendorProfiles)
-      .set(sanitizedUpdates)
-      .where(eq(vendorProfiles.id, id))
-      .returning();
-    return profile;
-  }
-
   async getVendors(
-    filters?: { category?: string; location?: string; verified?: boolean }
+    filters?: { categories ?: string[]; location?: string; verified?: boolean; businessType?: BusinessType;  search?: string; }
   ): Promise<(VendorProfile & { reviewCount: number })[]> {
 
     const whereConditions = [];
+    if (filters?.search) {
+      const search = `%${filters.search.trim()}%`;
 
+      whereConditions.push(
+        or(
+          // USERS
+          sql`${users.username} ILIKE ${search}`,
+          sql`${users.firstName} ILIKE ${search}`,
+          sql`${users.lastName} ILIKE ${search}`,
+          sql`${users.email} ILIKE ${search}`,
+
+          // VENDOR PROFILE
+          sql`${vendorProfiles.companyName} ILIKE ${search}`,
+          sql`${vendorProfiles.title} ILIKE ${search}`,
+          sql`${vendorProfiles.description} ILIKE ${search}`,
+          sql`${vendorProfiles.location} ILIKE ${search}`,
+
+          // ARRAYS (FIXED)
+          sql`EXISTS (
+            SELECT 1 FROM unnest(${vendorProfiles.skills}) s
+            WHERE s::text ILIKE ${search}
+          )`,
+
+          sql`EXISTS (
+            SELECT 1 FROM unnest(${vendorProfiles.categories}) c
+            WHERE c::text ILIKE ${search}
+          )`
+        )
+      );
+    }
     if (filters?.verified !== undefined) {
       whereConditions.push(eq(vendorProfiles.isApproved, filters.verified));
     }
-
     if (filters?.location) {
       whereConditions.push(eq(vendorProfiles.location, filters.location));
+    }
+    // ✅ NEW: multi-category match (IMPORTANT)
+    if (filters?.categories && filters.categories.length > 0) {
+      const categorySqlArray = sql.raw(
+        `ARRAY[${filters.categories.map(c => `'${c}'`).join(",")}]`
+      );
+      whereConditions.push(
+        sql`EXISTS (
+          SELECT 1 
+          FROM unnest(${vendorProfiles.categories}) AS c
+          WHERE c::text = ANY(${categorySqlArray})
+        )`
+        
+      );
+    }
+    if (filters?.businessType && filters.businessType !== "both") {
+      whereConditions.push(
+        or(
+          eq(users.businessType, filters.businessType),
+          eq(users.businessType, "both")
+        )
+      );
     }
 
     // Create a subquery for review stats
@@ -380,14 +336,19 @@ return vendorProfile;
     const baseQuery = db
       .select({
         vendor: vendorProfiles,
+        username: sql<string>`MAX(${users.username})`,
+        businessType: sql<string>`MAX(${users.businessType})`,
+        firstName: sql<string>`MAX(${users.firstName})`,
+        lastName: sql<string>`MAX(${users.lastName})`,
         reviewCount: sql<number>`COALESCE(MAX(review_stats.review_count), 0)`,
         rating: sql<number>`COALESCE(MAX(review_stats.avg_rating), 0)`
       })
       .from(vendorProfiles)
-      .innerJoin(
-        services,
-        eq(services.vendorId, vendorProfiles.userId)
-      )
+      .leftJoin(users, eq(users.id, vendorProfiles.userId))
+      // .innerJoin(
+      //   services,
+      //   eq(services.vendorId, vendorProfiles.userId)
+      // )
       .leftJoin(
         reviewStats,
         eq(reviewStats.revieweeId, vendorProfiles.userId)
@@ -406,13 +367,14 @@ return vendorProfile;
 
     return rows.map(row => ({
       ...row.vendor,
+       // ✅ merge user fields
+      username: row.username,
+      businessType: row.businessType,
+      firstName: row.firstName,
+      lastName: row.lastName,
       rating: Number(row.rating) || 0,
       reviewCount: Number(row.reviewCount) || 0,
     }));
-  }
-
-  async getOnlyVendors(): Promise<VendorProfile[]> {
-    return await db.select().from(vendorProfiles);
   }
 
   // Service request management
@@ -668,53 +630,6 @@ async countServiceRequestsByVendor(vendorId: string, status?: string) {
 
   return result[0]?.count ?? 0;
 }
-  async getAllServiceRequestsWithDisputes(
-  limit: number,
-  offset: number
-) {
-  return await db.query.serviceRequests.findMany({
-    where: eq(serviceRequests.status, "disputed"),
-
-    with: {
-      vendor: {
-        columns: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-      contractor: {
-        columns: {
-          firstName: true,
-          lastName: true,
-        },
-      },
-      service: {
-        columns: {
-          name: true,
-        },
-      },
-      disputes: true,
-      reviews: true,
-    },
-
-    orderBy: (serviceRequests, { desc }) => [
-      desc(serviceRequests.createdAt),
-    ],
-
-    limit,
-    offset,
-  });
-}
-async countAllServiceRequestsWithDisputes() {
-
-  const result = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(serviceRequests)
-    .where(eq(serviceRequests.status, "disputed"));
-
-  return result[0]?.count ?? 0;
-}
 
   async getPendingServiceRequests(): Promise<ServiceRequest[]> {
     const requests = await db
@@ -888,7 +803,7 @@ async countAllServiceRequestsWithDisputes() {
         createdAt: reviews.createdAt,
 
         // reviewer info (vendor who gave review)
-        vendorName: users.firstName,
+        vendorName: sql<string>`concat(${users.firstName}, ' ', ${users.lastName})`,
         vendorUserType: users.userType,
         vendorEmail: users.email,
       })
@@ -1060,49 +975,7 @@ async countAllServiceRequestsWithDisputes() {
   async deleteUserJourneys(userId: string): Promise<void> {
     await db.delete(userJourneys).where(eq(userJourneys.userId, userId));
   }
-  async createService(data: any, vendorId: string) {
-    return await db.transaction(async tx => {
-      // Create service (single-level pricing)
-      const [service] = await tx
-        .insert(services)
-        .values({
-          vendorId,
-          name: data.name,
-          description: data.description,
-          category: data.category,
-          pricingModel: data.pricingModel ?? null,
-          priceMin: data.priceMin != null ? String(data.priceMin) : null,
-          priceMax: data.priceMax != null ? String(data.priceMax) : null,
-          isActive: true,
-        })
-        .returning();
 
-      return service;
-    });
-  }
-  async updateService(id: string, data: any, vendorId: string) {
-    return await db.transaction(async tx => {
-      const [service] = await tx
-        .update(services)
-        .set({
-          name: data.name,
-          description: data.description,
-          category: data.category,
-          pricingModel: data.pricingModel ?? null,
-          priceMin: data.priceMin != null ? String(data.priceMin) : null,
-          priceMax: data.priceMax != null ? String(data.priceMax) : null,
-        })
-        .where(
-          and(
-            eq(services.id, id),
-            eq(services.vendorId, vendorId)
-          )
-        )
-        .returning();
-
-      return service;
-    });
-  }
   async updateServiceStatus(serviceId: string, isActive: boolean) {
     const [service] = await db
       .update(services)
@@ -1115,21 +988,7 @@ async countAllServiceRequestsWithDisputes() {
 
     return service;
   }
-  async getAllServices() {
-    return await db.query.services.findMany({
-      with: {
-        vendor: {
-          columns: {
-            id: true,
-            companyName: true,
-            title: true,
-            locations: true,
-          },
-        },
-      },
-      orderBy: desc(services.createdAt),
-    });
-  }
+ 
   async createMilestone(data: any, userId: string) {
     return await db.transaction(async (tx) => {
       const [milestone] = await tx
@@ -1188,43 +1047,7 @@ async countAllServiceRequestsWithDisputes() {
 
     return service ?? undefined;
   }
-  async createPortfolio(data: any, vendorId: string) {
-    return await db.transaction(async tx => {
-      const [portfolio] = await tx
-        .insert(portfolios)
-        .values({
-          vendorId,
-          projectName: data.projectName,
-          industry: data.industry,
-          duration: data.duration,
-          description: data.description,
-          cost: data.cost != null ? String(data.cost) : null,
-          startDate: new Date(data.startDate),
-          endDate: new Date(data.endDate),
-          attachmentUrl: data.attachmentUrl || null,
-        })
-        .returning();
 
-      return portfolio;
-    });
-  }
-  async createCertificate(data: any, vendorId: string) {
-    return await db.transaction(async tx => {
-      const [certificate] = await tx
-        .insert(certificates)
-        .values({
-          vendorId,
-          certificateName: data.certificateName,
-          receivedFrom: data.receivedFrom,
-          yearReceived: data.yearReceived,
-
-          imageUrl: data.imageUrl || null,
-        })
-        .returning();
-
-      return certificate;
-    });
-  }
   async findServiceRequestByContractorVendorService({contractorId, vendorId, serviceId, }: {
     contractorId: string;
     vendorId: string;
@@ -1239,32 +1062,7 @@ async countAllServiceRequestsWithDisputes() {
         ),
     });
   }
-   async getVendorCounts() {
-    const rows = await db
-      .select({
-        isApproved: vendorProfiles.isApproved,
-        count: sql<number>`count(*)`,
-      })
-      .from(vendorProfiles)
-      .groupBy(vendorProfiles.isApproved);
 
-    return {
-      approved: Number(rows.find(r => r.isApproved)?.count || 0),
-      pending: Number(rows.find(r => !r.isApproved)?.count || 0),
-    };
-  }
-  async getVendorServices(vendorId: string) {
-    return await db.query.services.findMany({
-      where: eq(services.vendorId, vendorId),
-      orderBy: (services, { desc }) => [desc(services.createdAt)],
-    });
-  }
-
-  async updateVendorApproval(vendorId: string, approve: boolean) {
-    await db.update(vendorProfiles)
-            .set({ isApproved: approve })
-            .where(eq(vendorProfiles.id, vendorId));
-  }
   async getMarketplaceServicesByStage(stage: "startup" | "growth" | "scale", limit: number, offset: number) {
     return await db
       .select({
@@ -1412,33 +1210,7 @@ async countMarketplaceServices() {
 
     return result[0]?.count ?? 0;
   }
-  async getMilestones() {
-  const data = await db.query.processes.findMany({
-    with: {
-      stages: {
-        with: {
-          milestones: true,
-        },
-      },
-    },
-  });
 
-  const result: any[] = [];
-
-  for (const process of data) {
-    for (const stage of process.stages) {
-      for (const milestone of stage.milestones) {
-        result.push({
-          ...milestone,
-          process: process.key,
-          stage: stage.key,
-        });
-      }
-    }
-  }
-
-  return result;
-}
   
   async markAsRead(conversationId: string, userId: string) {
     const result = await db
@@ -1617,92 +1389,8 @@ async updateVendorResponseTime(vendorId: string, newMinutes: number) {
     .where(eq(vendorProfiles.userId, vendorId));
 }
 
-async createDelivery(data: {
-  serviceRequestId: string;
-  deliveredBy: string;
-  message: string;
-  attachments?: {
-    filePath: string;
-    fileName: string;
-    fileSize?: number;
-  }[];
-}) {
-  return await db.transaction(async (tx) => {
-    // 1️⃣ Insert delivery
-    const [delivery] = await tx
-      .insert(deliveries)
-      .values({
-        serviceRequestId: data.serviceRequestId,
-        deliveredBy: data.deliveredBy,
-        message: data.message,
-      })
-      .returning();
-
-    // 2️⃣ Insert attachments (if any)
-    if (data.attachments?.length) {
-      await tx.insert(deliveryAttachments).values(
-        data.attachments.map((file) => ({
-          deliveryId: delivery.id,
-          filePath: file.filePath,
-          fileName: file.fileName,
-          fileSize: file.fileSize ?? null,
-        }))
-      );
-    }
-
-    // 3️⃣ Update service request status
-    await tx
-      .update(serviceRequests)
-      .set({
-        status: "delivered",
-        deliveredAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(serviceRequests.id, data.serviceRequestId));
-
-    return delivery;
-  });
-}
 async createRequestLog(data: {serviceRequestId: string; action: string; performedBy: string; previousStatus?: string; newStatus?: string; metadata?: any;}) {
   return await db.insert(requestLogs).values(data);
-}
-async getRequestLogs(options?: { requestId?: string; page?: number; limit?: number;}) {
-  const page = options?.page ?? 1;
-  const limit = options?.limit ?? 11;
-  const offset = (page - 1) * limit;
-
-  // Count total records
-  const totalQuery = await db.query.requestLogs.findMany({
-    where: (logs, { eq }) =>
-      options?.requestId
-        ? eq(logs.serviceRequestId, options.requestId)
-        : undefined,
-  });
-
-  const total = totalQuery.length;
-
-  // Get paginated data
-  const data = await db.query.requestLogs.findMany({
-    where: (logs, { eq }) =>
-      options?.requestId
-        ? eq(logs.serviceRequestId, options.requestId)
-        : undefined,
-
-    orderBy: (logs, { desc }) => [desc(logs.createdAt)],
-
-    limit,
-    offset,
-  });
-
-  return {
-    data,
-    meta: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
 }
 
 async createEscrow(data: {
@@ -1773,32 +1461,6 @@ async releaseEscrowByRequestId(
     .where(eq(escrows.id, escrow.id));
 
   return { success: true };
-}
-async getVendorPayments(vendorId: string) {
-  return db
-    .select({
-      id: escrows.id,
-      title: serviceRequests.title,
-      status: serviceRequests.status,
-      paymentStatus: serviceRequests.paymentStatus,
-      finalPrice: serviceRequests.finalPrice,
-      proposedPrice: serviceRequests.proposedPrice,
-      actualCost: serviceRequests.actualCost,
-      completedAt: serviceRequests.completedAt,
-      heldAt: escrows.heldAt,
-      escrowStatus: escrows.status,
-      escrowAmount: escrows.amount,
-      vendorEarning: escrows.vendorEarning,
-      platformFee: escrows.platformFee,
-      releasedAt: escrows.releasedAt,
-    })
-    .from(escrows)
-    .innerJoin(
-      serviceRequests,
-      eq(serviceRequests.id, escrows.serviceRequestId)
-    )
-    .where(eq(serviceRequests.vendorId, vendorId))
-    .orderBy(desc(escrows.heldAt));
 }
 async updateDisputeResolution(
   disputeId: string,
@@ -2002,24 +1664,98 @@ async updateSubscriptionDetails(
     })
     .where(eq(subscriptions.stripeSubscriptionId, stripeSubscriptionId));
 }
-async updateVendorStripeAccount(
-  userId: string,
-  data: {
-    stripeAccountId: string;
-    stripeDetailsSubmitted: boolean;
-    stripeChargesEnabled: boolean;
-    stripePayoutsEnabled: boolean;
+
+async getRecommendedServices(gaps: Gap[], businessType?: BusinessType) {
+  const categoryMap = GAP_CATEGORY_MAP;
+  const results: any[] = [];
+  const usedCategories = new Set<ServiceCategory>();
+
+  for (const gap of gaps) {
+    const category = categoryMap[gap.type];
+    if (usedCategories.has(category)) continue;
+
+    usedCategories.add(category);
+
+    const conditions = [eq(services.category, category)];
+
+    if (businessType && businessType !== "both") {
+      conditions.push(
+        or(
+          eq(users.businessType, businessType),
+          eq(users.businessType, "both")
+        )
+      );
+    }
+
+    const [row] = await db
+      .select()
+      .from(services)
+      .leftJoin(
+        vendorProfiles,
+        eq(vendorProfiles.userId, services.vendorId)
+      )
+      .leftJoin(
+        users,
+        eq(users.id, services.vendorId)
+      )
+      .where(and(...conditions))
+      .limit(1);
+
+    if (row) {
+      results.push({
+        ...row.services,
+        vendorProfile: row.vendor_profiles
+          ? {
+              id: row.vendor_profiles.id,
+              companyName: row.vendor_profiles.companyName,
+              avatar: row.vendor_profiles.avatar,
+              rating: row.vendor_profiles.rating,
+            }
+          : null,
+        recommendedFor: gap.type,
+      });
+    }
   }
-) {
-  await db
-    .update(vendorProfiles)
-    .set({
-      stripeAccountId: data.stripeAccountId,
-      stripeDetailsSubmitted: data.stripeDetailsSubmitted,
-      stripeChargesEnabled: data.stripeChargesEnabled,
-      stripePayoutsEnabled: data.stripePayoutsEnabled,
-    })
-    .where(eq(vendorProfiles.userId, userId));
+
+  return results;
+}
+  async getWalletTransactions() {
+  return await db.query.walletTransactions.findMany({
+    columns: {
+      id: true,
+      amount: true,
+      type: true,
+      referenceId: true,
+      createdAt: true,
+    },
+
+    with: {
+      wallet: {
+        columns: {
+          id: true,
+          balance: true,
+        },
+
+        with: {
+          user: {
+            columns: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      },
+
+      serviceRequests: {
+        columns: {
+          title: true,
+          description: true,
+        },
+      },
+    },
+
+    orderBy: (wt, { desc }) => [desc(wt.createdAt)],
+  });
 }
 // end
 }

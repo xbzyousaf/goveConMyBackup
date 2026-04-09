@@ -1,6 +1,6 @@
-import { users } from "@shared/schema";
+import { milestones, processes, serviceRequests, services, stages, users, vendorImports, vendorProfiles, type VendorProfile, } from "@shared/schema";
 import { db } from "../db";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 export const adminStorage = {
 
@@ -11,6 +11,227 @@ export const adminStorage = {
 
     return admins; // returns array
   },
+  async getOnlyVendors(): Promise<VendorProfile[]> {
+    return await db.select().from(vendorProfiles);
+  },
+   async updateVendorApproval(vendorId: string, approve: boolean) {
+      await db.update(vendorProfiles)
+              .set({ isApproved: approve })
+              .where(eq(vendorProfiles.id, vendorId));
+    },
+  async createVendorImport(data: any) {
+    const [record] = await db
+      .insert(vendorImports)
+      .values(data)
+      .returning();
+  
+    return record;
+  },
+  
+  async updateVendorImport(id: string, updates: any) {
+    const [record] = await db
+      .update(vendorImports)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(vendorImports.id, id))
+      .returning();
+  
+    return record;
+  },
+  
+  async getVendorImports() {
+    return await db
+      .select()
+      .from(vendorImports)
+      .orderBy(desc(vendorImports.createdAt));
+  },
+  async getRequestLogs(options?: { requestId?: string; page?: number; limit?: number;}) {
+    const page = options?.page ?? 1;
+    const limit = options?.limit ?? 11;
+    const offset = (page - 1) * limit;
+  
+    // Count total records
+    const totalQuery = await db.query.requestLogs.findMany({
+      where: (logs, { eq }) =>
+        options?.requestId
+          ? eq(logs.serviceRequestId, options.requestId)
+          : undefined,
+    });
+  
+    const total = totalQuery.length;
+  
+    // Get paginated data
+    const data = await db.query.requestLogs.findMany({
+      where: (logs, { eq }) =>
+        options?.requestId
+          ? eq(logs.serviceRequestId, options.requestId)
+          : undefined,
+  
+      orderBy: (logs, { desc }) => [desc(logs.createdAt)],
+  
+      limit,
+      offset,
+    });
+  
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  },
+  async getAllServices() {
+    return await db.query.services.findMany({
+      with: {
+        vendor: {
+          columns: {
+            id: true,
+            companyName: true,
+            title: true,
+            locations: true,
+          },
+        },
+      },
+      orderBy: desc(services.createdAt),
+    });
+  },
+async getVendorCounts() {
+    const rows = await db
+      .select({
+        isApproved: vendorProfiles.isApproved,
+        count: sql<number>`count(*)`,
+      })
+      .from(vendorProfiles)
+      .groupBy(vendorProfiles.isApproved);
+
+    return {
+      approved: Number(rows.find(r => r.isApproved)?.count || 0),
+      pending: Number(rows.find(r => !r.isApproved)?.count || 0),
+    };
+},
+async getMilestones() {
+  const data = await db.query.processes.findMany({
+    with: {
+      stages: {
+        with: {
+          milestones: true,
+        },
+      },
+    },
+  });
+
+  const result: any[] = [];
+
+  for (const process of data) {
+    for (const stage of process.stages) {
+      for (const milestone of stage.milestones) {
+        result.push({
+          ...milestone,
+          process: process.key,
+          stage: stage.key,
+        });
+      }
+    }
+  }
+
+  return result;
+},
+async createProcessMilestone(data: {key: string; process: string; stage: string; title: string; description?: string; required?: boolean; resources?: any[];}) 
+{
+    const {
+      key,
+      process: processKey,
+      stage: stageKey,
+      title,
+      description,
+      required,
+      resources
+    } = data;
+
+    // 1️⃣ Find process
+    const processRecord = await db
+      .select()
+      .from(processes)
+      .where(eq(processes.key, processKey));
+
+    if (!processRecord.length) {
+      throw new Error("Process not found");
+    }
+
+    const processId = processRecord[0].id;
+
+    // 2️⃣ Find stage
+    const stageRecord = await db.select().from(stages).where(
+        and( eq(stages.key, stageKey), eq(stages.processId, processId)));
+
+    if (!stageRecord.length) {
+      throw new Error("Stage not found");
+    }
+
+    const stageId = stageRecord[0].id;
+
+    // 3️⃣ Create milestone
+    const [milestone] = await db
+      .insert(milestones)
+      .values({
+        stageId,
+        key,
+        title,
+        description: description ?? null,
+        required: required ?? false,
+        resources: JSON.stringify(resources || [])
+      })
+      .returning();
+
+    return milestone;
+},
+async getAllServiceRequestsWithDisputes(
+  limit: number,
+  offset: number
+) {
+  return await db.query.serviceRequests.findMany({
+    where: eq(serviceRequests.status, "disputed"),
+
+    with: {
+      vendor: {
+        columns: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      contractor: {
+        columns: {
+          firstName: true,
+          lastName: true,
+        },
+      },
+      service: {
+        columns: {
+          name: true,
+        },
+      },
+      disputes: true,
+      reviews: true,
+    },
+
+    orderBy: (serviceRequests, { desc }) => [
+      desc(serviceRequests.createdAt),
+    ],
+
+    limit,
+    offset,
+  });
+},
+async countAllServiceRequestsWithDisputes() {
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(serviceRequests)
+    .where(eq(serviceRequests.status, "disputed"));
+  return result[0]?.count ?? 0;
+}
 
 // end===============================
 };

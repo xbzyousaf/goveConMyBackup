@@ -16,6 +16,7 @@ import { CheckCircle, ArrowLeft } from "lucide-react";
 const signupSchema = insertUserSchema.extend({
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
+  businessType: z.enum(["commercial", "government", "both"]),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -39,6 +40,7 @@ const intent = new URLSearchParams(window.location.search).get("intent");
       firstName: "",
       lastName: "",
       userType: "contractor",
+      businessType: "commercial",
     },
   });
 
@@ -55,6 +57,7 @@ const intent = new URLSearchParams(window.location.search).get("intent");
         firstName: data.firstName,
         lastName: data.lastName,
         userType: finalUserType,
+        businessType: data.businessType,
       });
 
       setSuccessMessage(response.message);
@@ -199,6 +202,27 @@ const intent = new URLSearchParams(window.location.search).get("intent");
                             {...field} 
                             data-testid="input-confirm-password"
                           />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="businessType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Doing Business With</FormLabel>
+                        <FormControl>
+                          <select
+                            {...field}
+                            className="w-full border rounded-md p-2"
+                            data-testid="select-business-type"
+                          >
+                            <option value="commercial">Commercial</option>
+                            <option value="government">Government</option>
+                            <option value="both">Both</option>
+                          </select>
                         </FormControl>
                         <FormMessage />
                       </FormItem>

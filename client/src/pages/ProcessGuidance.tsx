@@ -68,7 +68,7 @@ const PROCESS_CONFIG = {
 
 export default function ProcessGuidance() {
   const { data: milestones = [] } = useQuery<Milestone[]>({
-  queryKey: ['/api/milestones'],
+  queryKey: ['/api/admin/milestones'],
 });
 const [, params] = useRoute("/process/:processId");
   const processId = params?.processId as keyof typeof PROCESS_CONFIG | undefined;

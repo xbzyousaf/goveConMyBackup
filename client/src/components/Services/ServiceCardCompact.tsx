@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getFirstLetter, truncateText } from "../../utility/textUtils"
 import { Service } from "@/interfaces/service";
+import { Badge } from "../ui/badge";
 
 interface Props {
   service: Service;
@@ -19,7 +20,7 @@ export function ServiceCardCompact({ service, detailsUrl }: Props) {
   const firstLetter = getFirstLetter(service.vendorProfile?.companyName, "V");
 
   return (
-    <div className="flex items-center justify-between border-2 border-orange-500 rounded-lg p-4 hover:shadow-sm transition">
+    <div className="relative  flex items-center justify-between border-2 border-orange-500 rounded-lg p-4 hover:shadow-sm transition">
 
       {/* LEFT SIDE */}
       <div className="flex items-center gap-4">
@@ -44,7 +45,7 @@ export function ServiceCardCompact({ service, detailsUrl }: Props) {
         <div>
           <p className="text-base flex gap-1">
             <span className="font-bold">Service:</span>
-            <span>{truncateText(service?.title, 85)}</span>
+            <span>{truncateText(service?.name, 85)}</span>
           </p>
 
           <p className="text-base flex gap-1">
@@ -57,7 +58,13 @@ export function ServiceCardCompact({ service, detailsUrl }: Props) {
 
       {/* RIGHT SIDE */}
       <div className="flex flex-col items-end gap-3">
+        <div className="absolute right-4 -top-3 z-10">
+          <Badge className="border border-orange-500 text-orange-600 bg-white px-3 py-1 shadow-sm">
+            Recommended for {service.category} gap
+          </Badge>
+        </div>
         {detailsUrl && (
+          
           <Button
             size="sm"
             className="bg-orange-500 hover:bg-orange-600 text-white"

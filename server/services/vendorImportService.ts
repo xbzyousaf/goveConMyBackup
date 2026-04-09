@@ -1,15 +1,65 @@
 import { storage } from "server/storage";
 import { vendorStorage }    from "../storage/vendorStorage";
+import { adminStorage }    from "../storage/adminStorage";
 
 const CHUNK_SIZE = process.env.CHUNK_SIZE ? parseInt(process.env.CHUNK_SIZE) : 50;
+function resolveCompanyName(companyName?: string, email?: string): string {
+  if (!companyName) return deriveFromEmail(email);
 
+  let cleaned = companyName.split("\n")[0].trim();
+
+  // Detect URL or domain-like string
+  if (
+    cleaned.includes("http") ||
+    cleaned.includes("www") ||
+    cleaned.includes(".com") ||
+    cleaned.includes(".net") ||
+    cleaned.includes(".org")
+  ) {
+    try {
+      const normalizedUrl = cleaned.startsWith("http")
+        ? cleaned
+        : `https://${cleaned}`;
+
+      const url = new URL(normalizedUrl);
+
+      let domain = url.hostname.replace("www.", "");
+
+      // 🔥 remove TLD (.com, .net, etc.)
+      domain = domain.split(".")[0];
+
+      return capitalizeWords(domain);
+    } catch {
+      // fallback if URL parsing fails
+      return capitalizeWords(
+        cleaned.replace(/\.(com|net|org|io|co|gov).*/i, "")
+      );
+    }
+  }
+
+  return cleaned;
+}
+function deriveFromEmail(email?: string): string {
+  if (!email) return "Unknown";
+
+  const name = email.split("@")[0];
+  return capitalizeWords(name);
+}
+function capitalizeWords(str: string): string {
+  return str
+    .replace(/[^a-zA-Z0-9 ]/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
 export async function processVendorImport(importId: string, rows: any[]) {
   let processed = 0;
   let success = 0;
   let failed = 0;
   const errors: any[] = [];
 
-  await vendorStorage.updateVendorImport(importId, {
+  await adminStorage.updateVendorImport(importId, {
     status: "processing",
     totalRecords: rows.length,
     progress: 0,
@@ -90,13 +140,15 @@ export async function processVendorImport(importId: string, rows: any[]) {
         const existingProfile = await storage.getVendorProfile(user.id);
 
         if (!existingProfile) {
-          await storage.createVendorProfile(
+          
+          await vendorStorage.createVendorProfile(
             {
-              companyName: row.companyName?.split("\n")[0] || "Unknown",
+              companyName: resolveCompanyName(row.companyName, row.email),
               title: row.service || row.category,
               categories: [mapCategory(row.category)],
               skills: [row.service],
               description: `${row.category} - ${row.service}`,
+              isApproved: true,
             },
             user.id
           );
@@ -116,7 +168,7 @@ export async function processVendorImport(importId: string, rows: any[]) {
     }
 
     // ✅ Update after each chunk
-    await vendorStorage.updateVendorImport(importId, {
+    await adminStorage.updateVendorImport(importId, {
       processedRecords: processed,
       successRecords: success,
       failedRecords: failed,
@@ -125,7 +177,7 @@ export async function processVendorImport(importId: string, rows: any[]) {
     });
   }
 
-  await vendorStorage.updateVendorImport(importId, {
+  await adminStorage.updateVendorImport(importId, {
     status: "completed",
     progress: 100, // ✅ FIX
   });
