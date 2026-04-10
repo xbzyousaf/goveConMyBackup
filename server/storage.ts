@@ -299,6 +299,7 @@ export class DatabaseStorage implements IStorage {
     if (filters?.location) {
       whereConditions.push(eq(vendorProfiles.location, filters.location));
     }
+    whereConditions.push(eq(vendorProfiles.isApproved, true));
     // ✅ NEW: multi-category match (IMPORTANT)
     if (filters?.categories && filters.categories.length > 0) {
       const categorySqlArray = sql.raw(
