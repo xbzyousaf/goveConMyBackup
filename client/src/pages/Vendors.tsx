@@ -114,12 +114,12 @@ const finalCategories: ServiceCategory[] =
   ];
   const safeVendors = Array.isArray(vendors) ? vendors : [];
 
-  const locations = [
-    { id: "all", label: "All Locations" },
-    ...Array.from(
-      new Set(safeVendors.map((v) => v.location).filter(Boolean)),
-    ).map((loc) => ({ id: loc!, label: loc! })),
-  ];
+  // const locations = [
+  //   { id: "all", label: "All Locations" },
+  //   ...Array.from(
+  //     new Set(safeVendors.map((v) => v.location).filter(Boolean)),
+  //   ).map((loc) => ({ id: loc!, label: loc! })),
+  // ];
 
   const filteredVendors = safeVendors
     .filter((vendor) => {
@@ -227,7 +227,7 @@ const finalCategories: ServiceCategory[] =
                   </SelectContent>
                 </Select>
 
-                <Select
+                {/* <Select
                   value={selectedLocation}
                   onValueChange={setSelectedLocation}
                 >
@@ -241,10 +241,10 @@ const finalCategories: ServiceCategory[] =
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </Select> */}
 
                 <div className="flex items-center gap-4">
-                  <Button
+                  {/* <Button
                     variant={verifiedOnly ? "default" : "outline"}
                     onClick={() => setVerifiedOnly(!verifiedOnly)}
                     className="flex-1"
@@ -252,7 +252,7 @@ const finalCategories: ServiceCategory[] =
                   >
                     <Filter className="w-4 h-4 mr-2" />
                     Verified Only
-                  </Button>
+                  </Button> */}
 
                   {activeFiltersCount > 0 && (
                     <Button
