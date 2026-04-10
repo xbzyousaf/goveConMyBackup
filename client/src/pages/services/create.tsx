@@ -14,7 +14,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, DollarSign, Megaphone, Scale, Settings, Shield, ShieldCheck, TrendingUp, Users } from "lucide-react";
 
 export default function CreateService() {
   const [match, params] = useRoute("/service/create/:id");
@@ -23,7 +23,17 @@ export default function CreateService() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const serviceCategories = [
+    { id: "all", label: "All Services", icon: TrendingUp },
+    { id: "legal", label: "Legal & Compliance", icon: Scale },
+    { id: "hr", label: "HR & Talent", icon: Users },
+    { id: "finance", label: "Finance & Accounting", icon: DollarSign },
+    { id: "cybersecurity", label: "IT & Cybersecurity", icon: Shield },
+    { id: "marketing", label: "Proposal Support", icon: Megaphone },
+    { id: "business_tools", label: "Business Tools", icon: Settings },
+    { id: "insurance", label: "Insurance", icon: ShieldCheck }
 
+  ];
   const [form, setForm] = useState({
     name: "",
     category: "",
@@ -151,12 +161,11 @@ export default function CreateService() {
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="legal">Legal</SelectItem>
-                <SelectItem value="hr">HR</SelectItem>
-                <SelectItem value="finance">Finance</SelectItem>
-                <SelectItem value="cybersecurity">Cybersecurity</SelectItem>
-                <SelectItem value="marketing">Marketing</SelectItem>
-                <SelectItem value="business_tools">Business Tools</SelectItem>
+                {serviceCategories.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
 
             </Select>
