@@ -79,11 +79,9 @@ try {
 router.patch("/services/:id/status", isAuthenticated, isAdmin, async (req: any, res) => {
   try {
     const userId = getUserId(req);
+    
     if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
-    }
-    if (req.user.role !== "admin") {
-      return res.status(403).json({ message: "Admin only" });
     }
 
     const { isActive } = req.body;
