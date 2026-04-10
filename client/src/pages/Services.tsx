@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Scale, Users, DollarSign, Shield, Megaphone, Settings, CheckCircle, ArrowRight, Clock, TrendingUp, Lock, Star, Search, Zap, Briefcase, Package, Award } from "lucide-react";
+import { Scale, Users, DollarSign, Shield, Megaphone, Settings, CheckCircle, ArrowRight, Clock, TrendingUp, Lock, Star, Search, Zap, Briefcase, Package, Award, ShieldCheck } from "lucide-react";
 const categoryIconMap: Record<string, React.ElementType> = {
   legal: Scale,
   cybersecurity: Zap,
@@ -50,7 +50,9 @@ export default function Services() {
     { id: "finance", label: "Finance & Accounting", icon: DollarSign },
     { id: "cybersecurity", label: "IT & Cybersecurity", icon: Shield },
     { id: "marketing", label: "Proposal Support", icon: Megaphone },
-    { id: "business_tools", label: "Business Tools", icon: Settings }
+    { id: "business_tools", label: "Business Tools", icon: Settings },
+    { id: "insurance", label: "Insurance", icon: ShieldCheck }
+
   ];
   
   const { data: allServices } = useQuery<any>({
