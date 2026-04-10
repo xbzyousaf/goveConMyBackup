@@ -222,12 +222,12 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
     }
     
     // Price range filter
-    if (priceRange !== "all") {
-      const price = bundle.price;
-      if (priceRange === "low" && price > 5000) return false;
-      if (priceRange === "medium" && (price < 5000 || price > 10000)) return false;
-      if (priceRange === "high" && price < 10000) return false;
-    }
+    // if (priceRange !== "all") {
+    //   const price = bundle.price;
+    //   if (priceRange === "low" && price > 5000) return false;
+    //   if (priceRange === "medium" && (price < 5000 || price > 10000)) return false;
+    //   if (priceRange === "high" && price < 10000) return false;
+    // }
     
     // Search filter
     if (searchQuery) {
@@ -279,7 +279,7 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
-                <div>
+                {/* <div>
                   <label className="text-sm font-medium mb-2 block">Business Stage</label>
                   <Select value={selectedStage} onValueChange={setSelectedStage}>
                     <SelectTrigger data-testid="select-business-stage">
@@ -291,7 +291,7 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
+                </div> */}
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Service Category</label>
@@ -307,7 +307,7 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
                   </Select>
                 </div>
 
-                <div>
+                {/* <div>
                   <label className="text-sm font-medium mb-2 block">Price Range</label>
                   <Select value={priceRange} onValueChange={setPriceRange}>
                     <SelectTrigger data-testid="select-price-range">
@@ -320,27 +320,27 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
                       <SelectItem value="high">$10,000+</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+                </div> */}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="services" className="space-y-8">
+        {/* <Tabs defaultValue="services" className="space-y-8">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="services" data-testid="tab-services">Featured Services</TabsTrigger>
             <TabsTrigger value="bundles" data-testid="tab-bundles">Service Bundles</TabsTrigger>
             <TabsTrigger value="promotions" data-testid="tab-promotions">Promotions</TabsTrigger>
-          </TabsList>
+          </TabsList> */}
 
           {/* Featured Services Tab */}
-          <TabsContent value="services" className="space-y-6">
+          {/* <TabsContent value="services" className="space-y-6"> */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">Featured Services</h2>
-              <Badge variant="secondary" className="flex items-center gap-1">
+              <h2 className="text-2xl font-bold">Services</h2>
+              {/* <Badge variant="secondary" className="flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" />
                 Trending Now
-              </Badge>
+              </Badge> */}
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
@@ -421,9 +421,8 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
                 );
               })}
             </div>
-          </TabsContent>
+          {/* </TabsContent>
 
-          {/* Service Bundles Tab */}
           <TabsContent value="bundles" className="space-y-6">
             <div className="mb-4">
               <h2 className="text-2xl font-bold mb-2">Pre-Packaged Solutions</h2>
@@ -474,9 +473,8 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
                 </Card>
               ))}
             </div>
-          </TabsContent>
+          </TabsContent> 
 
-          {/* Promotions Tab */}
           <TabsContent value="promotions" className="space-y-6">
             <div className="mb-4">
               <h2 className="text-2xl font-bold mb-2">Current Promotions</h2>
@@ -509,7 +507,7 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
               ))}
             </div>
           </TabsContent>
-        </Tabs>
+        </Tabs>*/}
 
         {/* CTA Section */}
         <Card className="mt-12 bg-primary/5 border-primary/20">
