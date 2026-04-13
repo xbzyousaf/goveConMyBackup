@@ -231,6 +231,27 @@ async countAllServiceRequestsWithDisputes() {
     .from(serviceRequests)
     .where(eq(serviceRequests.status, "disputed"));
   return result[0]?.count ?? 0;
+},
+async deleteVendor(vendorId: string): Promise<boolean> {
+  const result = await db
+    .delete(users)
+    .where(eq(users.id, vendorId))
+    .returning({ id: users.id });
+  return result.length > 0;
+},
+async deleteService(serviceId: string): Promise<boolean> {
+  const result = await db
+    .delete(services)
+    .where(eq(services.id, serviceId))
+    .returning({ id: services.id });
+  return result.length > 0;
+},
+async deleteVendorImport(importId: string): Promise<boolean> {
+  const result = await db
+    .delete(vendorImports)
+    .where(eq(vendorImports.id, importId))
+    .returning({ id: vendorImports.id });
+  return result.length > 0;
 }
 
 // end===============================

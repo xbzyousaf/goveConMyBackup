@@ -8,5 +8,6 @@ export const GAP_CATEGORY_MAP: Record<GapType, ServiceCategory> = {
   hr: "hr",
   marketing: "marketing",
   business_tools: "business_tools",
+  insurance: "insurance",
   certifications: "business_tools", // intentional mapping
 };

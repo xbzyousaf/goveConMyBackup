@@ -111,6 +111,7 @@ const finalCategories: ServiceCategory[] =
     { id: "cybersecurity", label: "IT & Cybersecurity" },
     { id: "marketing", label: "Marketing & Branding" },
     { id: "business_tools", label: "Business Tools" },
+    { id: "insurance", label: "Insurance" },
   ];
   const safeVendors = Array.isArray(vendors) ? vendors : [];
 

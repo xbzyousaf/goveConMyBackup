@@ -69,6 +69,36 @@ export default function AdminVendorImports() {
         localStorage.setItem("notifiedImports", JSON.stringify(updated)); // ✅ persist
       }
     }, [data, notified, toast]);
+    const deleteImport = async (id: string) => {
+      const res = await fetch(`/api/admin/vendor/import/${id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Delete failed");
+      }
+
+      return data;
+    };
+    const deleteMutation = useMutation({
+      mutationFn: deleteImport,
+      onSuccess: () => {
+        refetch(); // simplest approach
+        toast({
+          title: "Deleted",
+          description: "Import deleted successfully",
+        });
+      },
+      onError: (error: any) => {
+        toast({
+          title: "Delete failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      },
+    });
 
   const mutation = useMutation({
     mutationFn: uploadFile,
@@ -124,7 +154,7 @@ export default function AdminVendorImports() {
             className="bg-blue-600 text-white px-4 py-2 rounded"
             onClick={() => file && mutation.mutate(file)}
           >
-            {mutation.isPending ? "Uploading..." : "Upload CSV"}
+            {mutation.isPending ? "Importing..." : "Import Vendors"}
           </button>
         </div>
 
@@ -165,6 +195,7 @@ export default function AdminVendorImports() {
             </div>
 
             {/* Stats */}
+            <div className="flex justify-between">
             <div className="flex gap-4 text-sm mt-2">
               <span className="text-green-600">
                 Success: {item.successRecords || 0}
@@ -173,6 +204,19 @@ export default function AdminVendorImports() {
                 Failed: {item.failedRecords || 0}
               </span>
             </div>
+             {/* DELETE BUTTON */}
+              <button
+                onClick={() => {
+                  if (confirm("Are you sure you want to delete this import?")) {
+                    deleteMutation.mutate(item.id);
+                  }
+                }}
+                className="text-red-600 text-sm border border-red-200 px-2 py-1 rounded hover:bg-red-50"
+                disabled={deleteMutation.isPending}
+              >
+                Delete
+              </button>
+              </div>
 
             {/* Errors */}
             {item.errors?.length > 0 && (

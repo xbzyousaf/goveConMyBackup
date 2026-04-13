@@ -18,7 +18,7 @@ export const sessions = pgTable(
 // Enums
 export const userTypeEnum = pgEnum("user_type", ["contractor", "vendor", 'admin']);
 export const serviceRequestStatusEnum = pgEnum("service_request_status", ["pending", "accepted", "in_progress", "delivered", "completed", "cancelled", 'disputed']);
-export const serviceCategoryEnum = pgEnum("service_category", ["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools"]);
+export const serviceCategoryEnum = pgEnum("service_category", ["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools", "insurance"]);
 export const maturityStageEnum = pgEnum("maturity_stage", ["startup", "growth", "scale"]);
 export const coreProcessEnum = pgEnum("core_process", ["business_structure", "business_strategy", "execution"]);
 export const contentTypeEnum = pgEnum("content_type", ["playbook", "template", "guide", "webinar", "faq", "checklist"]);
@@ -61,7 +61,9 @@ export const users = pgTable("users", {
 // Vendor profiles
 export const vendorProfiles = pgTable("vendor_profiles", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: uuid("user_id").references(() => users.id).notNull(),
+  userId: uuid("user_id")
+  .references(() => users.id, { onDelete: "cascade" })
+  .notNull(),
   companyName: text("company_name"),
   title: text("title").notNull(),
   description: text("description"),
@@ -112,8 +114,7 @@ export const services = pgTable("services", {
     .default(sql`gen_random_uuid()`),
 
   vendorId: uuid("vendor_id")
-    .references(() => users.id)
-    .notNull(),
+  .references(() => users.id, { onDelete: "cascade" }),
 
   name: text("title").notNull(),
   description: text("description").notNull(),
@@ -201,7 +202,7 @@ export const serviceTiers = pgTable("service_tiers", {
   export const serviceRequests = pgTable("service_requests", {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
     contractorId: uuid("contractor_id").references(() => users.id).notNull(),
-    vendorId: uuid("vendor_id").references(() => users.id),
+    vendorId: uuid("vendor_id").references(() => users.id, { onDelete: "set null" }),
     title: text("title").notNull(),
     serviceId: uuid("service_id").references(() => services.id, { onDelete: "cascade" }).notNull(),
     description: text("description").notNull(),
@@ -562,8 +563,7 @@ export type InsertNotification =
 export const requestLogs = pgTable("request_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
   serviceRequestId: uuid("service_request_id")
-    .references(() => serviceRequests.id)
-    .notNull(),
+  .references(() => serviceRequests.id, { onDelete: "set null" }),
   action: varchar("action", { length: 100 }).notNull(), 
   // e.g. "STATUS_UPDATED", "DELIVERED", "COMPLETED"
   performedBy: uuid("performed_by")

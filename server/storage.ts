@@ -1700,7 +1700,7 @@ async getRecommendedServices(gaps: Gap[], businessType?: BusinessType) {
         eq(users.id, services.vendorId)
       )
       .where(and(...conditions))
-      .limit(1);
+      .limit(3);
 
     if (row) {
       results.push({
