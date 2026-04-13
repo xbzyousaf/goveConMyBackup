@@ -136,7 +136,9 @@ export async function processVendorImport(importId: string, rows: any[]) {
              username: finalUsername,
             isEmailVerified: true,
         });
-
+        if (!user) {
+          throw new Error("Failed to create user");
+        }
         const existingProfile = await storage.getVendorProfile(user.id);
 
         if (!existingProfile) {
@@ -149,10 +151,23 @@ export async function processVendorImport(importId: string, rows: any[]) {
               skills: [row.service],
               description: `${row.category} - ${row.service}`,
               isApproved: true,
+              hourlyRate: '30.00',
             },
             user.id
           );
         }
+        await vendorStorage.createService({
+          vendorId: user.id,
+          name: row.service || "General Service",
+          description: `${row.category} - ${row.service}`,
+          category: mapCategory(row.category),
+
+          pricingModel: "hourly",
+          priceMin: "20",
+          priceMax: "30",
+
+          isActive: true,
+        }, user.id);
 
         success++;
       } catch (err: any) {
@@ -189,7 +204,8 @@ type ServiceCategory =
   | "finance"
   | "cybersecurity"
   | "marketing"
-  | "business_tools";
+  | "business_tools"
+  | "insurance";
 
 function mapCategory(category: string): ServiceCategory {
   const normalized = category?.trim().toLowerCase();
@@ -200,7 +216,7 @@ function mapCategory(category: string): ServiceCategory {
     "finance and accounting": "finance",
     "it": "cybersecurity",
     "marketing": "marketing",
-    "insurance": "finance",
+    "insurance": "insurance",
     "business tools": "business_tools",
     "proposal": "business_tools",
   };

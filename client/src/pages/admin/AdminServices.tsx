@@ -17,7 +17,24 @@ export default function AdminServices() {
       return res.json();
     },
   });
+  const deleteService = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/services/${id}`, {
+        method: "DELETE",
+      });
 
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Delete failed:", text);
+        throw new Error("Failed to delete service");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/admin/all-services"],
+      });
+    },
+  });
   // Toggle service status
   const toggleStatus = useMutation({
     mutationFn: async ({
@@ -40,7 +57,7 @@ export default function AdminServices() {
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["/api/all-services"],
+        queryKey: ["/api/admin/all-services"],
       });
     },
   });
@@ -59,7 +76,6 @@ export default function AdminServices() {
             <thead>
               <tr className="bg-gray-50 text-sm">
                 <th className="px-4 py-2 text-left">Service</th>
-                <th className="px-4 py-2 text-left">Description</th>
                 <th className="px-4 py-2 text-left">Category</th>
                 <th className="px-4 py-2 text-left">Vendor Company</th>
                 <th className="px-4 py-2 text-left">Vendor Title</th>
@@ -73,10 +89,6 @@ export default function AdminServices() {
                 <tr key={service.id}>
                   <td className="px-4 py-2 font-medium">
                     {service.name?.trim()}
-                  </td>
-
-                  <td className="px-4 py-2 max-w-[250px] truncate">
-                    {service.description}
                   </td>
 
                   <td className="px-4 py-2">
@@ -108,6 +120,22 @@ export default function AdminServices() {
                       }
                     >
                       {service.isActive ? "Deactivate" : "Activate"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="ml-2"
+                      onClick={() => {
+                        const confirmDelete = window.confirm(
+                          "Are you sure you want to delete this service? This will also remove related requests."
+                        );
+
+                        if (confirmDelete) {
+                          deleteService.mutate(service.id);
+                        }
+                      }}
+                    >
+                      Delete
                     </Button>
                   </td>
                 </tr>

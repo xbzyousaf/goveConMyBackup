@@ -254,5 +254,53 @@ router.get("/vendor/imports", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+router.delete("/vendors/:id", isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const vendorId = req.params.id;
+
+    // 1. Delete user (this will cascade everything)
+    const result = await adminStorage.deleteVendor(vendorId);
+    if (!result) {
+      return res.status(404).json({ message: "Vendor not found/not deleted" });
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Delete failed" });
+  }
+});
+router.delete("/services/:id", isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const serviceId = req.params.id;
+
+    const result = await adminStorage.deleteService(serviceId);
+
+    if (!result) {
+      return res.status(404).json({ message: "Service not found" });
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("DELETE SERVICE ERROR:", error);
+    return res.status(500).json({ message: "Delete failed" });
+  }
+});
+router.delete("/vendor/import/:id", isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const importId = req.params.id;
+
+    const result = await adminStorage.deleteVendorImport(importId);
+
+    if (!result) {
+      return res.status(404).json({ message: "Import not found" });
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("DELETE VENDOR IMPORT ERROR:", error);
+    return res.status(500).json({ message: "Delete failed" });
+  }
+});
 
 export default router;

@@ -36,6 +36,24 @@ export default function AdminVendors() {
       queryClient.invalidateQueries(["/api/admin/vendors"]);
     },
   });
+ const deleteVendor = useMutation({
+  mutationFn: async (id: string) => {
+    const res = await fetch(`/api/admin/vendors/${id}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error("Failed to delete vendor", { cause: text });
+    }
+
+    return res.json();
+  },
+  onSuccess: () => {
+    console.log("Delete success"); // 👈 ADD
+    queryClient.invalidateQueries(["/api/admin/vendors"]);
+  },
+});
 
   if (isLoading) return <p>Loading vendors...</p>;
 
@@ -51,7 +69,6 @@ export default function AdminVendors() {
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Name</th>
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Company</th>
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Category</th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Location</th>
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Status</th>
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Actions</th>
               </tr>
@@ -62,7 +79,6 @@ export default function AdminVendors() {
                   <td className="px-4 py-2">{vendor.title}</td>
                   <td className="px-4 py-2">{vendor.companyName || "-"}</td>
                   <td className="px-4 py-2">{vendor.categories?.[0] || "General"}</td>
-                  <td className="px-4 py-2">{vendor.location || "-"}</td>
                   <td className="px-4 py-2">
                     {vendor.isApproved ? (
                       <span className="text-green-600 font-medium">Active</span>
@@ -71,7 +87,7 @@ export default function AdminVendors() {
                     )}
                   </td>
                   <td className="px-4 py-2">
-                    <Button
+                    <Button className="mr-2"
                       size="sm"
                       variant={vendor.isApproved ? "destructive" : "default"}
                       onClick={() =>
@@ -79,6 +95,22 @@ export default function AdminVendors() {
                       }
                     >
                       {vendor.isApproved ? "Deactivate" : "Activate"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        const confirmDelete = window.confirm(
+                          "Are you sure you want to delete this vendor? This action cannot be undone."
+                        );
+
+                        if (confirmDelete) {
+                          console.log("Deleting vendor ID:", vendor.userId);
+                          deleteVendor.mutate(vendor.userId);
+                        }
+                      }}
+                    >
+                      Delete
                     </Button>
                   </td>
                 </tr>

@@ -4,4 +4,5 @@ export type ServiceCategory =
   | "finance"
   | "cybersecurity"
   | "marketing"
-  | "business_tools";
+  | "business_tools"
+  | "insurance";

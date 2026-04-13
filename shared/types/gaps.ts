@@ -5,7 +5,8 @@ export type GapType =
   | "hr"
   | "marketing"
   | "business_tools"
-  | "certifications";
+  | "certifications"
+  | "insurance";
 
 export interface Gap {
   type: GapType;
