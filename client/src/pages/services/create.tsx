@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, DollarSign, Megaphone, Scale, Settings, Shield, ShieldCheck, TrendingUp, Users } from "lucide-react";
+import { SERVICE_CATEGORIES } from "../../../../constants/categories";
 
 export default function CreateService() {
   const [match, params] = useRoute("/service/create/:id");
@@ -24,15 +25,8 @@ export default function CreateService() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const serviceCategories = [
-    { id: "all", label: "All Services", icon: TrendingUp },
-    { id: "legal", label: "Legal & Compliance", icon: Scale },
-    { id: "hr", label: "HR & Talent", icon: Users },
-    { id: "finance", label: "Finance & Accounting", icon: DollarSign },
-    { id: "cybersecurity", label: "IT & Cybersecurity", icon: Shield },
-    { id: "marketing", label: "Proposal Support", icon: Megaphone },
-    { id: "business_tools", label: "Business Tools", icon: Settings },
-    { id: "insurance", label: "Insurance", icon: ShieldCheck }
-
+    { id: "all", label: "All Categories" },
+    ...SERVICE_CATEGORIES,
   ];
   const [form, setForm] = useState({
     name: "",
@@ -116,7 +110,15 @@ export default function CreateService() {
       });
 
       setLocation("/services");
-    }
+    },
+    // ✅ ADD THIS
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isEdit && isLoading) {

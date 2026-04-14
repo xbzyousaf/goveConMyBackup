@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Send, Star, MapPin, ArrowLeft } from "lucide-react";
 import type { VendorProfile } from "@shared/schema";
 import { Header } from "./Header";
-import { Link } from "wouter";
+import { SERVICE_CATEGORIES } from "../../../constants/categories";
 
 type ServiceRequestPayload = {
   title: string;
@@ -121,14 +121,7 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
       setSelectedCategory(service.category);
     }
   }, [service]);
-  const serviceCategories = [
-    { id: "legal", label: "Legal & Compliance" },
-    { id: "hr", label: "HR & Talent" },
-    { id: "finance", label: "Finance & Accounting" },
-    { id: "cybersecurity", label: "IT & Cybersecurity" },
-    { id: "marketing", label: "Proposal Support" },
-    { id: "business_tools", label: "Business Tools" },
-  ];
+  const serviceCategories = [...SERVICE_CATEGORIES  ];
   return (
     <div className="min-h-screen bg-background">
     <Header />

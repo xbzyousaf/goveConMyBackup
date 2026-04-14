@@ -4,10 +4,11 @@ import { AdminLayout } from "./AdminLayouts";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { Service } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AdminServices() {
   const queryClient = useQueryClient();
-
+  const { toast } = useToast();
   // Fetch services
   const { data: services = [], isLoading } = useQuery<Service[]>({
     queryKey: ["/api/admin/all-services"],
@@ -24,14 +25,26 @@ export default function AdminServices() {
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        console.error("Delete failed:", text);
-        throw new Error("Failed to delete service");
+        const errText = await res.text();
+        throw new Error(errText || "Failed to delete service");
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["/api/admin/all-services"],
+      });
+
+      toast({
+        title: "Deleted",
+        description: "Service deleted successfully",
+      });
+    },
+
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete service",
+        variant: "destructive",
       });
     },
   });
@@ -55,9 +68,24 @@ export default function AdminServices() {
       return res.json();
     },
 
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["/api/admin/all-services"],
+      });
+
+      toast({
+        title: "Success",
+        description: variables.isActive
+          ? "Service activated successfully"
+          : "Service deactivated successfully",
+      });
+    },
+
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update service",
+        variant: "destructive",
       });
     },
   });

@@ -115,7 +115,7 @@ const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
 
   // vendor must complete onboarding
   if (user.userType === "vendor" && !user.hasCompletedOnboarding) {
-    setLocation("/vendor-onboarding");
+    setLocation("/vendor/onboarding");
     return null;
   }
   const earningsChange = calculateMonthlyMetric(serviceRequests, {
@@ -394,7 +394,7 @@ const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
                     <Button
                         variant="outline"
                         data-testid="button-edit-profile"
-                        onClick={() => setLocation("/vendor-profile/edit")}
+                        onClick={() => setLocation("/vendor/profile/edit")}
                       >
                       <Edit className="w-4 h-4 mr-2" />
                       Edit Profile

@@ -21,6 +21,7 @@ import { toast } from "@/hooks/use-toast";
 import { GAP_CATEGORY_MAP } from "../../../constants/gapCategoryMap";
 import type { GapType } from "@shared/types/gaps";
 import type { ServiceCategory } from "@shared/types/service";
+import { SERVICE_CATEGORIES } from "../../../constants/categories";
 
 export default function Vendors() {
   const [location] = useLocation();
@@ -104,15 +105,9 @@ const finalCategories: ServiceCategory[] =
   });
 
   const categories = [
-    { id: "all", label: "All Categories" },
-    { id: "legal", label: "Legal & Compliance" },
-    { id: "hr", label: "HR & Talent" },
-    { id: "finance", label: "Finance & Accounting" },
-    { id: "cybersecurity", label: "IT & Cybersecurity" },
-    { id: "marketing", label: "Marketing & Branding" },
-    { id: "business_tools", label: "Business Tools" },
-    { id: "insurance", label: "Insurance" },
-  ];
+      { id: "all", label: "All Categories" },
+      ...SERVICE_CATEGORIES,
+    ];
   const safeVendors = Array.isArray(vendors) ? vendors : [];
 
   // const locations = [

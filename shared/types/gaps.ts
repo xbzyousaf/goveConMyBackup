@@ -1,6 +1,6 @@
 export type GapType =
   | "legal"
-  | "cyber_security"
+  | "cybersecurity"
   | "finance"
   | "hr"
   | "marketing"

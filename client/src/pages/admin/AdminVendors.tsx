@@ -5,10 +5,12 @@ import { AdminLayout } from "./AdminLayouts";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { VendorProfile } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 
 export default function AdminVendors() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch vendors
   const { data: vendors = [], isLoading } = useQuery<VendorProfile[]>({
@@ -31,9 +33,23 @@ export default function AdminVendors() {
       if (!res.ok) throw new Error("Failed to update vendor status");
       return res.json();
     },
-    onSuccess: () => {
-      // Refresh vendor list
-      queryClient.invalidateQueries(["/api/admin/vendors"]);
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/vendors"] });
+
+      toast({
+        title: "Success",
+        description: variables.approve
+          ? "Vendor activated successfully"
+          : "Vendor deactivated successfully",
+      });
+    },
+
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update vendor",
+        variant: "destructive",
+      });
     },
   });
  const deleteVendor = useMutation({
@@ -50,8 +66,20 @@ export default function AdminVendors() {
     return res.json();
   },
   onSuccess: () => {
-    console.log("Delete success"); // 👈 ADD
-    queryClient.invalidateQueries(["/api/admin/vendors"]);
+    queryClient.invalidateQueries({ queryKey: ["/api/admin/vendors"] });
+
+    toast({
+      title: "Deleted",
+      description: "Vendor deleted successfully",
+    });
+  },
+
+  onError: (error: any) => {
+    toast({
+      title: "Error",
+      description: error.message || "Failed to delete vendor",
+      variant: "destructive",
+    });
   },
 });
 

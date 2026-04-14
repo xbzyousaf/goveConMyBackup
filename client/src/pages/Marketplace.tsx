@@ -12,6 +12,8 @@ import { Search, Star, TrendingUp, Package, Briefcase, Scale, Zap, Award, Filter
 import type { VendorProfile } from "@shared/schema";
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { getFirstLetter } from "@/utility/textUtils";
+import { SERVICE_CATEGORIES } from "../../../constants/categories";
+
 const categoryIconMap: Record<string, React.ElementType> = {
   legal: Scale,
   cybersecurity: Zap,
@@ -189,13 +191,8 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
   ];
 
   const categories = [
-    { id: "all", label: "All Services" },
-    { id: "legal", label: "Legal & Compliance" },
-    { id: "cybersecurity", label: "Cybersecurity" },
-    { id: "marketing", label: "Proposal & Marketing" },
-    { id: "finance", label: "Finance & Accounting" },
-    { id: "hr", label: "HR & Talent" },
-    { id: "business_tools", label: "Business Tools" }
+    { id: "all", label: "All Categories" },
+    ...SERVICE_CATEGORIES,
   ];
 
   const businessStages = [
