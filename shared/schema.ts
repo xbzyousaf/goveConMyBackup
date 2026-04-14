@@ -515,10 +515,10 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
 
   relatedRequestId: uuid("related_request_id")
-    .references(() => serviceRequests.id),
+  .references(() => serviceRequests.id, { onDelete: "cascade" }),
 
   relatedMessageId: uuid("related_message_id")
-    .references(() => messages.id),
+    .references(() => messages.id, { onDelete: "cascade" }),
 
   isRead: boolean("is_read").default(false),
 

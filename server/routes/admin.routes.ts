@@ -265,10 +265,17 @@ router.delete("/vendors/:id", isAuthenticated, isAdmin, async (req, res) => {
     }
 
     return res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Delete failed" });
-  }
+  } catch (error) {
+      if (error instanceof Error) {
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        message: "Internal server error"
+      });
+    }
 });
 router.delete("/services/:id", isAuthenticated, isAdmin, async (req, res) => {
   try {
@@ -282,9 +289,16 @@ router.delete("/services/:id", isAuthenticated, isAdmin, async (req, res) => {
 
     return res.json({ success: true });
   } catch (error) {
-    console.error("DELETE SERVICE ERROR:", error);
-    return res.status(500).json({ message: "Delete failed" });
-  }
+      if (error instanceof Error) {
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        message: "Internal server error"
+      });
+    }
 });
 router.delete("/vendor/import/:id", isAuthenticated, isAdmin, async (req, res) => {
   try {
@@ -298,9 +312,16 @@ router.delete("/vendor/import/:id", isAuthenticated, isAdmin, async (req, res) =
 
     return res.json({ success: true });
   } catch (error) {
-    console.error("DELETE VENDOR IMPORT ERROR:", error);
-    return res.status(500).json({ message: "Delete failed" });
-  }
+      if (error instanceof Error) {
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        message: "Internal server error"
+      });
+    }
 });
 
 export default router;

@@ -8,10 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SERVICE_CATEGORIES } from "../../../constants/categories";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { insertVendorProfileSchema } from "@shared/schema";
 import { z } from "zod";
 import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon } from "lucide-react";
@@ -22,7 +21,7 @@ const formSchema = insertVendorProfileSchema
   .omit({ userId: true, responseTime: true })
   .extend({
     categories: z.array(
-      z.enum(["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools"])
+      z.enum(["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools", "insurance"])
     ).min(1, "Select at least one category"),
     skills: z.array(z.string()).min(1, "Add at least one skill"),
   });
@@ -37,14 +36,7 @@ interface VendorProfileFormProps {
   onCancel?: () => void;
 }
 
-const serviceCategories = [
-  { id: "legal", label: "Legal & Compliance", description: "Contract review, regulatory compliance" },
-  { id: "hr", label: "HR & Talent", description: "Recruitment, payroll, benefits" },
-  { id: "finance", label: "Finance & Accounting", description: "Bookkeeping, tax, financial planning" },
-  { id: "cybersecurity", label: "IT & Cybersecurity", description: "Security audits, system administration" },
-  { id: "marketing", label: "Marketing & Branding", description: "Digital marketing, proposal writing" },
-  { id: "business_tools", label: "Business Tools", description: "CRM, ERP, operational software" },
-];
+const serviceCategories = [...SERVICE_CATEGORIES];
 
 export function VendorProfileForm({defaultValues,profileId, mode = "create", onSuccess, onCancel }: VendorProfileFormProps) {
   const [skillInput, setSkillInput] = useState("");

@@ -61,8 +61,11 @@ export default function Login() {
       case "vendor":
         setLocation("/vendor-dashboard");
         break;
-      default:
+      case "contractor":
         setLocation("/dashboard");
+        break;
+      default:
+        setLocation("/login");
     }
 
     } catch (error: any) {

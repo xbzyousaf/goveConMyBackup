@@ -2,7 +2,7 @@ import { GapType } from './../shared/types/gaps';
 import { ServiceCategory } from "./../shared/types/service";
 
 export const GAP_CATEGORY_MAP: Record<GapType, ServiceCategory> = {
-  cyber_security: "cybersecurity",
+  cybersecurity: "cybersecurity",
   legal: "legal",
   finance: "finance",
   hr: "hr",

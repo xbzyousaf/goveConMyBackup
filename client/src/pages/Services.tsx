@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SERVICE_CATEGORIES } from "../../../constants/categories";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Scale, Users, DollarSign, Shield, Megaphone, Settings, CheckCircle, ArrowRight, Clock, TrendingUp, Lock, Star, Search, Zap, Briefcase, Package, Award, ShieldCheck } from "lucide-react";
 const categoryIconMap: Record<string, React.ElementType> = {
@@ -44,15 +44,8 @@ export default function Services() {
   });
   const isContractor = user?.userType === 'contractor';
   const serviceCategories = [
-    { id: "all", label: "All Services", icon: TrendingUp },
-    { id: "legal", label: "Legal & Compliance", icon: Scale },
-    { id: "hr", label: "HR & Talent", icon: Users },
-    { id: "finance", label: "Finance & Accounting", icon: DollarSign },
-    { id: "cybersecurity", label: "IT & Cybersecurity", icon: Shield },
-    { id: "marketing", label: "Proposal Support", icon: Megaphone },
-    { id: "business_tools", label: "Business Tools", icon: Settings },
-    { id: "insurance", label: "Insurance", icon: ShieldCheck }
-
+    { id: "all", label: "All Categories" },
+    ...SERVICE_CATEGORIES,
   ];
   
   const { data: allServices } = useQuery<any>({
