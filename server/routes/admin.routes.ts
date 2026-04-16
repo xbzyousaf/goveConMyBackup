@@ -323,5 +323,72 @@ router.delete("/vendor/import/:id", isAuthenticated, isAdmin, async (req, res) =
       });
     }
 });
+// ================= CATEGORY ROUTES =================
+
+// GET all categories
+router.get("/categories", isAuthenticated, async (req, res) => {
+  try {
+    const data = await adminStorage.getCategories();
+    res.json(data);
+  } catch (error) {
+      if (error instanceof Error) {
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        message: "Internal server error"
+      });
+    }
+});
+
+// CREATE
+router.post("/categories", isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const category = await adminStorage.createCategory(req.body);
+    res.json(category);
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// UPDATE
+router.put("/categories/:id", isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const category = await adminStorage.updateCategory(
+      req.params.id,
+      req.body
+    );
+    res.json(category);
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+router.get("/categories/:id", isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const category = await adminStorage.getCategory(
+      req.params.id
+    );
+    res.json(category);
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// DELETE
+router.delete("/categories/:id", isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const success = await adminStorage.deleteCategory(req.params.id);
+
+    if (!success) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(400).json({ message: error.message });
+  }
+});
 
 export default router;

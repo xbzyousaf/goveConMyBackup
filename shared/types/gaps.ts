@@ -1,12 +1,8 @@
+import { ServiceCategory } from "./service";
+
 export type GapType =
-  | "legal"
-  | "cybersecurity"
-  | "finance"
-  | "hr"
-  | "marketing"
-  | "business_tools"
-  | "certifications"
-  | "insurance";
+  | ServiceCategory
+  | "certifications";
 
 export interface Gap {
   type: GapType;

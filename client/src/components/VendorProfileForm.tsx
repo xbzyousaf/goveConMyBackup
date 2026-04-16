@@ -1,28 +1,26 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { SERVICE_CATEGORIES } from "../../../constants/categories";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { insertVendorProfileSchema } from "@shared/schema";
 import { z } from "zod";
-import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon } from "lucide-react";
+import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon, Phone } from "lucide-react";
 import { AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { Avatar } from "./ui/avatar";
 
 const formSchema = insertVendorProfileSchema
   .omit({ userId: true, responseTime: true })
   .extend({
-    categories: z.array(
-      z.enum(["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools", "insurance"])
-    ).min(1, "Select at least one category"),
+    phone: z.string().optional(),
+    categories: z.array(z.string()).min(1, "Select at least one category"),
     skills: z.array(z.string()).min(1, "Add at least one skill"),
   });
 
@@ -36,12 +34,21 @@ interface VendorProfileFormProps {
   onCancel?: () => void;
 }
 
-const serviceCategories = [...SERVICE_CATEGORIES];
-
 export function VendorProfileForm({defaultValues,profileId, mode = "create", onSuccess, onCancel }: VendorProfileFormProps) {
   const [skillInput, setSkillInput] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+   const { data: categories = [], isLoading, error } = useQuery({
+    queryKey: ["/api/admin/categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/categories");
+      const json = await res.json();
+      return Array.isArray(json) ? json : json.data || [];
+    },
+  });
+
+
+  const serviceCategories = categories;
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -51,12 +58,14 @@ export function VendorProfileForm({defaultValues,profileId, mode = "create", onS
       description: "",
       location: "",
       hourlyRate: "",
+      phone: "", 
       skills: [],
       categories: [],
       avatar: "",
       ...defaultValues,
     },
   });
+  
   const [imagePreview, setImagePreview] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,6 +84,7 @@ useEffect(() => {
       description: defaultValues.description ?? "",
       location: defaultValues.location ?? "",
       hourlyRate: defaultValues.hourlyRate ?? "",
+      phone: defaultValues.phone ?? "",
       skills: defaultValues.skills ?? [],
       categories: defaultValues.categories ?? [],
       avatar: defaultValues.avatar ?? "",
@@ -130,6 +140,7 @@ useEffect(() => {
     formData.append("description", data.description);
     formData.append("location", data.location);
     formData.append("hourlyRate", data.hourlyRate);
+    formData.append("phone", data.phone || "");
 
     formData.append("skills", JSON.stringify(data.skills));
     formData.append("categories", JSON.stringify(data.categories));
@@ -210,7 +221,7 @@ useEffect(() => {
 
             </div>
             {/* Company Information */}
-            <div className="space-y-4">
+            <div className="space-y-4 mt-4">
               <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-section-company">
                 <Building className="w-4 h-4" />
                 Company Information
@@ -275,7 +286,7 @@ useEffect(() => {
             </div>
 
             {/* Location and Pricing */}
-            <div className="space-y-4">
+            <div className="space-y-4 mt-4">
               <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-section-details">
                 <MapPin className="w-4 h-4" />
                 Location & Pricing
@@ -321,15 +332,36 @@ useEffect(() => {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="+1 234 567 890"
+                            className="pl-10"
+                            data-testid="input-phone"
+                            {...field} 
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </div>
 
             {/* Service Categories */}
-            <div className="space-y-4">
+            <div className="mt-3">
               <h3 className="text-lg font-semibold" data-testid="text-section-categories">
                 Service Categories *
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mb-4">
                 Select the categories that best describe your services
               </p>
               
@@ -339,7 +371,7 @@ useEffect(() => {
                 render={() => (
                   <FormItem>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {serviceCategories.map((category) => (
+                      {serviceCategories.map((category: any) => (
                         <FormField
                           key={category.id}
                           control={form.control}
@@ -353,21 +385,19 @@ useEffect(() => {
                                 <FormControl>
                                   <Checkbox
                                     data-testid={`checkbox-category-${category.id}`}
-                                    checked={field.value?.includes(category.id as any)}
+                                    checked={field.value?.includes(category.key)}
                                     onCheckedChange={(checked) => {
                                       return checked
-                                        ? field.onChange([...field.value, category.id])
+                                        ? field.onChange([...field.value, category.key])
                                         : field.onChange(
-                                            field.value?.filter(
-                                              (value) => value !== category.id
-                                            )
+                                            field.value?.filter((value) => value !== category.key)
                                           );
                                     }}
                                   />
                                 </FormControl>
                                 <div className="space-y-1 leading-none">
                                   <FormLabel className="font-medium">
-                                    {category.label}
+                                    {category.name}
                                   </FormLabel>
                                   <FormDescription>
                                     {category.description}
@@ -386,7 +416,7 @@ useEffect(() => {
             </div>
 
             {/* Skills */}
-            <div className="space-y-4">
+            <div className="space-y-4 mt-4">
               <h3 className="text-lg font-semibold" data-testid="text-section-skills">
                 Skills & Expertise *
               </h3>

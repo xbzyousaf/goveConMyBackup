@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 
 export default function CreateMilestone() {
-  const [match, params] = useRoute("/admin/milestones/create/:id");
+  const [match, params] = useRoute("/admin/create-milestones/:id");
   const isEdit = !!params?.id;
   const milestoneId = params?.id;
 
@@ -124,13 +124,11 @@ export default function CreateMilestone() {
   }
 
   return (
-    
-    
     <div className="min-h-screen bg-background">
       <Header />
           <AdminLayout>
 
-      <main className="max-w-4xl mx-auto px-4 py-10 space-y-6">
+      <main className="max-w-4xl mx-auto space-y-6">
         <Link href="/admin/guideness">
           <Button variant="outline">
             <ArrowLeft className="w-4 h-4 mr-2" />

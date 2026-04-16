@@ -1,4 +1,4 @@
-import { BusinessType, businessTypeEnum } from './../shared/schema';
+import { BusinessType, businessTypeEnum, categories } from './../shared/schema';
 // From javascript_database integration
 import { 
   users, 
@@ -46,8 +46,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
-import { notifications } from "@shared/schema"; // adjust path correctly
-import { deliveries, deliveryAttachments } from "@shared/schema";
+import { notifications } from "@shared/schema";
 import { PRIORITY_STATUSES } from "constants/serviceRequest";
 import { Gap, GapType } from '@shared/types/gaps';
 import { ServiceCategory } from '@shared/types/service';
@@ -1013,24 +1012,21 @@ async countServiceRequestsByVendor(vendorId: string, status?: string) {
     // Fetch the service
     const service = await db.query.services.findFirst({
       where: eq(services.id, serviceId),
+      with: {
+        vendorProfile: {
+        columns: {
+          companyName: true,
+          title: true,
+          avatar: true,
+        },
+      },
+        categoryData: true, // ✅ load category
+      },
     });
 
     if (!service) return null;
 
-    // Fetch the vendor profile (only specific fields)
-    const vendorProfile = await db.query.vendorProfiles.findFirst({
-      where: eq(vendorProfiles.userId, service.vendorId),
-      columns: {
-        companyName: true,
-        title: true,
-        avatar: true,
-      },
-    });
-
-    return {
-      ...service,
-      vendorProfile: vendorProfile || null,
-    };
+    return service;
   }
 
   async getServicesByVendorId(vendorId: string) {
@@ -1077,11 +1073,20 @@ async countServiceRequestsByVendor(vendorId: string, status?: string) {
           title: vendorProfiles.title,
           avatar: vendorProfiles.avatar,
         },
+        categoryData: {
+          id: categories.id,
+          key: categories.key,
+          name: categories.name,
+        },
       })
       .from(services)
       .leftJoin(
         vendorProfiles,
         eq(vendorProfiles.userId, services.vendorId)
+      )
+      .leftJoin(
+        categories,
+        eq(categories.id, services.categoryId)
       )
       .where(eq(services.isActive, true))
       .orderBy(desc(services.createdAt))
@@ -1758,6 +1763,86 @@ async getRecommendedServices(gaps: Gap[], businessType?: BusinessType) {
     orderBy: (wt, { desc }) => [desc(wt.createdAt)],
   });
 }
+async getServiceVendors(categoryId: string) {
+  return await db
+    .select({
+      vendorId: services.vendorId,
+
+      // Vendor Profile
+      companyName: vendorProfiles.companyName,
+      title: vendorProfiles.title,
+      avatar: vendorProfiles.avatar,
+      location: vendorProfiles.location,
+      description: vendorProfiles.description,
+      hourlyRate: vendorProfiles.hourlyRate,
+      rating: vendorProfiles.rating,
+      reviewCount: vendorProfiles.reviewCount,
+      categories: vendorProfiles.categories,
+      subscriptionTier: vendorProfiles.subscriptionTier,
+
+      // User
+      email: users.email,
+      username: users.username,
+      firstName: users.firstName,
+      lastName: users.lastName,
+
+      // Maturity
+      maturityStage: userMaturityProfiles.maturityStage,
+
+
+      // ✅ One service (MIN used as trick)
+      serviceId: sql<string>`(ARRAY_AGG(${services.id}))[1]`,
+      serviceName: sql<string>`(ARRAY_AGG(${services.name}))[1]`,
+      serviceDescription: sql<string>`(ARRAY_AGG(${services.description}))[1]`,
+      pricingModel: sql<string>`(ARRAY_AGG(${services.pricingModel}))[1]`,
+      priceMin: sql<string>`(ARRAY_AGG(${services.priceMin}))[1]`,
+      priceMax: sql<string>`(ARRAY_AGG(${services.priceMax}))[1]`,
+    })
+    .from(services)
+
+    // Vendor Profile
+    .leftJoin(
+      vendorProfiles,
+      eq(vendorProfiles.userId, services.vendorId)
+    )
+
+    // User
+    .leftJoin(
+      users,
+      eq(users.id, services.vendorId)
+    )
+
+    // Maturity Profile
+    .leftJoin(
+      userMaturityProfiles,
+      eq(userMaturityProfiles.userId, services.vendorId)
+    )
+
+    // Filter category
+    .where(eq(services.categoryId, categoryId))
+
+    // Group by vendor ONLY
+    .groupBy(
+      services.vendorId,
+      vendorProfiles.companyName,
+      vendorProfiles.title,
+      vendorProfiles.avatar,
+      vendorProfiles.location,
+      vendorProfiles.description,
+      vendorProfiles.hourlyRate,
+      vendorProfiles.categories,
+      vendorProfiles.reviewCount,
+      vendorProfiles.rating,
+      vendorProfiles.subscriptionTier,
+      users.email,
+      users.username,
+      users.firstName,
+      users.lastName,
+      userMaturityProfiles.maturityStage
+    );
+}
+
+
 // end
 }
 export const storage = new DatabaseStorage();
