@@ -1,6 +1,7 @@
 import { storage } from "server/storage";
 import { vendorStorage }    from "../storage/vendorStorage";
 import { adminStorage }    from "../storage/adminStorage";
+import { ServiceCategory } from '@shared/types/service';
 
 const CHUNK_SIZE = process.env.CHUNK_SIZE ? parseInt(process.env.CHUNK_SIZE) : 50;
 function resolveCompanyName(companyName?: string, email?: string): string {
@@ -197,15 +198,6 @@ export async function processVendorImport(importId: string, rows: any[]) {
     progress: 100, // ✅ FIX
   });
 }
-
-type ServiceCategory =
-  | "legal"
-  | "hr"
-  | "finance"
-  | "cybersecurity"
-  | "marketing"
-  | "business_tools"
-  | "insurance";
 
 function mapCategory(category: string): ServiceCategory {
   const normalized = category?.trim().toLowerCase();

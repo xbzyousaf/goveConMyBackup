@@ -69,6 +69,7 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   description: text("description"),
   location: text("location"),
   hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }),
+  phone: text("phone"),
   responseTime: text("response_time"),
   skills: text("skills").array(),
   categories: serviceCategoryEnum("categories").array(),
@@ -115,6 +116,8 @@ export const services = pgTable("services", {
 
   vendorId: uuid("vendor_id")
   .references(() => users.id, { onDelete: "cascade" }),
+  
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "cascade" }),
 
   name: text("title").notNull(),
   description: text("description").notNull(),
@@ -591,6 +594,13 @@ export const vendorImports = pgTable("vendor_imports", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+export const categories = pgTable("categories", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  key: text("key").unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 // Relations
 
@@ -650,9 +660,13 @@ export const walletTransactionsRelations = relations(
   })
 );
 export const serviceRelations = relations(services, ({ one }) => ({
-  vendor: one(vendorProfiles, {
+  vendorProfile: one(vendorProfiles, {
     fields: [services.vendorId],
     references: [vendorProfiles.userId],
+  }),
+  categoryData: one(categories, {
+    fields: [services.categoryId],
+    references: [categories.id],
   }),
 }));
 export const serviceRequestsRelations = relations(serviceRequests, ({ one, many }) => ({
@@ -833,6 +847,7 @@ export const insertVendorProfileSchema = createInsertSchema(vendorProfiles).omit
   createdAt: true,
   updatedAt: true,
   rating: true,
+  phone: true,
   reviewCount: true,
   isApproved: true,
   profileViews: true,

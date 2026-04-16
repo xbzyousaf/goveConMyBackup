@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { SERVICE_CATEGORIES } from "../../../constants/categories";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Scale, Users, DollarSign, Shield, Megaphone, Settings, CheckCircle, ArrowRight, Clock, TrendingUp, Lock, Star, Search, Zap, Briefcase, Package, Award, ShieldCheck } from "lucide-react";
 const categoryIconMap: Record<string, React.ElementType> = {
@@ -43,14 +42,47 @@ export default function Services() {
     queryKey: ['/api/auth/current-user'],
   });
   const isContractor = user?.userType === 'contractor';
-  const serviceCategories = [
-    { id: "all", label: "All Categories" },
-    ...SERVICE_CATEGORIES,
-  ];
+
   
-  const { data: allServices } = useQuery<any>({
+  const {
+    data: allServices = [],
+    isLoading: servicesLoading,
+    error: servicesError,
+  } = useQuery<any[]>({
     queryKey: isContractor ? ['/api/admin/all-services'] : ['/api/services'],
+    queryFn: async () => {
+      const res = await fetch(
+        isContractor ? '/api/admin/all-services' : '/api/services'
+      );
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch services');
+      }
+
+      const json = await res.json();
+      return Array.isArray(json) ? json : json.data || [];
+    },
   });
+  const { data: categories = [] } = useQuery<any[]>({
+    queryKey: ['/api/admin/categories'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/categories');
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+
+      const json = await res.json();
+      return Array.isArray(json) ? json : json.data || [];
+    },
+  });
+    const serviceCategories = [
+      { id: "all", label: "All Categories" },
+      ...categories.map((cat: any) => ({
+        id: cat.key,      // IMPORTANT: match your DB field
+        label: cat.name,
+      })),
+    ];
 
   const processSteps = [
     {
@@ -126,7 +158,7 @@ export default function Services() {
     }
   ];
 
-  const filteredServices = (allServices ?? []).filter((service: any) => {
+  const filteredServices = allServices.filter((service: any) => {
     // Category filter
     if (selectedCategory !== "all" && service.category !== selectedCategory) {
       return false;
@@ -177,7 +209,7 @@ export default function Services() {
   };
 
   const getServiceCountByCategory = (categoryId: string) => {
-    if (categoryId === "all") return allServices.length;
+    if (categoryId === "all") return (allServices ?? []).length;
     return allServices.filter(s => s.category === categoryId).length;
   };
 
@@ -193,6 +225,17 @@ export default function Services() {
         return null;
     }
   };
+  if (servicesLoading) {
+    return <p className="text-center py-10">Loading services...</p>;
+  }
+
+  if (servicesError) {
+    return (
+      <p className="text-red-500 text-center py-10">
+        Failed to load services
+      </p>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -222,6 +265,12 @@ export default function Services() {
         {/* Search and Filters */}
         <Card className="mb-8">
           <CardContent className="p-6">
+              
+          {filteredServices.length === 0 && (
+            <p className="text-center text-muted-foreground">
+              No services found
+            </p>
+          )}
             <div className="space-y-4">
               {/* Search Bar */}
               <div className="relative">
@@ -281,6 +330,7 @@ export default function Services() {
                   )}
                 </div>
                 <CardTitle className="text-xl">{service.name}</CardTitle>
+                <CardDescription>{service.categoryData?.name || "Category not found"}</CardDescription>
                 <CardDescription>{service.description}</CardDescription>
                 <div className="flex items-center gap-2 text-lg">
                 <DollarSign className="w-5 h-5 text-muted-foreground" />

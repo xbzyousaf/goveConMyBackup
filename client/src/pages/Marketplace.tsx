@@ -7,12 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Star, TrendingUp, Package, Briefcase, Scale, Zap, Award, Filter, ArrowRight, CheckCircle } from "lucide-react";
 import type { VendorProfile } from "@shared/schema";
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { getFirstLetter } from "@/utility/textUtils";
-import { SERVICE_CATEGORIES } from "../../../constants/categories";
 
 const categoryIconMap: Record<string, React.ElementType> = {
   legal: Scale,
@@ -21,6 +19,7 @@ const categoryIconMap: Record<string, React.ElementType> = {
   finance: Briefcase,
   hr: Package,
   business_tools: Award,
+  insurance: Star,
 };
 export interface MarketplaceService {
   id: string;
@@ -35,15 +34,15 @@ export interface MarketplaceService {
   outcomes: string[] | null;
   vendorId: string;
 }
-export const getServiceDisplayPrice = (service: MarketplaceService) => {
-  if (service.priceMin && service.priceMax) {
-    return `$${Number(service.priceMin).toLocaleString()} – $${Number(service.priceMax).toLocaleString()}`;
-  }
-  if (service.priceMin) {
-    return `$${Number(service.priceMin).toLocaleString()}`;
-  }
-  return "Contact for pricing";
-};
+// export const getServiceDisplayPrice = (service: MarketplaceService) => {
+//   if (service.priceMin && service.priceMax) {
+//     return `$${Number(service.priceMin).toLocaleString()} – $${Number(service.priceMax).toLocaleString()}`;
+//   }
+//   if (service.priceMin) {
+//     return `$${Number(service.priceMin).toLocaleString()}`;
+//   }
+//   return "Contact for pricing";
+// };
 
 
 export default function Marketplace() {
@@ -189,11 +188,25 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
       validUntil: "Ongoing"
     }
   ];
-
-  const categories = [
-    { id: "all", label: "All Categories" },
-    ...SERVICE_CATEGORIES,
-  ];
+const {
+  data: categories = [],
+  isLoading: categoriesLoading,
+  error: categoriesError,
+} = useQuery({
+  queryKey: ["/api/admin/categories"],
+  queryFn: async () => {
+    const res = await fetch("/api/admin/categories");
+    const json = await res.json();
+    return Array.isArray(json) ? json : json.data || [];
+  },
+});
+const categoryOptions = [
+  { id: "all", label: "All Categories" },
+  ...categories.map((cat: any) => ({
+    id: cat.key,       // important: use key
+    label: cat.name,   // important: use name
+  })),
+];
 
   const businessStages = [
     { id: "all", label: "All Stages" },
@@ -241,6 +254,13 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
     
     return true;
   });
+  if (categoriesLoading) {
+    return <p>Loading categories...</p>;
+  }
+
+  if (categoriesError) {
+    return <p className="text-red-500">Failed to load categories</p>;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -297,8 +317,10 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map(cat => (
-                        <SelectItem key={cat.id} value={cat.id}>{cat.label}</SelectItem>
+                      {categoryOptions.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -365,6 +387,7 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
                       </div>
 
                       <CardTitle className="text-xl">{service.title}</CardTitle>
+                      <CardDescription>{service.categoryData?.name || "Category not found"}</CardDescription>
                       <CardDescription>{service.description}</CardDescription>
 
                       {/* Vendor Info */}
@@ -401,13 +424,13 @@ const vendorsWithServices = servicesFromApprovedVendors.filter(v =>
                           ))}
                         </ul>
 
-                        <div className="flex items-center justify-between pt-4 border-t">
-                          <div>
+                        <div className="flex items-center justify-end pt-4 border-t">
+                          {/* <div>
                             <span className="text-2xl font-bold">{getServiceDisplayPrice(service)}</span>
-                          </div>
-                          <Link href={`/services/${service.serviceId}`}>
+                          </div> */}
+                          <Link href={`/services/${service.serviceId}/vendors`}>
                             <Button data-testid={`button-view-service-${service.serviceId}`}>
-                              View Service
+                              View Vendors
                               <ArrowRight className="ml-2 w-4 h-4" />
                             </Button>
                           </Link>

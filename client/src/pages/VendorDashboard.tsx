@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { Building, MapPin, DollarSign, Clock, Star, Edit, Plus, CheckCircle, AlertCircle, Users, TrendingUp, User, CalendarDays, ArrowRight, MessageCircle, MessageSquare, Check, X, FileText, EyeIcon } from "lucide-react";
+import { Building, MapPin, DollarSign, Clock, Star, Edit, Plus, CheckCircle, AlertCircle, Users, TrendingUp, User, CalendarDays, ArrowRight, MessageCircle, MessageSquare, Check, X, FileText, EyeIcon, Phone } from "lucide-react";
 import { useLocation } from "wouter";
 import { calculateMonthlyMetric } from "@/services/servicesStats.service";
 import { cn } from "@/lib/utils";
@@ -114,10 +114,12 @@ const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
   }
 
   // vendor must complete onboarding
-  if (user.userType === "vendor" && !user.hasCompletedOnboarding) {
-    setLocation("/vendor/onboarding");
-    return null;
-  }
+  console.log("User data:", user, user.hasCompletedOnboarding);
+  // if (user.userType === "vendor" && !user.hasCompletedOnboarding) {
+  //   setLocation("/vendor/onboarding");
+  //   return null;
+  // }
+  
   const earningsChange = calculateMonthlyMetric(serviceRequests, {
     dateKey: "createdAt",
     valueFn: r =>
@@ -458,6 +460,12 @@ const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm" data-testid="text-response-time">{vendorProfile.responseTime}</span>
+                      </div>
+                    )}
+                    {vendorProfile?.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm" data-testid="text-response-time">{vendorProfile.phone}</span>
                       </div>
                     )}
                   </div>

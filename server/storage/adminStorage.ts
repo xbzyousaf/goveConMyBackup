@@ -1,4 +1,4 @@
-import { milestones, processes, serviceRequests, services, stages, users, vendorImports, vendorProfiles, type VendorProfile, } from "@shared/schema";
+import { categories, milestones, processes, serviceRequests, services, stages, users, vendorImports, vendorProfiles, type VendorProfile, } from "@shared/schema";
 import { db } from "../db";
 import { and, desc, eq, sql } from "drizzle-orm";
 
@@ -252,7 +252,58 @@ async deleteVendorImport(importId: string): Promise<boolean> {
     .where(eq(vendorImports.id, importId))
     .returning({ id: vendorImports.id });
   return result.length > 0;
-}
+},
+// ✅ Get all categories
+async getCategories() {
+  return await db.select().from(categories).orderBy(desc(categories.createdAt));
+},
 
+// ✅ Create category
+async createCategory(data: { name: string, key: string, description: string }) {
+  const [category] = await db
+    .insert(categories)
+    .values({
+      name: data.name,
+      key: data.key,
+      description: data.description
+    })
+    .returning();
+
+  return category;
+},
+
+// ✅ Update category
+async updateCategory(id: string, data: { name: string, key: string, description: string }) {
+  const [category] = await db
+    .update(categories)
+    .set({
+      name: data.name,
+      key: data.key,
+      description: data.description
+    })
+    .where(eq(categories.id, id))
+    .returning();
+
+  return category;
+},
+async getCategory(id: string) {
+  const result = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.id, id))
+    .limit(1);
+
+  return result[0] || null;
+},
+
+// ✅ Delete category
+async deleteCategory(id: string): Promise<boolean> {
+  const result = await db
+    .delete(categories)
+    .where(eq(categories.id, id))
+    .returning({ id: categories.id });
+
+  return result.length > 0;
+},
 // end===============================
 };

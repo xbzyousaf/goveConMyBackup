@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { db } from "./server/db";
-import { users, wallets, processes, stages, milestones } from "./shared/schema";
+import { users, wallets, processes, stages, milestones, categories } from "./shared/schema";
 import { AuthService } from "./server/auth";
 import { and, eq } from "drizzle-orm";
 import type { InferInsertModel } from "drizzle-orm";
@@ -355,6 +355,43 @@ const PROCESS_CONFIG = {
     },
   },
 };
+const CATEGORY_SEED = [
+  {
+    key: "legal",
+    name: "Legal & Compliance",
+    description: "Contract review, regulatory compliance",
+  },
+  {
+    key: "hr",
+    name: "HR & Talent",
+    description: "Recruitment, payroll, benefits",
+  },
+  {
+    key: "finance",
+    name: "Finance & Accounting",
+    description: "Bookkeeping, tax, financial planning",
+  },
+  {
+    key: "cybersecurity",
+    name: "IT & Cybersecurity",
+    description: "Security audits, system administration",
+  },
+  {
+    key: "marketing",
+    name: "Marketing & Branding",
+    description: "Digital marketing, proposal writing",
+  },
+  {
+    key: "business_tools",
+    name: "Business Tools",
+    description: "CRM, ERP, operational software",
+  },
+  {
+    key: "insurance",
+    name: "Insurance",
+    description: "Business and compliance insurance",
+  },
+];
 
 async function seed() {
   const passwordHash = await AuthService.hashPassword("11223344");
@@ -365,6 +402,25 @@ async function seed() {
     { email: "vendor@gmail.com", firstName: "Vendor", lastName: "1", password: passwordHash, userType: "vendor", isEmailVerified: true },
     { email: "contractor@gmail.com", firstName: "Contractor", lastName: "1", password: passwordHash, userType: "contractor", isEmailVerified: true },
   ];
+  // --- 3️⃣ Seed Categories ---
+for (const cat of CATEGORY_SEED) {
+  const existing = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.key, cat.key));
+
+  if (existing.length) {
+    console.log(`⚠️ Skipping category: ${cat.name}`);
+  } else {
+    await db.insert(categories).values({
+      key: cat.key,
+      name: cat.name,
+      description: cat.description,
+    });
+
+    console.log(`📁 Category created: ${cat.name}`);
+  }
+}
 
   for (const user of seedUsers) {
     const existing = await db.select().from(users).where(eq(users.email, user.email!));

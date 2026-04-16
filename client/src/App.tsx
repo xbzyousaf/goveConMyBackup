@@ -48,6 +48,9 @@ import StripePayoutTab from "./pages/vendor/WalletPage";
 import AdminVendorImports from "./pages/admin/AdminVendorImports";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { PublicRoute } from "./components/PublicRoute";
+import AdminCategories from "./pages/admin/AdminCategories";
+import CategoryForm from "./pages/admin/CategoryForm";
+import ServiceVendors from "./pages/admin/ServiceVendors";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -149,6 +152,11 @@ function Router() {
               <ServiceDetails />
             </ProtectedRoute>
           </Route>
+          <Route path="/services/:serviceId/vendors">
+            <ProtectedRoute allowedRoles={["contractor"]}>
+              <ServiceVendors />
+            </ProtectedRoute>
+          </Route>
           <Route path="/skip-assessment">
             <ProtectedRoute allowedRoles={["contractor"]}>
               <SkipAssessment />
@@ -172,18 +180,25 @@ function Router() {
               <AdminDashboard />
             </ProtectedRoute>
           </Route>
+           <Route path="/admin/edit-categories/:id">
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <CategoryForm />
+            </ProtectedRoute>
+          </Route>
           <Route path="/admin/:rest*">
             <ProtectedRoute allowedRoles={["admin"]}>
               <Switch>
                 <Route path="/admin/vendors" component={AdminVendors} />
                 <Route path="/admin/services" component={AdminServices} />
-                <Route path="/admin/escrow" component={AdminVendors} />
                 <Route path="/admin/disputes" component={AdminDisputes} />
                 <Route path="/admin/transactions" component={Transactions} />
                 <Route path="/admin/guideness" component={AdminMilestones} />
-                <Route path="/admin/milestones/create" component={CreateMilestone} />
+                <Route path="/admin/create-milestones" component={CreateMilestone} />
                 <Route path="/admin/vendor-imports" component={AdminVendorImports} />
                 <Route path="/admin/request-logs" component={AdminRequestLogs} />
+                
+                <Route path="/admin/create-categories" component={CategoryForm} />
+                <Route path="/admin/categories" component={AdminCategories} />
               </Switch>
             </ProtectedRoute>
           </Route>
@@ -245,6 +260,7 @@ function Router() {
           <Route path="/vendor/payouts" component={StripePayoutTab} />
           <Route path="/search" component={Search} />
           <Route path="/vendor-signup" component={VendorSignup} />
+          
           
           <Route component={NotFound} />
         </>

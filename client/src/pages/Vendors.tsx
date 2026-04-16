@@ -14,14 +14,10 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, Filter, X } from "lucide-react";
-import type { VendorProfile } from "@shared/schema";
-import { useNavigate } from "react-router-dom";
-import { toast } from "@/hooks/use-toast";
+import { Search, X } from "lucide-react";
 import { GAP_CATEGORY_MAP } from "../../../constants/gapCategoryMap";
 import type { GapType } from "@shared/types/gaps";
 import type { ServiceCategory } from "@shared/types/service";
-import { SERVICE_CATEGORIES } from "../../../constants/categories";
 
 export default function Vendors() {
   const [location] = useLocation();
@@ -35,7 +31,6 @@ export default function Vendors() {
   );
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (categoryParam) {
@@ -60,15 +55,14 @@ export default function Vendors() {
         .filter(Boolean),
     ),
   );
-const isUserSelected = selectedCategory !== "all";
 
-const finalCategories: ServiceCategory[] =
+const finalCategories =
   hasUserInteracted
     ? selectedCategory === "all"
-      ? [] // ✅ TRUE ALL
-      : [selectedCategory as ServiceCategory]
+      ? []
+      : [selectedCategory]
     : gapCategories.length > 0
-    ? gapCategories // ✅ ONLY first load
+    ? gapCategories
     : [];
 
   const { data: vendors = [], isLoading } = useQuery({
@@ -103,11 +97,28 @@ const finalCategories: ServiceCategory[] =
       return res.json();
     },
   });
+  const { data: categoriesData = [], isLoading: categoriesLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/categories'], // or /api/categories
+    queryFn: async () => {
+      const res = await fetch('/api/admin/categories');
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+
+      const json = await res.json();
+      return Array.isArray(json) ? json : json.data || [];
+    },
+  });
+  const mappedCategories = categoriesData.map((cat: any) => ({
+    id: cat.key,
+    label: cat.name,
+  }));
 
   const categories = [
-      { id: "all", label: "All Categories" },
-      ...SERVICE_CATEGORIES,
-    ];
+    { id: "all", label: "All Categories" },
+    ...mappedCategories,
+  ];
   const safeVendors = Array.isArray(vendors) ? vendors : [];
 
   // const locations = [
@@ -169,6 +180,10 @@ const finalCategories: ServiceCategory[] =
     (selectedLocation !== "all" ? 1 : 0) +
     (verifiedOnly ? 1 : 0) +
     (selectedCategory === "all" && gapCategories.length > 0 ? 1 : 0);
+
+    if (categoriesLoading) {
+      return <div className="p-10">Loading categories...</div>;
+    }
 
   return (
     <div className="min-h-screen bg-background">

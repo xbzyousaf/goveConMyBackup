@@ -6,9 +6,9 @@ import { upload } from "server/utills/upload.util";
 import OpenAI from "openai";
 import { stripe } from "server/lib/stripe";
 import { Gap, GapType } from '@shared/types/gaps';
-import { ServiceCategory } from '@shared/types/service';
 import { z } from "zod";
 import { isContractor } from "server/middleware/contractor.middleware";
+import { SERVICE_CATEGORIES } from "@shared/types/service";
 
 const router = Router();
 if (!process.env.OPENAI_API_KEY) {
@@ -68,8 +68,15 @@ function getMilestoneCountForProcess(process: string, stage: string): number {
         total
       });
     } catch (error) {
-      console.error("Error fetching marketplace services:", error);
-      res.status(500).json({ message: "Failed to fetch services" });
+      if (error instanceof Error) {
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        message: "Internal server error"
+      });
     }
   });
 router.post('/service-requests', isAuthenticated, isContractor, async (req: any, res) => {
@@ -431,16 +438,22 @@ router.post("/subscription/resume", isAuthenticated, isContractor, async (req, r
 router.get('/vendors/:id/reviews', isAuthenticated, async (req, res) => {
 try {
     const vendorId = req.params.id;
-    const vendor = await storage.getVendorProfileById(vendorId);
-    if (!vendor) {
-    return res.status(404).json({ message: "Vendor not found" });
+    if (!vendorId) {
+    return res.status(404).json({ message: "Vendor id not found" });
     }
     const reviews = await storage.getReviewsByVendor(vendorId);
     res.json(reviews);
 } catch (error) {
-    console.error("Error fetching vendor reviews:", error);
-    res.status(500).json({ message: "Failed to fetch vendor reviews" });
-}
+      if (error instanceof Error) {
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        message: "Internal server error"
+      });
+    }
 });
 router.get("/vendors/:vendorId/services", isAuthenticated, async (req, res) => {
     try {
@@ -561,7 +574,7 @@ try {
     "recommendations": ["..."],
     "gaps": [
         {
-        "type": "legal" | "cyber_security" | "finance" | "hr" | "marketing" | "business_tools" | "certifications",
+        "type": "legal" | "cybersecurity" | "finance" | "hr" | "marketing" | "business_tools" | "certifications",
         "problem": "clear problem"
         }
     ]
@@ -577,7 +590,7 @@ try {
 
     You MUST return a "gaps" array using ONLY these types:
     - legal
-    - cyber_security
+    - cybersecurity
     - finance
     - hr
     - marketing
@@ -652,12 +665,7 @@ try {
         const assessmentResult = JSON.parse(jsonMatch[0]);
         const gapSchema = z.object({
         type: z.enum([
-            "legal",
-            "cyber_security",
-            "finance",
-            "hr",
-            "marketing",
-            "business_tools",
+            ...SERVICE_CATEGORIES,
             "certifications",
         ]),
         problem: z.string().min(5),
@@ -680,7 +688,7 @@ try {
             problem: "No formal business structure or operating agreement",
             },
             {
-            type: "cyber_security",
+            type: "cybersecurity",
             problem: "No compliance with CMMC or security frameworks",
             },
             {
@@ -724,7 +732,7 @@ try {
         "legal",
         "certifications",
         "finance",
-        "cyber_security",
+        "cybersecurity",
         "marketing",
         "business_tools",
         "hr",
@@ -735,13 +743,14 @@ try {
         );
 
         const GAP_ACTIONS: Record<GapType, string> = {
-        legal: "business_structure",
-        certifications: "registrations",
-        cyber_security: "compliance",
-        finance: "financial_setup",
-        marketing: "capability_statement",
-        hr: "team_building",
-        business_tools: "tools_setup",
+          legal: "business_structure",
+          certifications: "registrations",
+          cybersecurity: "compliance",
+          finance: "financial_setup",
+          marketing: "capability_statement",
+          hr: "team_building",
+          business_tools: "tools_setup",
+          insurance: "financial_setup",
         };
 
         const currentFocus = primaryGap
@@ -983,6 +992,34 @@ router.post('/skip-assessment', isAuthenticated, isContractor, async (req: any, 
     res.status(500).json({ message: "Failed to skip assessment" });
   }
 
+});
+ router.get('/services/:serviceId/vendors', isAuthenticated, async (req: any, res) => {
+  try {
+    const { serviceId } = req.params;
+// res.json(serviceId);
+    // ✅ Step 1: Get service
+    const service = await storage.getServiceById(serviceId);
+
+    if (!service) {
+      return res.status(404).json({ message: "Service not found" });
+    }
+
+    if (!service.categoryId) {
+      return res.status(400).json({ message: "Service category not found" });
+    }
+
+    // ✅ Step 2: Get vendors by category
+    const vendors = await storage.getServiceVendors(service.categoryId);
+
+    res.json(vendors);
+
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
 
 export default router;

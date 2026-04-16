@@ -14,8 +14,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, DollarSign, Megaphone, Scale, Settings, Shield, ShieldCheck, TrendingUp, Users } from "lucide-react";
-import { SERVICE_CATEGORIES } from "../../../../constants/categories";
+import { ArrowLeft } from "lucide-react";
 
 export default function CreateService() {
   const [match, params] = useRoute("/service/create/:id");
@@ -24,18 +23,35 @@ export default function CreateService() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const serviceCategories = [
-    { id: "all", label: "All Categories" },
-    ...SERVICE_CATEGORIES,
-  ];
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/categories'], // or /api/categories (based on your backend)
+    queryFn: async () => {
+      const res = await fetch('/api/admin/categories');
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+
+      const json = await res.json();
+      return Array.isArray(json) ? json : json.data || [];
+    },
+  });
+
+  const serviceCategories = categories.map((cat: any) => ({
+    id: cat.id,     // must match DB
+    key: cat.key,
+    label: cat.name,
+  }));
   const [form, setForm] = useState({
     name: "",
     category: "",
+    categoryId: "", 
     description: "",
     pricingModel: "Fixed",
     priceMin: "",
     priceMax: ""
   });
+  console.log("FORM DATA:", form);
 
   const { data: service, isLoading } = useQuery({
     queryKey: ["service", serviceId],
@@ -52,6 +68,7 @@ export default function CreateService() {
       setForm({
         name: service.name || "",
         category: service.category || "",
+        categoryId: service.categoryId?.toString() || "", // id
         description: service.description || "",
         pricingModel: service.pricingModel || "Fixed",
         priceMin: service.priceMin?.toString() || "",
@@ -78,6 +95,7 @@ export default function CreateService() {
         body: JSON.stringify({
           name: form.name,
           category: form.category,
+          categoryId: form.categoryId,
           description: form.description,
           pricingModel: form.pricingModel,
           priceMin: Number(form.priceMin),
@@ -124,7 +142,9 @@ export default function CreateService() {
   if (isEdit && isLoading) {
     return <div className="p-10">Loading...</div>;
   }
-
+  if (categoriesLoading) {
+    return <div className="p-10">Loading categories...</div>;
+  }
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -153,10 +173,16 @@ export default function CreateService() {
             />
 
             <Select
-              value={form.category}
-              onValueChange={(v) =>
-                setForm({ ...form, category: v })
-              }
+              value={form.categoryId}
+              onValueChange={(v) => {
+                const selected = serviceCategories.find(c => c.id.toString() === v);
+
+                setForm({
+                  ...form,
+                  categoryId: v,            // ✅ DB id
+                  category: selected?.key || ""  // ✅ key
+                });
+              }}
             >
               <SelectTrigger className={!form.category ? "border-red-500" : ""}>
                 <SelectValue placeholder="Select category *" />
@@ -164,7 +190,7 @@ export default function CreateService() {
 
               <SelectContent>
                 {serviceCategories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.id}>
+                  <SelectItem key={cat.id} value={cat.id.toString()}>
                     {cat.label}
                   </SelectItem>
                 ))}

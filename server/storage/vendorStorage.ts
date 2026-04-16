@@ -81,6 +81,9 @@ async getVendorServices(vendorId: string) {
     return await db.query.services.findMany({
       where: eq(services.vendorId, vendorId),
       orderBy: (services, { desc }) => [desc(services.createdAt)],
+      with: {
+        categoryData: true, // ✅ load category
+      },
     });
 },
 async createService(data: any, vendorId: string) {
@@ -93,6 +96,7 @@ async createService(data: any, vendorId: string) {
           name: data.name,
           description: data.description,
           category: data.category,
+          categoryId: data.categoryId,
           pricingModel: data.pricingModel ?? null,
           priceMin: data.priceMin != null ? String(data.priceMin) : null,
           priceMax: data.priceMax != null ? String(data.priceMax) : null,

@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Send, Star, MapPin, ArrowLeft } from "lucide-react";
 import type { VendorProfile } from "@shared/schema";
 import { Header } from "./Header";
-import { SERVICE_CATEGORIES } from "../../../constants/categories";
 
 type ServiceRequestPayload = {
   title: string;
@@ -121,7 +120,16 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
       setSelectedCategory(service.category);
     }
   }, [service]);
-  const serviceCategories = [...SERVICE_CATEGORIES  ];
+  const { data: categories = [] } = useQuery({
+    queryKey: ["/api/admin/categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/categories");
+      const data = await res.json();
+
+      // ensure array (important fix)
+      return Array.isArray(data) ? data : data.data || [];
+    },
+  });
   return (
     <div className="min-h-screen bg-background">
     <Header />
@@ -163,9 +171,9 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
               <SelectValue placeholder="Select a category" />
             </SelectTrigger>
             <SelectContent>
-              {serviceCategories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.label}
+              {categories.map((cat: any) => (
+                <SelectItem key={cat.id} value={cat.key}>
+                  {cat.name}
                 </SelectItem>
               ))}
             </SelectContent>

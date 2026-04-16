@@ -45,7 +45,7 @@ export default function AdminMilestones() {
           <h2 className="text-2xl font-bold">Manage Milestones</h2>
           <Button
             size="sm"
-            onClick={() => window.location.assign("/admin/milestones/create")}
+            onClick={() => window.location.assign("/admin/create-milestones")}
           >
             <Plus className="w-4 h-4 mr-2" />
             Add New

@@ -1,29 +1,24 @@
-import { Link } from "wouter";
 import {
   LayoutDashboard,
   Users,
-  GitMerge,
-  DollarSign,
   AlertTriangle,
-  BarChart,
   FileText,
   Receipt,
   Briefcase,
   Import,
+  CheckCircle,
 } from "lucide-react";
 
 const nav = [
   { label: "Dashboard", href: "/admin-dashboard", icon: LayoutDashboard },
   { label: "Vendors", href: "/admin/vendors", icon: Users },
-  { label: "Matches", href: "/admin/matches", icon: GitMerge },
-  { label: "Escrow", href: "/admin/escrow", icon: DollarSign },
   { label: "Transactions", href: "/admin/transactions", icon: Receipt },
   { label: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
   { label: "Services", href: "/admin/services", icon: Briefcase },
-  { label: "Growth Checklists", href: "/admin/guideness", icon: Briefcase },
-  { label: "Analytics", href: "/admin/analytics", icon: BarChart },
+  { label: "Growth Checklists", href: "/admin/guideness", icon: CheckCircle },
   { label: "Request Logs", href: "/admin/request-logs", icon: FileText },
   { label: "Vendor Imports", href: "/admin/vendor-imports", icon: Import },
+  { label: "Categories", href: "/admin/categories", icon: LayoutDashboard },
 
 ];
 

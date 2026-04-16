@@ -565,8 +565,15 @@ app.get("/api/vendors", async (req: any, res) => {
 
       res.json(service);
     } catch (error) {
-      console.error("Error fetching service:", error);
-      res.status(500).json({ message: "Failed to fetch service" });
+      if (error instanceof Error) {
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        message: "Internal server error"
+      });
     }
   });
   app.post('/api/maturity/advance', isAuthenticated, async (req: any, res) => {
