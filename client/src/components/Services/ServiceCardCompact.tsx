@@ -70,7 +70,7 @@ export function ServiceCardCompact({ service, detailsUrl }: Props) {
             className="bg-orange-500 hover:bg-orange-600 text-white"
             onClick={() => setLocation(`${detailsUrl}`)}
           >
-            More Details
+            View Vendors
           </Button>
         )}
       </div>

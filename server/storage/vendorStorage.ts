@@ -284,36 +284,65 @@ async updateService(id: string, data: any, vendorId: string) {
   
   return vendorProfile;
   },
-async updateVendorProfile( id: string,
-      updates: Partial<InsertVendorProfile> & { skills?: any; categories?: any; avatar?: string }
-    ): Promise<VendorProfile> {
-      const sanitizedUpdates: Partial<InsertVendorProfile> = { ...updates };
-      // Parse skills/categories if they are strings
-      if (typeof sanitizedUpdates.skills === "string") {
-        try {
-          sanitizedUpdates.skills = JSON.parse(sanitizedUpdates.skills);
-        } catch (e) {
-          console.warn("Failed to parse skills:", sanitizedUpdates.skills);
-          sanitizedUpdates.skills = [];
-        }
-      }
-      if (typeof sanitizedUpdates.categories === "string") {
-        try {
-          sanitizedUpdates.categories = JSON.parse(sanitizedUpdates.categories);
-        } catch (e) {
-          console.warn("Failed to parse categories:", sanitizedUpdates.categories);
-          sanitizedUpdates.categories = [];
-        }
-      }
-      // Only set updatedAt automatically
-      sanitizedUpdates.updatedAt = new Date();
-      const [profile] = await db
-        .update(vendorProfiles)
-        .set(sanitizedUpdates)
-        .where(eq(vendorProfiles.id, id))
-        .returning();
-      return profile;
-    }
+async updateVendorProfile(
+  id: string,
+  updates: Partial<InsertVendorProfile> & {
+    skills?: any;
+    categories?: any;
+    avatar?: string;
+  }
+): Promise<VendorProfile> {
 
+  const sanitizedUpdates: Partial<InsertVendorProfile> = { ...updates };
+
+  // -----------------------------
+  // Parse skills
+  // -----------------------------
+  if (typeof sanitizedUpdates.skills === "string") {
+    try {
+      sanitizedUpdates.skills = JSON.parse(sanitizedUpdates.skills);
+    } catch {
+      sanitizedUpdates.skills = [];
+    }
+  }
+
+  // -----------------------------
+  // Parse categories
+  // -----------------------------
+  if (typeof sanitizedUpdates.categories === "string") {
+    try {
+      sanitizedUpdates.categories = JSON.parse(sanitizedUpdates.categories);
+    } catch {
+      sanitizedUpdates.categories = [];
+    }
+  }
+
+  // -----------------------------
+  // Extract categoryIds directly
+  // -----------------------------
+  if (Array.isArray(sanitizedUpdates.categories)) {
+    sanitizedUpdates.categoryIds = sanitizedUpdates.categories.map(
+      (cat: any) => cat.id
+    );
+
+    // OPTIONAL: normalize categories to only keys (recommended for consistency)
+    sanitizedUpdates.categories = sanitizedUpdates.categories.map(
+      (cat: any) => cat.key
+    );
+  }
+
+  // -----------------------------
+  // timestamp
+  // -----------------------------
+  sanitizedUpdates.updatedAt = new Date();
+
+  const [profile] = await db
+    .update(vendorProfiles)
+    .set(sanitizedUpdates)
+    .where(eq(vendorProfiles.id, id))
+    .returning();
+
+  return profile;
+}
   // end===============================
 }

@@ -24,6 +24,7 @@ const PROCESS_CONFIG = {
             title: "Obtain Employer Identification Number (EIN)",
             description: "Get your EIN from the IRS for tax purposes and business identity",
             required: true,
+            categoryKey: "legal",
             resources: [
               { title: "IRS EIN Application", url: "https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online", type: 'external' as const },
             ],
@@ -33,6 +34,7 @@ const PROCESS_CONFIG = {
             title: "Open Business Bank Account",
             description: "Separate business and personal finances with a dedicated account",
             required: true,
+            categoryKey: "finance",
             resources: [],
           },
           {
@@ -40,6 +42,7 @@ const PROCESS_CONFIG = {
             title: "Register in SAM.gov",
             description: "Required for all federal government contractors to receive awards",
             required: true,
+            categoryKey: "legal",
             resources: [
               { title: "SAM.gov Registration Guide", url: "https://sam.gov", type: 'external' as const },
             ],
@@ -49,6 +52,7 @@ const PROCESS_CONFIG = {
             title: "Obtain CAGE Code",
             description: "Commercial and Government Entity code for identification",
             required: true,
+            categoryKey: "legal",
             resources: [],
           },
           {
@@ -56,6 +60,7 @@ const PROCESS_CONFIG = {
             title: "Formalize Legal Business Structure",
             description: "LLC, S-Corp, or C-Corp - choose the right entity type",
             required: true,
+            categoryKey: "legal",
             resources: [],
           },
           {
@@ -63,6 +68,7 @@ const PROCESS_CONFIG = {
             title: "Get General Liability Insurance",
             description: "Protect your business with appropriate coverage",
             required: false,
+            categoryKey: "insurance",
             resources: [],
           },
           {
@@ -70,6 +76,7 @@ const PROCESS_CONFIG = {
             title: "Set Up Accounting System",
             description: "QuickBooks or similar for tracking revenue and expenses",
             required: true,
+            categoryKey: "finance",
             resources: [],
           },
         ],
@@ -82,6 +89,7 @@ const PROCESS_CONFIG = {
             title: "Small Business Certification",
             description: "Get certified as a small business through SBA",
             required: true,
+            categoryKey: "legal",
             resources: [],
           },
           {
@@ -89,6 +97,7 @@ const PROCESS_CONFIG = {
             title: "Explore Set-Aside Certifications",
             description: "8(a), HUBZone, WOSB, VOSB, SDVOSB certifications",
             required: false,
+            categoryKey: "legal",
             resources: [],
           },
           {
@@ -96,6 +105,7 @@ const PROCESS_CONFIG = {
             title: "Implement Job Cost Accounting",
             description: "Track costs by project for accurate pricing and compliance",
             required: true,
+            categoryKey: "finance",
             resources: [],
           },
           {
@@ -103,6 +113,7 @@ const PROCESS_CONFIG = {
             title: "Develop Quality Management System",
             description: "Document processes and quality controls",
             required: false,
+            categoryKey: "legal",
             resources: [],
           },
           {
@@ -110,6 +121,7 @@ const PROCESS_CONFIG = {
             title: "Implement Basic Cybersecurity Controls",
             description: "NIST 800-171 basics for handling CUI",
             required: true,
+            categoryKey: "cybersecurity",
             resources: [],
           },
         ],
@@ -122,6 +134,7 @@ const PROCESS_CONFIG = {
             title: "Pursue ISO Certifications",
             description: "ISO 9001, 27001, or industry-specific certifications",
             required: false,
+            categoryKey: "legal",
             resources: [],
           },
           {
@@ -129,6 +142,7 @@ const PROCESS_CONFIG = {
             title: "Achieve CMMC Certification",
             description: "Cybersecurity Maturity Model Certification for DoD work",
             required: false,
+            categoryKey: "legal",
             resources: [],
           },
           {
@@ -136,6 +150,7 @@ const PROCESS_CONFIG = {
             title: "Implement Enterprise Resource Planning (ERP)",
             description: "Integrated system for finance, HR, and operations",
             required: false,
+            categoryKey: "legal",
             resources: [],
           },
           {
@@ -143,6 +158,7 @@ const PROCESS_CONFIG = {
             title: "Build Compliance Team",
             description: "Dedicated staff for regulatory and contract compliance",
             required: true,
+            categoryKey: "legal",
             resources: [],
           },
         ],
@@ -162,6 +178,7 @@ const PROCESS_CONFIG = {
             title: "Define Your Solution/Service",
             description: "Clearly articulate what you offer and its value proposition",
             required: true,
+            categoryKey: "marketing",
             resources: [],
           },
           {
@@ -169,6 +186,7 @@ const PROCESS_CONFIG = {
             title: "Identify Target Agencies",
             description: "Research which agencies need your solution",
             required: true,
+            categoryKey: "business_tools",
             resources: [],
           },
           {
@@ -176,6 +194,7 @@ const PROCESS_CONFIG = {
             title: "Create Capability Statement",
             description: "One-page overview of your business capabilities",
             required: true,
+            categoryKey: "marketing",
             resources: [],
           },
           {
@@ -183,6 +202,7 @@ const PROCESS_CONFIG = {
             title: "Develop Pricing Strategy",
             description: "Research rates and establish competitive pricing",
             required: true,
+            categoryKey: "finance",
             resources: [],
           },
         ],
@@ -195,6 +215,7 @@ const PROCESS_CONFIG = {
             title: "Analyze NAICS Code Opportunities",
             description: "Understand spending patterns in your codes",
             required: true,
+            categoryKey: "business_tools",
             resources: [],
           },
           {
@@ -202,6 +223,7 @@ const PROCESS_CONFIG = {
             title: "Develop Teaming Strategy",
             description: "Build relationships with complementary firms",
             required: true,
+            categoryKey: "business_tools",
             resources: [],
           },
           {
@@ -209,6 +231,7 @@ const PROCESS_CONFIG = {
             title: "Document Past Performance",
             description: "Compile case studies and references",
             required: true,
+            categoryKey: "marketing",
             resources: [],
           },
           {
@@ -216,6 +239,7 @@ const PROCESS_CONFIG = {
             title: "Create GovCon Marketing Plan",
             description: "Outreach strategy for agencies and primes",
             required: true,
+            categoryKey: "marketing",
             resources: [],
           },
         ],
@@ -228,6 +252,7 @@ const PROCESS_CONFIG = {
             title: "Build Competitive Intelligence System",
             description: "Track competitors and market dynamics",
             required: true,
+            categoryKey: "business_tools",
             resources: [],
           },
           {
@@ -235,6 +260,7 @@ const PROCESS_CONFIG = {
             title: "Establish Advisory Board",
             description: "Industry experts to guide strategic decisions",
             required: false,
+            categoryKey: "business_tools",
             resources: [],
           },
           {
@@ -242,6 +268,7 @@ const PROCESS_CONFIG = {
             title: "Develop 3-5 Year Strategic Plan",
             description: "Long-term vision with measurable goals",
             required: true,
+            categoryKey: "legal",
             resources: [],
           },
         ],
@@ -261,6 +288,7 @@ const PROCESS_CONFIG = {
             title: "Learn to Search SAM.gov",
             description: "Master finding opportunities on SAM.gov",
             required: true,
+            categoryKey: "business_tools",
             resources: [],
           },
           {
@@ -268,6 +296,7 @@ const PROCESS_CONFIG = {
             title: "Respond to First RFI",
             description: "Request for Information - low-risk practice",
             required: true,
+            categoryKey: "marketing",
             resources: [],
           },
           {
@@ -275,6 +304,7 @@ const PROCESS_CONFIG = {
             title: "Submit Micro-Purchase Quote",
             description: "Sub-$10k opportunities for practice",
             required: true,
+            categoryKey: "business_tools",
             resources: [],
           },
           {
@@ -282,6 +312,7 @@ const PROCESS_CONFIG = {
             title: "Learn Proposal Basics",
             description: "Understanding RFP structure and compliance matrix",
             required: true,
+            categoryKey: "marketing",
             resources: [],
           },
         ],
@@ -294,6 +325,7 @@ const PROCESS_CONFIG = {
             title: "Establish Proposal Process",
             description: "Repeatable system for responding to RFPs",
             required: true,
+            categoryKey: "marketing",
             resources: [],
           },
           {
@@ -301,6 +333,7 @@ const PROCESS_CONFIG = {
             title: "Master Price-to-Win Analysis",
             description: "Competitive pricing strategies",
             required: true,
+            categoryKey: "finance",
             resources: [],
           },
           {
@@ -308,6 +341,7 @@ const PROCESS_CONFIG = {
             title: "Build Subcontractor Network",
             description: "Reliable partners for teaming and fulfillment",
             required: true,
+            categoryKey: "business_tools",
             resources: [],
           },
           {
@@ -315,6 +349,7 @@ const PROCESS_CONFIG = {
             title: "Deliver First Major Contract",
             description: "Successfully execute >$100k contract",
             required: true,
+            categoryKey: "business_tools",
             resources: [],
           },
         ],
@@ -327,6 +362,7 @@ const PROCESS_CONFIG = {
             title: "Implement Capture Management",
             description: "Strategic pursuit of large opportunities",
             required: true,
+            categoryKey: "business_tools",
             resources: [],
           },
           {
@@ -334,6 +370,7 @@ const PROCESS_CONFIG = {
             title: "Run Color Team Reviews",
             description: "Pink, Red, Gold team proposal reviews",
             required: true,
+            categoryKey: "marketing",
             resources: [],
           },
           {
@@ -341,6 +378,7 @@ const PROCESS_CONFIG = {
             title: "Win IDIQ Contract",
             description: "Indefinite Delivery, Indefinite Quantity vehicle",
             required: false,
+            categoryKey: "business_tools",
             resources: [],
           },
           {
@@ -348,6 +386,7 @@ const PROCESS_CONFIG = {
             title: "Establish PMO",
             description: "Project Management Office for delivery excellence",
             required: true,
+            categoryKey: "business_tools",
             resources: [],
           },
         ],
@@ -443,6 +482,11 @@ for (const cat of CATEGORY_SEED) {
   }
 
   // --- 2️⃣ Seed Processes, Stages, and Milestones ---
+  const allCategories = await db.select().from(categories);
+
+      const categoryMap = Object.fromEntries(
+        allCategories.map(c => [c.key, c.id])
+      );
   for (const [processKey, processConfig] of Object.entries(PROCESS_CONFIG)) {
     // 2a️⃣ Insert Process
     let processId: string;
@@ -489,13 +533,20 @@ for (const cat of CATEGORY_SEED) {
       for (const milestone of stageConfig.milestones) {
         const existingMilestone = await db.select().from(milestones).where(eq(milestones.key, milestone.id));
         if (!existingMilestone.length) {
+          const categoryId = categoryMap[milestone.categoryKey]; // 👈 ADD THIS LINE
+
+          if (!categoryId) {
+            console.error(`❌ Category not found for key: ${milestone.categoryKey}`);
+            continue; // skip this milestone
+          }
           await db.insert(milestones).values({
             stageId,
             key: milestone.id,
             title: milestone.title,
             description: milestone.description,
             required: milestone.required,
-            resources: milestone.resources || []
+            resources: milestone.resources || [],
+            categoryId: categoryId,
           });
           console.log(`📌 Milestone created: ${milestone.title}`);
         } else {

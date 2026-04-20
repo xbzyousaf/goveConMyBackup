@@ -78,14 +78,15 @@ export default function VendorDetail() {
       
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Back Button */}
-        <Link href="/vendors">
-          <Button variant="outline" className="mb-6" data-testid="button-back">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Vendors
-          </Button>
-        </Link>
+        <Button
+          variant="outline"
+          onClick={() => window.history.back()}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Go Back
+        </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-4">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Profile Header */}

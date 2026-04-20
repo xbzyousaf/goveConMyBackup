@@ -185,6 +185,11 @@ function Router() {
               <CategoryForm />
             </ProtectedRoute>
           </Route>
+           <Route path="/admin/edit-milestones/:id">
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <CreateMilestone />
+            </ProtectedRoute>
+          </Route>
           <Route path="/admin/:rest*">
             <ProtectedRoute allowedRoles={["admin"]}>
               <Switch>
@@ -193,6 +198,7 @@ function Router() {
                 <Route path="/admin/disputes" component={AdminDisputes} />
                 <Route path="/admin/transactions" component={Transactions} />
                 <Route path="/admin/guideness" component={AdminMilestones} />
+                {/* <Route path="/admin/edit-milestones/:id" component={CreateMilestone} /> */}
                 <Route path="/admin/create-milestones" component={CreateMilestone} />
                 <Route path="/admin/vendor-imports" component={AdminVendorImports} />
                 <Route path="/admin/request-logs" component={AdminRequestLogs} />

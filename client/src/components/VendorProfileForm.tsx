@@ -143,8 +143,19 @@ useEffect(() => {
     formData.append("phone", data.phone || "");
 
     formData.append("skills", JSON.stringify(data.skills));
-    formData.append("categories", JSON.stringify(data.categories));
+    const selectedCategories = categories.filter((cat: any) =>
+      data.categories.includes(cat.key)
+    );
 
+    formData.append(
+      "categories",
+      JSON.stringify(
+        selectedCategories.map((cat: any) => ({
+          id: cat.id,
+          key: cat.key,
+        }))
+      )
+    );
     if (selectedFile) {
       formData.append("avatar", selectedFile);
     }

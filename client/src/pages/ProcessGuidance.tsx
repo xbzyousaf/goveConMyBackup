@@ -27,6 +27,7 @@ interface Milestone {
   required: boolean;
   process: 'business_structure' | 'business_strategy' | 'execution';
   stage: 'startup' | 'growth' | 'scale';
+  category:any;
   resources?: Array<{
     title: string;
     url: string;
@@ -83,6 +84,18 @@ const stageMilestones = useMemo(() => {
     (m) => m.process === processId && m.stage === userStage
   );
 }, [milestones, processId, userStage]);
+const groupedMilestones = useMemo(() => {
+  const groups: Record<string, Milestone[]> = {};
+
+  stageMilestones.forEach((m) => {
+    const key = m.category?.name || "Other";
+
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(m);
+  });
+
+  return groups;
+}, [stageMilestones]);
 
   const { data: bsJourney } = useQuery<UserJourney>({
     queryKey: ['/api/journeys', 'business_structure'],
@@ -273,62 +286,67 @@ if (!profile || isLoading) {
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Milestones & Checklist</h2>
           
-         {stageMilestones.map((milestone) => {
-            const isCompleted = completedMilestones.includes(milestone.id);
-            
-            return (
-              <Card 
-                key={milestone.id} 
-                className={isCompleted ? "border-primary bg-primary/5" : ""}
-                data-testid={`card-milestone-${milestone.id}`}
-              >
-                <CardHeader>
-                  <div className="flex items-start gap-4">
-                    <Checkbox
-                      checked={isCompleted}
-                      onCheckedChange={() => handleMilestoneToggle(milestone.id, isCompleted)}
-                      className="mt-1"
-                      data-testid={`checkbox-milestone-${milestone.id}`}
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CardTitle className={`text-lg ${isCompleted ? 'line-through text-muted-foreground' : ''}`}>
-                          {milestone.title}
-                        </CardTitle>
-                        {milestone.required && (
-                          <Badge variant="secondary" data-testid={`badge-required-${milestone.id}`}>Required</Badge>
-                        )}
-                        {isCompleted && (
-                          <CheckCircle2 className="h-5 w-5 text-primary" data-testid={`icon-completed-${milestone.id}`} />
-                        )}
-                      </div>
-                      <CardDescription>{milestone.description}</CardDescription>
-                      
-                      {milestone.resources && milestone.resources.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                          <p className="text-sm font-medium">Resources:</p>
-                          {milestone.resources.map((resource, idx) => (
-                            <a
-                              key={idx}
-                              href={resource.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-2 text-sm text-primary hover:underline"
-                              data-testid={`link-resource-${milestone.id}-${idx}`}
-                            >
-                              {resource.type === 'external' && <ExternalLink className="h-4 w-4" />}
-                              {resource.type !== 'external' && <FileText className="h-4 w-4" />}
-                              {resource.title}
-                            </a>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            );
-          })}
+        {Object.entries(groupedMilestones).map(([categoryName, milestones]) => (
+  <div key={categoryName} className="space-y-4">
+
+    {/* CATEGORY HEADER */}
+    <div className="flex items-center justify-between">
+      <h3 className="text-lg font-semibold">
+        {categoryName}
+      </h3>
+
+      {/* 🔥 VIEW VENDORS BUTTON */}
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => {
+          const categoryId = milestones[0]?.category?.id;
+          setLocation(`/vendors?categoryId=${categoryId}`);
+        }}
+      >
+        View Vendors
+      </Button>
+    </div>
+
+    {/* CATEGORY MILESTONES */}
+    {milestones.map((milestone) => {
+      const isCompleted = completedMilestones.includes(milestone.id);
+
+      return (
+        <Card
+          key={milestone.id}
+          className={isCompleted ? "border-primary bg-primary/5" : ""}
+        >
+          <CardHeader>
+            <div className="flex items-start gap-4">
+              <Checkbox
+                checked={isCompleted}
+                onCheckedChange={() =>
+                  handleMilestoneToggle(milestone.id, isCompleted)
+                }
+                className="mt-1"
+              />
+
+              <div className="flex-1">
+                <CardTitle
+                  className={`text-lg ${
+                    isCompleted ? "line-through text-muted-foreground" : ""
+                  }`}
+                >
+                  {milestone.title}
+                </CardTitle>
+
+                <CardDescription>
+                  {milestone.description}
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+      );
+    })}
+  </div>
+))}
         </div>
 
         {/* Completion Message */}

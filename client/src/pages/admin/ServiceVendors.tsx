@@ -31,12 +31,13 @@ export default function ServiceVendors() {
     <main className="max-w-6xl mx-auto px-4 py-10 space-y-6">
 
       {/* Back Button */}
-      <Link href="/marketplace">
-        <Button variant="outline">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
-        </Button>
-      </Link>
+      <Button
+          variant="outline"
+          onClick={() => window.history.back()}
+        >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Back
+      </Button>
 
       <h1 className="text-2xl font-semibold">
         Vendors for this Service

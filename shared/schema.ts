@@ -73,6 +73,7 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   responseTime: text("response_time"),
   skills: text("skills").array(),
   categories: serviceCategoryEnum("categories").array(),
+  categoryIds: uuid("category_ids").array(),
   avatar: text("avatar"),
   rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
   reviewCount: integer("review_count").default(0),
@@ -373,7 +374,8 @@ export const milestones = pgTable("milestones", {
   title: text("title").notNull(),
   description: text("description"),
   required: boolean("required").default(false),
-  resources: jsonb("resources").default(sql`'[]'::jsonb`), // <-- new column
+  resources: jsonb("resources").default(sql`'[]'::jsonb`),
+  categoryId: uuid("category_id").references(() => categories.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 // User maturity profiles - stores assessment results and progress
@@ -923,6 +925,12 @@ export const serviceTiersRelations = relations(serviceTiers, ({ one }) => ({
   service: one(services, {
     fields: [serviceTiers.serviceId],
     references: [services.id],
+  }),
+}));
+export const milestoneRelations = relations(milestones, ({ one }) => ({
+  category: one(categories, {
+    fields: [milestones.categoryId],
+    references: [categories.id],
   }),
 }));
 // Types

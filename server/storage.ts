@@ -307,7 +307,7 @@ export class DatabaseStorage implements IStorage {
       whereConditions.push(
         sql`EXISTS (
           SELECT 1 
-          FROM unnest(${vendorProfiles.categories}) AS c
+          FROM unnest(${vendorProfiles.categoryIds}) AS c
           WHERE c::text = ANY(${categorySqlArray})
         )`
         

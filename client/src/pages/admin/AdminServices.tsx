@@ -124,11 +124,11 @@ export default function AdminServices() {
                   </td>
 
                   <td className="px-4 py-2">
-                    {service.vendor?.companyName || "-"}
+                    {service.vendorProfile?.companyName || "-"}
                   </td>
 
                   <td className="px-4 py-2">
-                    {service.vendor?.title || "-"}
+                    {service.vendorProfile?.title || "-"}
                   </td>
 
                   <td className="px-4 py-2">

@@ -351,6 +351,7 @@ app.get("/api/vendors", async (req: any, res) => {
     if (categories) {
       categoryArray = (categories as string).split(",");
     }
+    
       if (location) filters.location = location as string;
     // ✅ CHANGED: pass array instead of single category
     if (categoryArray.length > 0) {

@@ -355,7 +355,7 @@ const categoryOptions = [
           {/* Featured Services Tab */}
           {/* <TabsContent value="services" className="space-y-6"> */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">Services</h2>
+              <h2 className="text-2xl font-bold">Service Catalog</h2>
               {/* <Badge variant="secondary" className="flex items-center gap-1">
                 <TrendingUp className="w-3 h-3" />
                 Trending Now
