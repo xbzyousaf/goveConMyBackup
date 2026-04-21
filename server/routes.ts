@@ -577,6 +577,7 @@ app.get("/api/vendors", async (req: any, res) => {
       });
     }
   });
+  
   app.post('/api/maturity/advance', isAuthenticated, async (req: any, res) => {
     try {
       const userId = getUserId(req);

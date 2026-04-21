@@ -601,6 +601,7 @@ export const categories = pgTable("categories", {
   name: text("name").notNull(),
   key: text("key").unique(),
   description: text("description"),
+  keyDeliverables: text("key_deliverables").array(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -1028,6 +1028,16 @@ async countServiceRequestsByVendor(vendorId: string, status?: string) {
 
     return service;
   }
+  async getCategoryById(categoryId: string) {
+    // Fetch the category
+    const category = await db.query.categories.findFirst({
+      where: eq(categories.id, categoryId),
+    });
+
+    if (!category) return null;
+
+    return category;
+  }
 
   async getServicesByVendorId(vendorId: string) {
     return await db
@@ -1841,7 +1851,93 @@ async getServiceVendors(categoryId: string) {
       userMaturityProfiles.maturityStage
     );
 }
+async getCategoryVendors(categoryId: string) {
+  return await db
+    .select({
+      vendorId: users.id,
 
+      // Vendor Profile
+      companyName: vendorProfiles.companyName,
+      title: vendorProfiles.title,
+      avatar: vendorProfiles.avatar,
+      location: vendorProfiles.location,
+      description: vendorProfiles.description,
+      hourlyRate: vendorProfiles.hourlyRate,
+      rating: vendorProfiles.rating,
+      reviewCount: vendorProfiles.reviewCount,
+      categories: vendorProfiles.categories,
+      subscriptionTier: vendorProfiles.subscriptionTier,
+
+      // User
+      email: users.email,
+      username: users.username,
+      firstName: users.firstName,
+      lastName: users.lastName,
+
+      //categories
+      categoryName: categories.name,
+
+      // Maturity
+      maturityStage: userMaturityProfiles.maturityStage,
+
+      // ONE SERVICE (for that category only)
+      serviceId: sql<string>`(ARRAY_AGG(${services.id}))[1]`,
+      serviceName: sql<string>`(ARRAY_AGG(${services.name}))[1]`,
+      serviceDescription: sql<string>`(ARRAY_AGG(${services.description}))[1]`,
+      pricingModel: sql<string>`(ARRAY_AGG(${services.pricingModel}))[1]`,
+      priceMin: sql<string>`(ARRAY_AGG(${services.priceMin}))[1]`,
+      priceMax: sql<string>`(ARRAY_AGG(${services.priceMax}))[1]`,
+    })
+    .from(vendorProfiles)
+
+    // JOIN SERVICES (INNER JOIN = MUST HAVE SERVICE)
+    .innerJoin(
+      services,
+      eq(services.vendorId, vendorProfiles.userId)
+    )
+
+    // User
+    .leftJoin(users, eq(users.id, vendorProfiles.userId))
+
+    // Maturity
+    .leftJoin(
+      userMaturityProfiles,
+      eq(userMaturityProfiles.userId, vendorProfiles.userId)
+    )
+    // JOIN CATEGORY TABLE
+    .innerJoin(
+      categories,
+      eq(categories.id, services.categoryId)
+    )
+    // FILTERS
+    .where(
+      sql`
+        ${vendorProfiles.categoryIds} && ARRAY[${categoryId}]::uuid[]
+        AND ${services.categoryId} = ${categoryId}
+      `
+    )
+
+    // GROUP BY vendor only
+    .groupBy(
+      users.id,
+      vendorProfiles.companyName,
+      vendorProfiles.title,
+      vendorProfiles.avatar,
+      vendorProfiles.location,
+      vendorProfiles.description,
+      vendorProfiles.hourlyRate,
+      vendorProfiles.rating,
+      vendorProfiles.reviewCount,
+      vendorProfiles.categories,
+      vendorProfiles.subscriptionTier,
+      categories.name,
+      users.email,
+      users.username,
+      users.firstName,
+      users.lastName,
+      userMaturityProfiles.maturityStage
+    );
+}
 
 // end
 }

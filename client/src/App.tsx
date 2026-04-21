@@ -51,6 +51,7 @@ import { PublicRoute } from "./components/PublicRoute";
 import AdminCategories from "./pages/admin/AdminCategories";
 import CategoryForm from "./pages/admin/CategoryForm";
 import ServiceVendors from "./pages/admin/ServiceVendors";
+import CategoryVendors from "./pages/admin/CategoryVendors";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -155,6 +156,11 @@ function Router() {
           <Route path="/services/:serviceId/vendors">
             <ProtectedRoute allowedRoles={["contractor"]}>
               <ServiceVendors />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/categories/:categoryId/vendors">
+            <ProtectedRoute allowedRoles={["contractor"]}>
+              <CategoryVendors />
             </ProtectedRoute>
           </Route>
           <Route path="/skip-assessment">

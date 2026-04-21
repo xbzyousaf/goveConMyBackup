@@ -1021,5 +1021,32 @@ router.post('/skip-assessment', isAuthenticated, isContractor, async (req: any, 
     res.status(500).json({ message: "Internal server error" });
   }
 });
+router.get('/categories/:categoryId/vendors', isAuthenticated, async (req: any, res) => {
+  try {
+    const { categoryId } = req.params;
+    // Step 1: Get category
+    const category = await storage.getCategoryById(categoryId);
+
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    if (!category.id) {
+      return res.status(400).json({ message: "Service category not found" });
+    }
+
+    // Step 2: Get vendors by category
+    const vendors = await storage.getCategoryVendors(categoryId);
+
+    res.json(vendors);
+
+  } catch (error) {
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 export default router;

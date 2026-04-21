@@ -336,33 +336,35 @@ async deleteVendorImport(importId: string): Promise<boolean> {
     .returning({ id: vendorImports.id });
   return result.length > 0;
 },
-// ✅ Get all categories
+// Get all categories
 async getCategories() {
   return await db.select().from(categories).orderBy(desc(categories.createdAt));
 },
 
-// ✅ Create category
-async createCategory(data: { name: string, key: string, description: string }) {
+//  Create category
+async createCategory(data: { name: string, key: string, description: string, keyDeliverables: string[] }) {
   const [category] = await db
     .insert(categories)
     .values({
       name: data.name,
       key: data.key,
-      description: data.description
+      description: data.description,
+      keyDeliverables: data.keyDeliverables,
     })
     .returning();
 
   return category;
 },
 
-// ✅ Update category
-async updateCategory(id: string, data: { name: string, key: string, description: string }) {
+//  Update category
+async updateCategory(id: string, data: { name: string, key: string, description: string, keyDeliverables: string[] }) {
   const [category] = await db
     .update(categories)
     .set({
       name: data.name,
       key: data.key,
-      description: data.description
+      description: data.description,
+      keyDeliverables: data.keyDeliverables,
     })
     .where(eq(categories.id, id))
     .returning();
@@ -379,7 +381,7 @@ async getCategory(id: string) {
   return result[0] || null;
 },
 
-// ✅ Delete category
+//  Delete category
 async deleteCategory(id: string): Promise<boolean> {
   const result = await db
     .delete(categories)

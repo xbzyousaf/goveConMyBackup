@@ -215,13 +215,17 @@ const categoryOptions = [
     { id: "scaling", label: "Scaling (8+ years)" }
   ];
 
-  const filteredServices = servicesFromApprovedVendors.filter(service => {
-    if (selectedCategory !== "all" && service.category !== selectedCategory) return false;
+  const filteredCategories = categories.filter((category: any) => {
+    if (selectedCategory !== "all" && category.key !== selectedCategory) return false;
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      return service.title.toLowerCase().includes(query) || 
-             service.description.toLowerCase().includes(query);
+      return (
+        category.name?.toLowerCase().includes(query) ||
+        category.description?.toLowerCase().includes(query)
+      );
     }
+
     return true;
   });
 
@@ -362,85 +366,59 @@ const categoryOptions = [
               </Badge> */}
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              {filteredServices.map((service) => {
-                const Icon = categoryIconMap[service.category] ?? Package;
-                const vendor = service.vendorProfile; // our vendorProfile object
+            <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3">
+            {filteredCategories.map((category) => {
+              const Icon = categoryIconMap[category.key] ?? Package;
 
-                return (
-                  <Card
-                    key={service.serviceId}
-                    className="hover-elevate active-elevate-2 transition-all"
-                    data-testid={`card-service-${service.serviceId}`}
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="p-3 rounded-lg bg-primary/10">
-                          <Icon className="w-6 h-6 text-primary" />
-                        </div>
-                        {service.trending && (
-                          <Badge variant="default" className="flex items-center gap-1">
-                            <Star className="w-3 h-3" />
-                            Trending
-                          </Badge>
-                        )}
+              return (
+                <Card
+                  className="h-full flex flex-col hover-elevate active-elevate-2 transition-all"
+                  key={category.id}
+                  data-testid={`card-category-${category.id}`}
+                >
+                  <CardHeader className="space-y-2">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="p-3 rounded-lg bg-primary/10">
+                        <Icon className="w-6 h-6 text-primary" />
                       </div>
+                    </div>
 
-                      <CardTitle className="text-xl">{service.title}</CardTitle>
-                      <CardDescription>{service.categoryData?.name || "Category not found"}</CardDescription>
-                      <CardDescription>{service.description}</CardDescription>
+                    <CardTitle className="text-xl">
+                      {category.name}
+                    </CardTitle>
 
-                      {/* Vendor Info */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <Link href={`/vendor/${service.vendorId}`} className="flex items-center gap-3 mt-4 hover:opacity-80 transition">
-                              <Avatar className="h-16 w-16 rounded-full overflow-hidden">
-                                <AvatarImage
-                                  src={vendor?.avatar || ""}
-                                  alt={vendor?.companyName}
-                                  className="h-full w-full object-cover"
-                                />
-                                <AvatarFallback className="flex h-full w-full items-center justify-center rounded-full bg-primary text-white text-lg font-semibold">
-                                  {getFirstLetter(vendor?.companyName)}
-                                </AvatarFallback>
-                              </Avatar>
-                            <div>
-                              <p className="text-sm font-medium">{vendor?.companyName}</p>
-                              <p className="text-xs text-muted-foreground">{vendor?.title}</p>
-                            </div>
-                            </Link>
-                          </div>
-                        </div>
-                    </CardHeader>
+                    <CardDescription className="min-h-[120px]">
+                      {category.description}
+                    </CardDescription>
+                  </CardHeader>
 
-                    <CardContent>
-                      <div className="space-y-4">
-                        <ul className="space-y-2">
-                          {service.outcomes?.map((outcome, idx) => (
-                            <li key={idx} className="flex items-center gap-2 text-sm">
-                              <CheckCircle className="w-4 h-4 text-primary" />
-                              <span>{outcome}</span>
-                            </li>
-                          ))}
-                        </ul>
+                  <CardContent className="flex flex-col flex-1">
+                    <div className="space-y-4">
+                      <h5 className="text-sm font-medium font-semibold mb-2 ">Key Deliverables</h5>
+                      <ul className="space-y-2">
+                        {category.keyDeliverables?.map((item, idx) => (
+                          <li key={idx} className="flex items-center gap-2 text-sm">
+                            <span className="w-1 h-1 rounded-full bg-black mt-1" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
 
-                        <div className="flex items-center justify-end pt-4 border-t">
-                          {/* <div>
-                            <span className="text-2xl font-bold">{getServiceDisplayPrice(service)}</span>
-                          </div> */}
-                          <Link href={`/services/${service.serviceId}/vendors`}>
-                            <Button data-testid={`button-view-service-${service.serviceId}`}>
-                              View Vendors
-                              <ArrowRight className="ml-2 w-4 h-4" />
-                            </Button>
-                          </Link>
-                        </div>
+                      <div className="flex flex-col flex-1 justify-between">
+                        <Link href={`/categories/${category.id}/vendors`}>
+                          <Button data-testid={`button-view-category-${category.id}`} className="w-full">
+                            View Vendors
+                            <ArrowRight className="ml-2 w-4 h-4" />
+                          </Button>
+                        </Link>
+                        
                       </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
           {/* </TabsContent>
 
           <TabsContent value="bundles" className="space-y-6">
