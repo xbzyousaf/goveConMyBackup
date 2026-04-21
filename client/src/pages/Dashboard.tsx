@@ -610,11 +610,10 @@ useEffect(() => {
               <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
                 <div className="grid grid-cols-1 gap-6 w-full">
                   {servicesData.map((service, index) => (
-                    console.log("Rendering service:", service),
                     <ServiceCardCompact
                       key={index}
                       service={service}
-                      detailsUrl={`/services/${service.id}`}
+                      detailsUrl={`/services/${service.id}/vendors`}
                     />
                   ))}
                 </div>

@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
 
 export default function CreateMilestone() {
-  const [match, params] = useRoute("/admin/create-milestones/:id");
+  const [match, params] = useRoute("/admin/edit-milestones/:id");
   const isEdit = !!params?.id;
   const milestoneId = params?.id;
 
@@ -34,18 +34,20 @@ export default function CreateMilestone() {
     description: "",
     required: "false",
      resources: "", // <-- add this
+     categoryId: "",
   });
 
   /* ---------------- MILESTONE (EDIT) ---------------- */
   const { data: milestone, isLoading } = useQuery({
     queryKey: ["milestone", milestoneId],
     queryFn: async () => {
-      const res = await fetch(`/api/milestones/${milestoneId}`);
+      const res = await fetch(`/api/admin/milestones/${milestoneId}`);
       if (!res.ok) throw new Error("Failed to fetch milestone");
       return res.json();
     },
     enabled: isEdit
   });
+  console.log(milestoneId, 'milestoneId')
 
   useEffect(() => {
   if (milestone) {
@@ -56,6 +58,7 @@ export default function CreateMilestone() {
       title: milestone.title || "",
       description: milestone.description || "",
       required: milestone.required ? "true" : "false",
+      categoryId:milestone.categoryId,
       resources: (milestone.resources || [])
         .map((r: any) => `${r.title}|${r.url}`)
         .join("\n"),
@@ -67,7 +70,8 @@ export default function CreateMilestone() {
     form.key.trim() &&
     form.process &&
     form.stage &&
-    form.title.trim();
+    form.title.trim() &&
+    form.categoryId;
 
   /* ---------------- SAVE ---------------- */
   const mutation = useMutation({
@@ -88,6 +92,7 @@ export default function CreateMilestone() {
           title: form.title,
           description: form.description,
           required: form.required === "true",
+          categoryId: form.categoryId,
           resources: form.resources
     .split("\n")
     .filter(Boolean)
@@ -119,9 +124,18 @@ export default function CreateMilestone() {
     }
   });
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ["/api/admin/categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/categories");
+      return res.json();
+    },
+  });
+  
   if (isEdit && isLoading) {
     return <div className="p-10">Loading...</div>;
   }
+  
 
   return (
     <div className="min-h-screen bg-background">
@@ -199,6 +213,22 @@ export default function CreateMilestone() {
                 setForm({ ...form, title: e.target.value })
               }
             />
+            <Select
+  value={form.categoryId}
+  onValueChange={(v) => setForm({ ...form, categoryId: v })}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Select Category" />
+  </SelectTrigger>
+
+  <SelectContent>
+    {categories.map((cat: any) => (
+      <SelectItem key={cat.id} value={cat.id}>
+        {cat.name}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
 
             {/* DESCRIPTION */}
             <Textarea

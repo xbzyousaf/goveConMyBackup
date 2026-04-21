@@ -218,7 +218,7 @@ export default function Assessment() {
                 <div>
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
                     <Sparkles className="w-5 h-5" />
-                    Recommended Next Steps
+                     "See recommendations, go to the dashboard." 
                   </h3>
                   <ul className="space-y-2">
                     {result.recommendations.map((rec, idx) => (

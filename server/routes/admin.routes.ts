@@ -72,9 +72,12 @@ try {
     const services = await adminStorage.getAllServices();
     res.json(services);
 } catch (error) {
-    console.error("Error fetching services:", error);
-    res.status(500).json({ message: "Failed to fetch services" });
-}
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
 router.patch("/services/:id/status", isAuthenticated, isAdmin, async (req: any, res) => {
   try {
@@ -126,13 +129,45 @@ router.post("/milestones", isAuthenticated, isAdmin, async (req, res) => {
 
     res.json(milestone);
 
-  } catch (err: any) {
-    console.error(err);
+  } catch (error) {
+      if (error instanceof Error) {
+        return res.status(400).json({
+          message: error.message
+        });
+      }
 
-    return res.status(400).json({
-      message: err.message || "Failed to create milestone",
+      res.status(500).json({
+        message: "Internal server error"
+      });
+    }
+});
+router.put("/milestones/:id", isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const updated = await adminStorage.updateMilestone(id, req.body);
+
+    res.json(updated);
+  } catch (err: any) {
+    res.status(400).json({
+      message: err.message || "Failed to update milestone",
     });
   }
+});
+router.get("/milestones/:id", isAuthenticated, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const milestone = await adminStorage.getMilestoneById(id);
+
+    res.json(milestone);
+  } catch (error: any) {
+        console.error("Error fetching service requests:", error);
+        res.status(500).json({ 
+          message: error.message,
+          stack: error.stack 
+        });
+      }
 });
 router.get('/disputed-requests', isAuthenticated, isAdmin, async (req: any, res) => {
     try {

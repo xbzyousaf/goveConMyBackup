@@ -85,12 +85,12 @@ export const adminStorage = {
   async getAllServices() {
     return await db.query.services.findMany({
       with: {
-        vendor: {
+        vendorProfile: {
           columns: {
             id: true,
             companyName: true,
             title: true,
-            locations: true,
+            location: true,
           },
         },
       },
@@ -114,12 +114,16 @@ async getVendorCounts() {
 async getMilestones() {
   const data = await db.query.processes.findMany({
     with: {
-      stages: {
+  stages: {
+    with: {
+      milestones: {
         with: {
-          milestones: true,
-        },
+          category: true, // if relation exists
+        }
       },
     },
+  },
+},
   });
 
   const result: any[] = [];
@@ -131,6 +135,7 @@ async getMilestones() {
           ...milestone,
           process: process.key,
           stage: stage.key,
+          categoryName: milestone.category?.name
         });
       }
     }
@@ -138,7 +143,7 @@ async getMilestones() {
 
   return result;
 },
-async createProcessMilestone(data: {key: string; process: string; stage: string; title: string; description?: string; required?: boolean; resources?: any[];}) 
+async createProcessMilestone(data: {key: string; process: string; stage: string; title: string; description?: string; required?: boolean; resources?: any[]; categoryId: string;}) 
 {
     const {
       key,
@@ -147,6 +152,7 @@ async createProcessMilestone(data: {key: string; process: string; stage: string;
       title,
       description,
       required,
+      categoryId,
       resources
     } = data;
 
@@ -169,6 +175,9 @@ async createProcessMilestone(data: {key: string; process: string; stage: string;
     if (!stageRecord.length) {
       throw new Error("Stage not found");
     }
+    if (!categoryId) {
+      throw new Error("Category is required");
+    }
 
     const stageId = stageRecord[0].id;
 
@@ -181,11 +190,85 @@ async createProcessMilestone(data: {key: string; process: string; stage: string;
         title,
         description: description ?? null,
         required: required ?? false,
-        resources: JSON.stringify(resources || [])
+        resources: JSON.stringify(resources || []),
+        categoryId,
       })
       .returning();
 
     return milestone;
+},
+async updateMilestone(id: string, data: any) {
+  const {
+    key,
+    process,
+    stage,
+    title,
+    description,
+    required,
+    resources,
+    categoryId
+  } = data;
+
+  // 1. Find process
+  const processRecord = await db
+    .select()
+    .from(processes)
+    .where(eq(processes.key, process));
+
+  if (!processRecord.length) throw new Error("Process not found");
+
+  const processId = processRecord[0].id;
+
+  // 2. Find stage
+  const stageRecord = await db
+    .select()
+    .from(stages)
+    .where(and(eq(stages.key, stage), eq(stages.processId, processId)));
+
+  if (!stageRecord.length) throw new Error("Stage not found");
+
+  const stageId = stageRecord[0].id;
+
+  // 3. Update milestone
+  const [updated] = await db
+    .update(milestones)
+    .set({
+      key,
+      title,
+      description,
+      required,
+      categoryId, // ✅ important
+      stageId,
+      resources: JSON.stringify(resources || []),
+    })
+    .where(eq(milestones.id, id))
+    .returning();
+
+  return updated;
+},
+async getMilestoneById(id: string) {
+  const data = await db.query.milestones.findFirst({
+    where: eq(milestones.id, id),
+    with: {
+      stage: {
+        with: {
+          process: true
+        }
+      }
+    }
+  });
+
+  if (!data) throw new Error("Milestone not found");
+
+  return {
+    ...data,
+    process: data.stage.process.key,
+    stage: data.stage.key,
+    resources:
+  typeof data.resources === "string"
+    ? JSON.parse(data.resources)
+    : data.resources || [],
+  };
 },
 async getAllServiceRequestsWithDisputes(
   limit: number,
@@ -253,33 +336,35 @@ async deleteVendorImport(importId: string): Promise<boolean> {
     .returning({ id: vendorImports.id });
   return result.length > 0;
 },
-// ✅ Get all categories
+// Get all categories
 async getCategories() {
   return await db.select().from(categories).orderBy(desc(categories.createdAt));
 },
 
-// ✅ Create category
-async createCategory(data: { name: string, key: string, description: string }) {
+//  Create category
+async createCategory(data: { name: string, key: string, description: string, keyDeliverables: string[] }) {
   const [category] = await db
     .insert(categories)
     .values({
       name: data.name,
       key: data.key,
-      description: data.description
+      description: data.description,
+      keyDeliverables: data.keyDeliverables,
     })
     .returning();
 
   return category;
 },
 
-// ✅ Update category
-async updateCategory(id: string, data: { name: string, key: string, description: string }) {
+//  Update category
+async updateCategory(id: string, data: { name: string, key: string, description: string, keyDeliverables: string[] }) {
   const [category] = await db
     .update(categories)
     .set({
       name: data.name,
       key: data.key,
-      description: data.description
+      description: data.description,
+      keyDeliverables: data.keyDeliverables,
     })
     .where(eq(categories.id, id))
     .returning();
@@ -296,7 +381,7 @@ async getCategory(id: string) {
   return result[0] || null;
 },
 
-// ✅ Delete category
+//  Delete category
 async deleteCategory(id: string): Promise<boolean> {
   const result = await db
     .delete(categories)

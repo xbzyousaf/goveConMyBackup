@@ -7,18 +7,18 @@ import { ArrowLeft, Mail, MapPin, Phone, Star } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { truncateText } from "@/utility/textUtils";
 
-export default function ServiceVendors() {
-  const [match, params] = useRoute("/services/:serviceId/vendors");
-  const serviceId = params?.serviceId;
+export default function CategoryVendors() {
+  const [match, params] = useRoute("/categories/:categoryId/vendors");
+  const categoryId = params?.categoryId;
 
   const { data: vendors = [], isLoading } = useQuery({
-    queryKey: ["service-vendors", serviceId],
+    queryKey: ["category-vendors", categoryId],
     queryFn: async () => {
-      const res = await fetch(`/api/services/${serviceId}/vendors`);
+      const res = await fetch(`/api/categories/${categoryId}/vendors`);
       if (!res.ok) throw new Error("Failed to fetch vendors");
       return res.json();
     },
-    enabled: !!serviceId,
+    enabled: !!categoryId,
   });
 
   if (isLoading) {
@@ -38,9 +38,10 @@ export default function ServiceVendors() {
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back
       </Button>
-
       <h1 className="text-2xl font-semibold">
-        Vendors for this Service
+        {vendors.length > 0
+          ? `Vendors for ${vendors[0].categoryName}`
+          : "No vendors available for this category"}
       </h1>
 
       <div className="space-y-6">

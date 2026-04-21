@@ -16,6 +16,7 @@ type FormData = {
   name: string;
   key: string;
   description: string;
+  keyDeliverables: string;
 };
 
 export default function CategoryForm() {
@@ -36,6 +37,7 @@ console.log(categoryId, isEdit);
       name: "",
       key: "",
       description: "",
+      keyDeliverables: "",
     },
   });
 
@@ -56,6 +58,7 @@ console.log(categoryId, isEdit);
         name: data.name,
         key: data.key,
         description: data.description,
+        keyDeliverables: data.keyDeliverables ? data.keyDeliverables.join(", ") : "",
       });
     }
   }, [data]);
@@ -114,10 +117,19 @@ console.log(categoryId, isEdit);
 
   // submit handler
   const onSubmit = (values: FormData) => {
-   if (isEdit && categoryId) {
-      updateMutation.mutate(values);
+    const payload = {
+      ...values,
+      keyDeliverables: values.keyDeliverables
+        .split(",")
+        .map(item => item.trim())
+        .filter(Boolean),
+    };
+      console.log(payload);
+
+    if (isEdit && categoryId) {
+      updateMutation.mutate(payload);
     } else {
-      createMutation.mutate(values);
+      createMutation.mutate(payload);
     }
   };
 
@@ -171,7 +183,12 @@ console.log(categoryId, isEdit);
                       className="w-3/4"
                       {...form.register("description")}
                     />
-
+                    {/* KEY DELIVERABLES */}
+                    <Input
+                      placeholder="Key Deliverables (comma separated)"
+                      className="w-3/4"
+                      {...form.register("keyDeliverables")}
+                    />
                     {/* SUBMIT */}
                     <Button
                       type="submit"

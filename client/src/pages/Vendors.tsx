@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, Link } from "wouter";
 import { Header } from "@/components/Header";
@@ -23,7 +23,10 @@ export default function Vendors() {
   const [location] = useLocation();
   const searchParams = new URLSearchParams(location.split("?")[1]);
   const categoryParam = searchParams.get("category");
+  const categoryIdParam = searchParams.get("categoryId");
+  // const categoryParam = searchParams.get("categoryId");
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>(
@@ -56,17 +59,73 @@ export default function Vendors() {
     ),
   );
 
-const finalCategories =
-  hasUserInteracted
-    ? selectedCategory === "all"
-      ? []
-      : [selectedCategory]
-    : gapCategories.length > 0
-    ? gapCategories
-    : [];
 
+  const { data: categoriesData = [], isLoading: categoriesLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/categories'], // or /api/categories
+    queryFn: async () => {
+      const res = await fetch('/api/admin/categories');
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+
+      const json = await res.json();
+      return Array.isArray(json) ? json : json.data || [];
+    },
+  });
+  const mappedCategories = categoriesData.map((cat: any) => ({
+    id: cat.id,
+    label: cat.name,
+  }));
+  const keyToIdMap = useMemo(() => {
+    return Object.fromEntries(
+      categoriesData.map((cat: any) => [cat.key, cat.id])
+    );
+  }, [categoriesData]);
+
+  const categoryId = useMemo(() => {
+    return new URLSearchParams(window.location.search).get("categoryId");
+  }, [location]);
+  const finalCategories = useMemo(() => {
+    // ✅ 1. If URL has categoryId → ALWAYS use it
+    if (categoryId) {
+      return [categoryId];
+    }
+
+    // ✅ 2. Otherwise fallback to your existing logic
+    return hasUserInteracted
+      ? selectedCategory === "all"
+        ? []
+        : [keyToIdMap[selectedCategory] || selectedCategory]
+      : gapCategories.length > 0
+      ? gapCategories.map((key) => keyToIdMap[key] || key)
+      : [];
+  }, [
+    categoryId,
+    hasUserInteracted,
+    selectedCategory,
+    gapCategories,
+    keyToIdMap,
+  ]);
+    console.log("urlCategoryId1234:", categoryId);
+  const idToKeyMap = useMemo(() => {
+    return Object.fromEntries(
+      categoriesData.map((cat: any) => [cat.id, cat.key])
+    );
+  }, [categoriesData]);
+  useEffect(() => {
+    if (categoryId) {
+      setSelectedCategory(categoryId);
+    }
+  }, [categoryId]);
   const { data: vendors = [], isLoading } = useQuery({
-    queryKey: ["vendors", finalCategories, selectedLocation, verifiedOnly, searchQuery],
+    queryKey: [
+      "vendors",
+      finalCategories.join(","),
+      selectedLocation,
+      verifiedOnly,
+      searchQuery,
+    ],
 
     enabled: true, // ✅ important
 
@@ -97,23 +156,7 @@ const finalCategories =
       return res.json();
     },
   });
-  const { data: categoriesData = [], isLoading: categoriesLoading } = useQuery<any[]>({
-    queryKey: ['/api/admin/categories'], // or /api/categories
-    queryFn: async () => {
-      const res = await fetch('/api/admin/categories');
-
-      if (!res.ok) {
-        throw new Error('Failed to fetch categories');
-      }
-
-      const json = await res.json();
-      return Array.isArray(json) ? json : json.data || [];
-    },
-  });
-  const mappedCategories = categoriesData.map((cat: any) => ({
-    id: cat.key,
-    label: cat.name,
-  }));
+  
 
   const categories = [
     { id: "all", label: "All Categories" },
@@ -222,9 +265,11 @@ const finalCategories =
                   <Select
                     value={selectedCategory}
                     onValueChange={(value) => {
+                      if (categoryId) return; // 🚫 prevent change
                       setSelectedCategory(value);
-                      setHasUserInteracted(true); // 👈 IMPORTANT
+                      setHasUserInteracted(true);
                     }}
+                    disabled={!!categoryId} // 👈 THIS disables UI
                   >
                   <SelectTrigger data-testid="select-category">
                     <SelectValue placeholder="Category" />
