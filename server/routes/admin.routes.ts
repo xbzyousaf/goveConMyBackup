@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { isAuthenticated } from "../middleware/auth.middleware";
-import { getUserId } from "server/utills/auth.util";
-import { isAdmin } from "server/middleware/admin.middleware";
-import { storage } from "server/storage";
+import { getUserId } from "../utills/auth.util";
+import { isAdmin } from "../middleware/admin.middleware";
+import { storage } from "../storage";
 import type { RequestHandler } from "express";
-import { vendorImportQueue } from "server/queues/vendorImportQueue";
-import { adminStorage } from "server/storage/adminStorage";
+import { vendorImportQueue } from "../queues/vendorImportQueue";
+import { adminStorage } from "../storage/adminStorage";
 import multer from "multer";
 import * as XLSX from "xlsx";
-import { processVendorImport } from "server/services/vendorImportService";
+import { processVendorImport } from "../services/vendorImportService";
 
 const upload = multer({
   storage: multer.memoryStorage(),

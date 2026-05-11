@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Shield, Users, Zap, Star, CheckCircle } from "lucide-react";
+import Logo from "@/assets/PROOF LOGO.png";
+import { UrgencyBanner } from "../components/UrgencyBanner";
+import { isGateClosed } from "../lib/gate";
 
 export default function Landing() {
   const [, setLocation] = useLocation();
@@ -41,14 +44,19 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* ✅ Urgency Banner (ADD HERE) */}
+      <UrgencyBanner />
       {/* Header */}
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 gradient-bg rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">GS</span>
-            </div>
-            <span className="text-xl font-bold gradient-text" data-testid="text-brand-name">GovScale Alliance</span>
+            <span className="text-xl font-bold" data-testid="text-brand-name">
+              <img
+                src={Logo}
+                alt="PROOF Logo"
+                className="h-12 object-contain"
+              />
+            </span>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setLocation("/login")} data-testid="button-signin">
@@ -68,7 +76,7 @@ export default function Landing() {
             Trusted by 500+ Government Contractors
           </Badge>
           <h1 className="text-5xl font-bold mb-6" data-testid="text-hero-title">
-            Connect with <span className="text-primary">Vetted Service Providers</span> for Your Government Contracting Needs
+            Connect with <span className="text-accent">Vetted Service Providers</span> for Your Government Contracting Needs
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto" data-testid="text-hero-description">
             Access a curated marketplace of professional service providers specializing in government contracting. 
@@ -93,7 +101,7 @@ export default function Landing() {
         <div className="container mx-auto max-w-6xl">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold mb-4" data-testid="text-features-title">
-              Why Choose <span className="gradient-text">GovScale Alliance</span>?
+              Why Choose <span className="text-accent">PROOF</span>?
             </h2>
             <p className="text-lg text-muted-foreground" data-testid="text-features-description">
               Proven frameworks and measurable outcomes for government contractors
@@ -170,7 +178,7 @@ export default function Landing() {
             onClick={() => setLocation("/signup")}
             data-testid="button-join-now"
           >
-            Join GovScale Alliance Now
+            Join PROOF Now
           </Button>
         </div>
       </section>
@@ -179,9 +187,9 @@ export default function Landing() {
       <footer className="border-t py-8 px-4 text-center text-muted-foreground">
         <div className="container mx-auto">
           <p data-testid="text-footer">
-            © 2024 GovScale Alliance. Proven performance. Measurable results.
+            © 2024 PROOF. Startup to Scale. Rescue Belief.
           </p>
-          <p className="mt-2">Powered by Tullis Strategic Solutions LLC</p>
+          <p className="mt-2 text-sm text-gray-500">Powered by Tullis Strategic Solutions LLC</p>
         </div>
       </footer>
     </div>

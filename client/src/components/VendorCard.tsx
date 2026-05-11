@@ -109,7 +109,7 @@ export function VendorCard({
           {certifications.slice(0, 2).map((cert, index) => (
             <Badge key={index} variant="outline" className="text-xs" data-testid={`badge-cert-${index}`}>
               {cert === 'MBE Certified' && <Award className="w-3 h-3 mr-1" />}
-              {cert === 'GovCon Experienced' && <Shield className="w-3 h-3 mr-1" />}
+              {cert === 'PROOF Experienced' && <Shield className="w-3 h-3 mr-1" />}
               {cert}
             </Badge>
           ))}

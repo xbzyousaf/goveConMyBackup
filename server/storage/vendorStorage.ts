@@ -270,6 +270,17 @@ async updateService(id: string, data: any, vendorId: string) {
   sanitizedProfile.categories = [];
   }
   }
+  if (Array.isArray(sanitizedProfile.categories)) {
+    sanitizedProfile.categoryIds = sanitizedProfile.categories.map(
+      (cat: any) => cat.id
+    );
+
+    // OPTIONAL: normalize categories to only keys (recommended for consistency)
+    sanitizedProfile.categories = sanitizedProfile.categories.map(
+      (cat: any) => cat.key
+    );
+  }
+
   
   sanitizedProfile.updatedAt = new Date();
   

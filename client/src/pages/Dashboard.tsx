@@ -9,88 +9,85 @@ import { Link, useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
-import { Target, TrendingUp, Briefcase, Lightbulb, Rocket, BookOpen, Users, Award, ArrowRight, CheckCircle2, AlertTriangle, RotateCcw, Star, ChevronDown} from "lucide-react";
+import { Briefcase, Lightbulb, Rocket, BookOpen, Users, Award, ArrowRight, CheckCircle2, AlertTriangle, RotateCcw, Star, ChevronDown, Loader2} from "lucide-react";
 import { Service, ServiceRequest } from "@shared/schema";
 import { cn } from "@/lib/utils";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import WalletPage from "./vendor/WalletPage";
 import { PRIORITY_STATUSES, REQUEST_STATUSES_LABELS, ServiceRequestStatus } from "../../../constants/serviceRequest";
 import { ServiceRequestCardCompact } from "@/components/service-requests/ServiceRequestCardCompact";
 import { ServiceCardCompact } from "@/components/Services/ServiceCardCompact";
 import { getFirstLetter } from "@/utility/textUtils";
-interface UserMaturityProfile {
-  id: string;
-  userId: string;
-  maturityStage: 'startup' | 'growth' | 'scale';
-  readinessScore: number;
-  currentFocus: 'business_structure' | 'business_strategy' | 'execution';
-  businessStructureProgress: number | null;
-  businessStrategyProgress: number | null;
-  executionProgress: number | null;
-  subscriptionTier: 'freemium' | 'premium';
-  assessmentData: any;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const STAGE_INFO = {
-  startup: {
-    label: "Startup",
-    description: "Building foundation and establishing compliance",
-    color: "bg-primary",
-    icon: Lightbulb,
-  },
-  growth: {
-    label: "Growth",
-    description: "Expanding capabilities and winning contracts",
-    color: "bg-accent",
-    icon: TrendingUp,
-  },
-  scale: {
-    label: "Scale",
-    description: "Optimizing operations and strategic positioning",
-    color: "bg-primary",
-    icon: Rocket,
-  },
-};
-
-const PROCESS_INFO = {
-  business_structure: {
-    label: "Business Structure",
-    description: "Foundation, compliance, and certifications",
-    icon: Briefcase,
-  },
-  business_strategy: {
-    label: "Business Strategy",
-    description: "Market positioning and growth planning",
-    icon: Target,
-  },
-  execution: {
-    label: "Execution",
-    description: "Capture, proposal, and delivery excellence",
-    icon: CheckCircle2,
-  },
-};
-
+import { BlurGate } from "../components/gates/BlurGate";
+import { UserMaturityProfile } from "@shared/types/maturity-profile"; 
+import { STAGE_INFO, PROCESS_INFO } from "../../../constants/maturity"
+import { useGateStatus } from "../hooks/useGateStatus";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isResetting, setIsResetting] = useState(false);
+  const { gateClosed } = useGateStatus();
   const [confirmAction, setConfirmAction] = useState<{
     id: string;
     status: "in_progress" | "cancelled" | "completed";
   } | null>(null);
+  const [loadingProcess, setLoadingProcess] = useState<string | null>(null);
   const [activeDashboardTab, setActiveDashboardTab] = useState<"maturity" | "actions">("actions");
   const [isMaturityCollapsed, setIsMaturityCollapsed] = useState(false);
-  
+  const [isStarting, setIsStarting] = useState(false);
 
-  
+  const handleStartAssessment = async () => {
+    setIsStarting(true);
+
+    // allow loader to render
+    await new Promise((r) => setTimeout(r, 300));
+
+    setLocation('/assessment');
+  };
+  const [isNavigating, setIsNavigating] = useState<null | "vendors" | "billing">(null);
+  const [isTabLoading, setIsTabLoading] = useState(false);
+  const [isRetaking, setIsRetaking] = useState(false);
   const [rating, setRating] = useState(0);
   const { data: profile, isLoading, isError, error } = useQuery<UserMaturityProfile>({
     queryKey: ['/api/maturity-profile'],
     retry: false,
   });
+  // const isFreeUser = profile?.subscriptionTier !== "pilot";
+  const isPaidUser = profile?.subscriptionTier === "pilot";
+  const isFreeUser = !isPaidUser;
+
+
+  console.log("Maturity Profile:", isFreeUser);
+  const handleNavigate = (type: "vendors" | "billing") => {
+  if (isNavigating) return;
+
+  // 🔴 BLOCK vendors for free users
+  if (type === "vendors" && isFreeUser) {
+    toast({
+      title: "Upgrade Required",
+      description: "Unlock vendor access with PROOF Pilot ($49.95)",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  setIsNavigating(type);
+
+  setTimeout(() => {
+    setLocation(type === "vendors" ? "/vendors" : "/billing");
+  }, 400);
+};
+  const handleClick = () => {
+    if (isRetaking) return;
+
+    setIsRetaking(true);
+
+    // small delay so loader is visible before navigation
+    setTimeout(() => {
+      setLocation("/assessment");
+    }, 300);
+  };
  
     type StatusFilter = "priority" | "all" | ServiceRequestStatus;
   const [statusFilter, setStatusFilter] =
@@ -148,6 +145,20 @@ useEffect(() => {
     setLocation("/login");
     return null;
   }
+useEffect(() => {
+  if (!user || user.userType !== "contractor") return;
+
+  const tier = profile?.subscriptionTier;
+
+  // allowed users
+  if (tier === "pilot" || tier === "beta") {
+    return;
+  }
+
+  // no subscription selected
+  setLocation("/billing");
+
+}, [user, profile]);
 
   // contractors must complete onboarding
   if (user.userType === "contractor" && !user.hasCompletedOnboarding) {
@@ -205,6 +216,7 @@ useEffect(() => {
     );
   }
 
+
   // Check if error is a 404 (no profile) vs actual error
   const is404 = isError && error && (error as any).message?.includes("404");
 
@@ -237,16 +249,29 @@ useEffect(() => {
       <div className="flex flex-col items-center justify-center h-full p-8">
         <div className="max-w-md text-center space-y-4">
           <Award className="w-16 h-16 mx-auto text-muted-foreground" data-testid="icon-welcome" />
-          <h2 className="text-2xl font-bold">Welcome to <span className="gradient-text">GovScale Alliance</span></h2>
+          <h2 className="text-2xl font-bold">Welcome to <span className="gradient-text">PROOF</span></h2>
           <p className="text-muted-foreground">
             Take our proven assessment to receive a data-driven maturity analysis and customized growth roadmap with measurable milestones.
           </p>
           <div className="flex items-center justify-center gap-4">
-          <Link href="/assessment" data-testid="link-start-assessment">
-            <Button size="lg" data-testid="button-start-assessment">
-              Start Your Assessment <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
+          <Button
+            size="lg"
+            onClick={handleStartAssessment}
+            disabled={isStarting}
+            data-testid="button-start-assessment"
+          >
+            {isStarting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Starting...
+              </>
+            ) : (
+              <>
+                Start Your Assessment
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
           <Link href="/skip-assessment">
             <Button variant="outline" size="lg">
               Skip Your Assessment
@@ -279,13 +304,14 @@ useEffect(() => {
               Welcome back, {user?.firstName || 'Contractor'}!
             </h1>
             <p className="text-muted-foreground">
-              Here's your personalized GovCon growth roadmap
+              Here's your personalized PROOF growth roadmap
             </p>
           </div>
 
         {/* Three Core Processes */}
         <div>
           <h2 className="text-xl font-semibold mb-4">Your Growth Framework</h2>
+          <BlurGate isLocked={isFreeUser } onUnlock={() => setLocation("/billing")} >
           <div className="grid gap-4 md:grid-cols-3">
             {(Object.entries(PROCESS_INFO) as [keyof typeof PROCESS_INFO, typeof PROCESS_INFO[keyof typeof PROCESS_INFO]][]).map(([key, info]) => {
               const Icon = info.icon;
@@ -299,23 +325,23 @@ useEffect(() => {
               const colorStyles =
                 key === "business_strategy"
                   ? {
-                      border: "border-orange-500",
-                      iconBg: "bg-orange-500 text-white",
-                      button: "bg-orange-500 hover:bg-orange-600 text-white",
-                      progress: "[&>div]:bg-orange-500"
+                      border: "border-accent",
+                      iconBg: "bg-accent text-white",
+                      button: "bg-accent hover:opacity-90 text-white",
+                      progress: "[&>div]:bg-accent"
                     }
                   : key === "business_structure"
                   ? {
-                      border: "border-blue-500",
-                      iconBg: "bg-blue-500 text-white",
-                      button: "bg-blue-600 hover:bg-blue-700 text-white outline",
-                      progress: "[&>div]:bg-blue-500"
+                      border: "border-primary",
+                      iconBg: "bg-primary text-white",
+                      button: "bg-primary hover:opacity-90 text-white",
+                      progress: "[&>div]:bg-primary"
                     }
                   : {
-                      border: "border-green-500",
-                      iconBg: "bg-green-500 text-white",
-                      button: "bg-green-600 hover:bg-green-700 text-white",
-                      progress: "[&>div]:bg-green-500"
+                      border: "border-gold",
+                      iconBg: "bg-gold text-white",
+                      button: "bg-gold hover:opacity-90 text-white",
+                      progress: "[&>div]:bg-gold"
                     };
               return (
                  <Card key={key} className={`border-2 ${colorStyles.border}`}>
@@ -347,16 +373,38 @@ useEffect(() => {
                         data-testid={`progress-${key}`}
                       />
                     </div>
-                    <Link href={`/process/${key}`} data-testid={`link-view-${key}`}>
-                      <Button className={`w-full ${colorStyles.button}`} data-testid={`button-view-${key}`}>
-                        View Guidance <ArrowRight className="ml-2 h-4 w-4" />
+                    
+                      <Button
+                        className={`w-full ${colorStyles.button}`}
+                        data-testid={`button-view-${key}`}
+                        disabled={loadingProcess === key}
+                        onClick={() => {
+                          setLoadingProcess(key);
+
+                          // 👇 allow React to render loader first
+                          setTimeout(() => {
+                            setLocation(`/process/${key}`);
+                          }, 800); // 500–1000ms is enough
+                        }}
+                      >
+                      {loadingProcess === key ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+                          Loading...
+                        </span>
+                      ) : (
+                        <>
+                          View Guidance <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
+                      )}
                       </Button>
-                    </Link>
+
                   </CardContent>
                 </Card>
               );
             })}
           </div>
+          </BlurGate>
         </div>
 
         {/* Maturity Stage Card */}
@@ -370,8 +418,13 @@ useEffect(() => {
                   variant={activeDashboardTab === "actions" ? "default" : "outline"}
                   className="flex-1 text-base"
                   onClick={() => {
-                    setActiveDashboardTab("actions");
-                    setIsMaturityCollapsed(false);
+                    setIsTabLoading(true);
+
+                    setTimeout(() => {
+                      setActiveDashboardTab("actions");
+                      setIsMaturityCollapsed(false);
+                      setIsTabLoading(false);
+                    }, 400);
                   }}
                 >
                   Quick Actions
@@ -380,8 +433,13 @@ useEffect(() => {
                   variant={activeDashboardTab === "maturity" ? "default" : "outline"}
                   className="flex-1 text-base"
                   onClick={() => {
-                    setActiveDashboardTab("maturity");
-                    setIsMaturityCollapsed(false);
+                    setIsTabLoading(true);
+
+                    setTimeout(() => {
+                      setActiveDashboardTab("maturity");
+                      setIsMaturityCollapsed(false);
+                      setIsTabLoading(false);
+                    }, 400);
                   }}
                 >
                   Your Maturity Stage
@@ -406,209 +464,265 @@ useEffect(() => {
 
             </div>
 
-            {!isMaturityCollapsed && (
-              <CardContent className="pt-6">
+          {!isMaturityCollapsed && (
+  <CardContent className="pt-6">
 
-                {/* MATURITY TAB */}
-                {activeDashboardTab === "maturity" && (
-                  <div className="space-y-4">
+    {isTabLoading ? (
+      <div className="flex justify-center items-center py-10">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    ) : (
+      <>
+        {/* ================= MATURITY TAB ================= */}
+        {activeDashboardTab === "maturity" && (
+          <div className="space-y-4">
 
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <h2 className="text-xl font-semibold flex items-center gap-2">
-                          <div className="p-2 rounded-lg bg-blue-500 text-white outline">
-                          <StageIcon className="h-5 w-5" />
-                        </div>
-                          <span className="text-blue-500">Your Maturity Stage</span>
-                        </h2>
-                        <p className="text-sm text-blue-500 font-semibold">
-                          Based on your AI assessment
-                        </p>
-                      </div>
-
-                      <Badge className={`${stageInfo.color} text-white`}>
-                        {stageInfo.label}
-                      </Badge>
-                    </div>
-
-                    <p className="text-muted-foreground">
-                      {stageInfo.description}
-                    </p>
-
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="font-medium">Readiness Score</span>
-                        <span>{profile.readinessScore}/100</span>
-                      </div>
-
-                      <Progress
-                        value={profile.readinessScore}
-                        className="h-3"
-                      />
-                    </div>
-
-                    <div className="pt-3 border-t flex items-center justify-between">
-
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={isResetting}
-                          >
-                            <RotateCcw className="mr-2 h-4 w-4" />
-                            Retake Assessment
-                          </Button>
-                        </AlertDialogTrigger>
-
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Reset Your Assessment?
-                            </AlertDialogTitle>
-
-                            <AlertDialogDescription>
-                              This will clear your current maturity profile.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>
-                              Cancel
-                            </AlertDialogCancel>
-
-                            <AlertDialogAction
-                              onClick={handleResetAssessment}
-                            >
-                              Reset Assessment
-                            </AlertDialogAction>
-
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-
-                      {profile.assessmentData?.status !== "completed" && (
-                        <Button
-                          size="sm"
-                          onClick={() => setLocation("/assessment")}
-                        >
-                          Resume Assessment
-                        </Button>
-                      )}
-
-                    </div>
-
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary text-white">
+                    <StageIcon className="h-5 w-5" />
                   </div>
-                )}
+                  <span className="text-primary">Your Maturity Stage</span>
+                </h2>
+                <p className="text-sm text-primary font-semibold">
+                  Based on your AI assessment
+                </p>
+              </div>
 
-                {/* QUICK ACTIONS TAB */}
-                {activeDashboardTab === "actions" && (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Badge className={`bg-primary text-white`}>
+                {stageInfo.label}
+              </Badge>
+            </div>
 
-                    <Card className="opacity-50 border-2 border-blue-500 hover:bg-blue-500 hover:text-white">
-                      <CardHeader>
-                        <CardTitle className="text-base flex gap-2">
-                           <div className="p-2 rounded-lg bg-blue-500 text-white outline">
-                            <BookOpen className="h-4 w-4" />
-                           </div>
-                          <div className="mt-1">Knowledge Base</div>
-                        </CardTitle>
-                      </CardHeader>
+            <p className="text-muted-foreground">
+              {stageInfo.description}
+            </p>
 
-                      <CardContent>
-                        <p className="text-sm">
-                          Coming soon
-                        </p>
-                      </CardContent>
-                    </Card>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="font-medium">Readiness Score</span>
+                <span>{profile.readinessScore}/100</span>
+              </div>
 
-                    <Link href="/vendors">
-                      <Card className="cursor-pointer border-2 hover-elevate border-orange-500 hover:bg-orange-500 hover:text-white">
-                        <CardHeader>
-                          <CardTitle className="text-base color-orange flex gap-2">
-                            <div className="p-2 rounded-lg bg-orange-500 text-white outline">
-                                  <Users className="h-4 w-4" />
-                            </div>
-                            <div className="mt-1">Find Vendors</div>
-                          </CardTitle>
-                        </CardHeader>
+              <Progress value={profile.readinessScore} className="h-3" />
+            </div>
 
-                        <CardContent>
-                          <p className="text-sm">
-                            Connect with vetted providers
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </Link>
+            <div className="pt-3 border-t flex items-center justify-between">
 
-                    <Link href="/assessment">
-                      <Card className="cursor-pointer border-2 hover-elevate border-green-500 hover:bg-green-500 hover:text-white">
-                        <CardHeader>
-                          <CardTitle className="text-base flex gap-2">
-                             <div className="p-2 rounded-lg bg-green-500 text-white outline">
-                              <Award className="h-4 w-4" />
-                            </div>
-                            <div className="mt-1">Retake Assessment</div>
-                          </CardTitle>
-                        </CardHeader>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isResetting}
+                  >
+                    {isResetting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Resetting...
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Retake Assessment
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
 
-                        <CardContent>
-                          <p className="text-sm">
-                            Update your maturity profile by re-taking assessment
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                    <Link href="/billing">
-                    <Card className="border-2 border-gray-500 hover:bg-gray-500 hover:text-white cursor-hand">
-                      <CardHeader>
-                        <CardTitle className="text-base flex gap-2">
-                           <div className="p-2 rounded-lg bg-gray-500 text-white outline">
-                            <Rocket className="h-4 w-4" />
-                           </div>
-                          <div className="mt-1">Upgrade Plan</div>
-                        </CardTitle>
-                      </CardHeader>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Reset Your Assessment?
+                    </AlertDialogTitle>
 
-                      <CardContent>
-                        <p className="text-sm mb-3">
-                          Unlock full marketplace access & priority support
-                        </p>
+                    <AlertDialogDescription>
+                      This will clear your current maturity profile.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
 
-                      </CardContent>
-                    </Card>
-                    </Link>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>
+                      Cancel
+                    </AlertDialogCancel>
 
+                    <AlertDialogAction
+                      onClick={handleResetAssessment}
+                      disabled={isResetting}
+                    >
+                      {isResetting ? "Resetting..." : "Reset Assessment"}
+                    </AlertDialogAction>
+
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              {profile.assessmentData?.status !== "completed" && (
+                <Button
+                  size="sm"
+                  onClick={() => setLocation("/assessment")}
+                >
+                  Resume Assessment
+                </Button>
+              )}
+
+            </div>
+
+          </div>
+        )}
+
+        {/* ================= QUICK ACTIONS TAB ================= */}
+        {activeDashboardTab === "actions" && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+
+            {/* Knowledge Base */}
+            <Card className="opacity-50 border-2 border-blue-500">
+              <CardHeader>
+                <CardTitle className="text-base flex gap-2">
+                  <div className="p-2 rounded-lg bg-primary text-white">
+                    <BookOpen className="h-4 w-4" />
                   </div>
-                )}
-
+                  <div className="mt-1">Knowledge Base</div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm">Coming soon</p>
               </CardContent>
-            )}
+            </Card>
+
+            {/* Find Vendors */}
+            <Card data-testid="card-find-vendors"
+              onClick={() => handleNavigate("vendors")}
+              className={`cursor-pointer border-2 border-accent transition-all duration-200
+                ${isNavigating === "vendors"
+                  ? "opacity-70 pointer-events-none"
+                  : "hover:bg-accent hover:text-white hover-elevate"}
+                  `}
+            >
+                  <BlurGate isLocked={isFreeUser} onUnlock={() => setLocation("/billing")} >
+              <CardHeader>
+                <CardTitle className="text-base flex gap-2 items-center">
+                  <div className="p-2 rounded-lg bg-accent text-white outline">
+                    {isNavigating === "vendors" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Users className="h-4 w-4" />
+                    )}
+                  </div>
+                  <div className="mt-1">
+                    {isNavigating === "vendors" ? "Opening..." : "Find Vendors"}
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm">
+                  {isNavigating === "vendors"
+                    ? "Redirecting..."
+                    : "Connect with vetted providers"}
+                </p>
+              </CardContent>
+              </BlurGate>
+            </Card>
+            
+
+            {/* Retake Card */}
+            <Card
+              data-testid="card-retake-assessment"
+              onClick={handleClick}
+              className={`cursor-pointer border-2 border-gold transition-all duration-200
+                ${isRetaking
+                  ? "opacity-70 pointer-events-none"
+                  : "hover:bg-gold hover:text-white hover-elevate"}
+              `}
+            >
+              <CardHeader>
+                <CardTitle className="text-base flex gap-2 items-center">
+                  <div className="p-2 rounded-lg bg-gold text-white outline">
+                    {isRetaking ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Award className="h-4 w-4" />
+                    )}
+                  </div>
+                  <div className="mt-1">
+                    {isRetaking ? "Loading..." : "Retake Assessment"}
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm">
+                  {isRetaking
+                    ? "Redirecting to assessment..."
+                    : "Update your maturity profile by re-taking assessment"}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Upgrade Plan */}
+            <Card
+              data-testid="card-upgrade-plan"
+              onClick={() => handleNavigate("billing")}
+              className={`cursor-pointer border-2 border-primary transition-all duration-200
+                ${isNavigating === "billing"
+                  ? "opacity-70 pointer-events-none"
+                  : "hover:bg-primary hover:text-white"}
+              `}
+            >
+              <CardHeader>
+                <CardTitle className="text-base flex gap-2 items-center">
+                  <div className="p-2 rounded-lg bg-primary text-white outline">
+                    {isNavigating === "billing" ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Rocket className="h-4 w-4" />
+                    )}
+                  </div>
+                  <div className="mt-1">
+                    {isNavigating === "billing" ? "Opening..." : "Upgrade Plan"}
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm mb-3">
+                  {isNavigating === "billing"
+                    ? "Redirecting to billing..."
+                    : "Unlock full marketplace access & priority support"}
+                </p>
+              </CardContent>
+            </Card>
+
+          </div>
+        )}
+      </>
+    )}
+  </CardContent>
+)}
           </Card>
         <div>
         {/* // Recmonded Services card */}
-      
+      <BlurGate isLocked={isFreeUser} onUnlock={() => setLocation("/billing")} >
           <Card data-testid="card-recent-requests"
-            className="col-span-full border-2 border-orange-500">
+            className="col-span-full border-2 border-accent">
             <CardHeader >
-                <CardTitle className="text-base color-orange flex gap-2">
-                  <div className="p-2 rounded-lg bg-orange-500 text-white outline">
+                <CardTitle className="text-base flex gap-2">
+                  <div className="p-2 rounded-lg bg-accent text-white outline">
                         <Briefcase className="h-6 w-6" />
                   </div>
-                  <CardTitle className="text-orange-600 mt-1">Recmonded Services</CardTitle>
+                  <CardTitle className="text-accent mt-1">Recommended Services</CardTitle>
                 </CardTitle>
-              <CardDescription className="font-semibold text-orange-600">Explore below these services are matched with your profile and interests</CardDescription>
+              <CardDescription className="font-semibold text-accent">Explore below these services are matched with your profile and interests</CardDescription>
                 {servicesData.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center mt-2">
-              No recommended services yet. Complete your assessment or reload.
-            </p>
-          )}
+                  <p className="text-sm text-muted-foreground text-center mt-2">
+                    No recommended services yet. Complete your assessment or reload.
+                  </p>
+                )}
             </CardHeader>
             <CardContent className="w-full">
 
 
               <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
-                <div className="grid grid-cols-1 gap-6 w-full">
+                {/* <div className="grid grid-cols-1 gap-6 w-full">
                   {servicesData.map((service, index) => (
                     <ServiceCardCompact
                       key={index}
@@ -616,11 +730,22 @@ useEffect(() => {
                       detailsUrl={`/services/${service.id}/vendors`}
                     />
                   ))}
-                </div>
+                </div> */}
+                
+                    <div className="grid grid-cols-1 gap-6 w-full">
+                      {servicesData.map((service, index) => (
+                        <ServiceCardCompact
+                          key={index}
+                          service={service}
+                          detailsUrl={`/services/${service.id}/vendors`}
+                        />
+                      ))}
+                    </div>
 
               </div>
             </CardContent>
           </Card>
+                  </BlurGate>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6 col-span-full mt-4">
@@ -682,17 +807,18 @@ useEffect(() => {
             
               {/* ✅ Recent all Services FULL ROW */}
               <TabsContent value="recent" className="">
+<BlurGate isLocked={isFreeUser} onUnlock={() => setLocation("/billing")}>
 
                 <Card data-testid="card-recent-requests"
-                  className="col-span-full border-2 border-green-500">
+                  className="col-span-full border-2 border-gold">
                   <CardHeader >
                      <CardTitle className="text-base color-orange flex gap-2">
-                        <div className="p-2 rounded-lg bg-green-500 text-white outline">
+                        <div className="p-2 rounded-lg bg-gold text-white outline">
                               <Briefcase className="h-6 w-6" />
                         </div>
-                        <CardTitle className="text-green-600 mt-1">Service Requests</CardTitle>
+                        <CardTitle className="text-gold mt-1">Service Requests</CardTitle>
                       </CardTitle>
-                    <CardDescription className="font-semibold text-green-600">All service requests to vendors</CardDescription>
+                    <CardDescription className="font-semibold text-gold">All service requests to vendors</CardDescription>
                   </CardHeader>
                   <CardContent className="w-full">
 
@@ -713,7 +839,7 @@ useEffect(() => {
                   {totalPages> 1 && 
                     <div className="flex justify-center gap-4 mt-4">
 
-                      <Button className="bg-green-500"
+                      <Button className="bg-gold"
                         disabled={page === 1}
                         onClick={() => setPage(page - 1)}
                       >
@@ -724,7 +850,7 @@ useEffect(() => {
                         Page {page} of {totalPages}
                       </span>
 
-                      <Button className="bg-green-500"
+                      <Button className="bg-gold"
                         disabled={page === totalPages}
                         onClick={() => setPage(page + 1)}
                       >
@@ -735,6 +861,7 @@ useEffect(() => {
                   }
                   </CardContent>
                 </Card>
+                </BlurGate>
 
               </TabsContent>
 
@@ -824,10 +951,10 @@ useEffect(() => {
 
           {/* Recommended Next Steps (from AI assessment) */}
           {/* {profile.assessmentData?.recommendations && (
-            <Card className="border-2 border-orange-500">
+            <Card className="border-2 border-accent">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-orange-500 text-white outline">
+                  <div className="p-2 rounded-lg bg-accent text-white outline">
                     <Lightbulb className="h-5 w-5" />
                   </div>
                   <div className="text-orange-500">
@@ -855,47 +982,45 @@ useEffect(() => {
           )} */}
           {/* Gap Next Steps (from AI assessment) */}
           {profile.assessmentData?.gaps && (
-            <Card className="border-2 border-orange-500">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-orange-500 text-white outline">
-                    <Lightbulb className="h-5 w-5" />
-                  </div>
-                  <div className="text-orange-500">
-                    Your Identified Gaps
-                  </div>
-                </CardTitle>
-                <CardDescription className="text-sm text-orange-500 font-semibold">
-                  Areas you need to improve
-                </CardDescription>
-              </CardHeader>
+  <Card className="border-2 border-primary">
+    <CardHeader>
+      <CardTitle className="flex items-center gap-2">
+        <div className="p-2 rounded-lg bg-primary text-white outline">
+          <Lightbulb className="h-5 w-5" />
+        </div>
+        <div className="text-primary">Your Identified Gaps</div>
+      </CardTitle>
 
-              <CardContent>
-                <ul className="space-y-4">
-                  {Array.isArray(profile.assessmentData.gaps) ? (
-                    profile.assessmentData.gaps.map((gap: any, i: number) => (
-                      <li key={i} className="flex gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-orange-500 flex-shrink-0 mt-1" />
+      <CardDescription className="text-sm text-primary font-semibold">
+        Areas you need to improve
+      </CardDescription>
+    </CardHeader>
 
-                        <div className="text-sm">
-                          <p className="font-semibold capitalize">
-                            {gap.type.replace("_", " ")}
-                          </p>
-                          <p className="text-muted-foreground">
-                            {gap.problem}
-                          </p>
-                        </div>
-                      </li>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No gaps available
-                    </p>
-                  )}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
+    <CardContent>
+      <BlurGate
+        isLocked={isFreeUser}
+        onUnlock={() => setLocation("/billing")}
+      >
+        <ul className="space-y-4">
+          {profile.assessmentData.gaps.map((gap: any, i: number) => (
+            <li key={i} className="flex gap-3">
+              <CheckCircle2 className="h-5 w-5 text-primary mt-1" />
+
+              <div className="text-sm">
+                <p className="font-semibold capitalize">
+                  {gap.type.replace("_", " ")}
+                </p>
+                <p className="text-muted-foreground">
+                  {gap.problem}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </BlurGate>
+    </CardContent>
+  </Card>
+)}
         </div>
       </div>
       

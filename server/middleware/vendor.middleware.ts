@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
-import { getUserId } from "server/utills/auth.util";
-import { storage } from "server/storage";
+import { getUserId } from "../utills/auth.util";
+import { storage } from "../storage";
 
 export const isVendor: RequestHandler = async (req: any, res, next) => {
   const userId = getUserId(req);

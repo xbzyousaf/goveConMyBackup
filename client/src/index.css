@@ -50,7 +50,7 @@
 
   --popover-border: 240 8% 86%;
 
-  --primary: 215 85% 50%;
+  --primary: 222 47% 13%;
 
   --primary-foreground: 0 0% 98%;
 
@@ -62,13 +62,15 @@
 
   --muted-foreground: 240 20% 45%;
 
-  --accent: 200 90% 45%;
+  --accent: 217 91% 60%;
 
   --accent-foreground: 0 0% 98%;
 
   --destructive: 0 84% 45%;
 
   --destructive-foreground: 0 0% 98%;
+
+  --gold: 43 74% 44%; 
 
   --input: 240 10% 75%;
   --ring: 215 85% 50%;
@@ -328,19 +330,10 @@
     inset: -1px;
   }
 
-  /* Corporate accent text utility - subtle professional styling */
-  .gradient-text {
-    color: hsl(215 85% 50%);
-    font-weight: 600;
-  }
-
-  .dark .gradient-text {
-    color: hsl(215 85% 60%);
-  }
 
   /* Corporate primary background utility */
   .gradient-bg {
-    background: hsl(215 85% 50%);
+    background: hsl(200 90% 50%);
   }
 
   /* Glassmorphism utility */

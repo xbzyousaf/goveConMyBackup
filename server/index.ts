@@ -13,6 +13,11 @@ import { storage } from "./storage";
 import Stripe from "stripe";
 
 const app = express();
+export default app;
+
+/* =========================
+   GLOBAL MIDDLEWARE (KEEP SAME)
+========================= */
 app.use((req, res, next) => {
   if (req.originalUrl === "/api/stripe/webhook") {
     next(); // ✅ DO NOT PARSE BODY FOR STRIPE
@@ -28,18 +33,24 @@ app.use((req, res, next) => {
     express.urlencoded({ extended: false })(req, res, next);
   }
 });
+
+/* =========================
+  UPLOADS
+========================= */
 const uploadsPath = path.resolve(process.cwd(), "server/uploads");
 if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
 }
-app.use(
-  "/uploads",
-  express.static(uploadsPath)
-);
+
+app.use("/uploads", express.static(uploadsPath));
+
+/* =========================
+   LOGGING
+========================= */
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let capturedJsonResponse: Record<string, any> | undefined;
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
@@ -54,11 +65,9 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       if (logLine.length > 80) {
         logLine = logLine.slice(0, 79) + "…";
       }
-
       log(logLine);
     }
   });
@@ -66,9 +75,15 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-app.post("/api/stripe/webhook", bodyParser.raw({ type: "application/json" }), async (req, res) => 
-{
+/* =========================
+   SETUP FUNCTION (NEW - IMPORTANT)
+========================= */
+export async function setupApp() {
+  // Stripe webhook
+app.post(
+  "/api/stripe/webhook",
+  bodyParser.raw({ type: "application/json" }),
+  async (req, res) => {
     const sig = req.headers["stripe-signature"];
 
     let event: Stripe.Event;
@@ -99,9 +114,25 @@ app.post("/api/stripe/webhook", bodyParser.raw({ type: "application/json" }), as
           session.subscription as string
         )) as Stripe.Subscription;
 
+        // ✅ GET PURCHASED PRICE ID
+        const item = subscription.items.data[0];
+        const priceId = item.price.id;
+
+        // ✅ DETECT PLAN
+        let subscriptionTier: "beta" | "pilot" = "beta";
+
+        if (priceId === process.env.STRIPE_PILOT_PRICE_ID) {
+          subscriptionTier = "pilot";
+        }
+
+        if (priceId === process.env.STRIPE_BETA_PRICE_ID) {
+          subscriptionTier = "beta";
+        }
+
+        // ✅ SAVE CORRECT PLAN
         await storage.upsertUserMaturityProfile({
           userId,
-          subscriptionTier: "premium",
+          subscriptionTier,
           stripeCustomerId: session.customer as string,
           stripeSubscriptionId: subscription.id,
         });
@@ -118,8 +149,10 @@ app.post("/api/stripe/webhook", bodyParser.raw({ type: "application/json" }), as
 
       // 🔥 CRITICAL: get userId from metadata
       const userId = subscription.metadata?.userId;
-      
-      const existing = await storage.getSubscriptionByStripeId(subscription.id);
+      if (!userId) {
+        return res.sendStatus(200);
+      }
+      // const existing = await storage.getSubscriptionByStripeId(subscription.id);
       const existingUserSub = await storage.getSubscriptionByUserId(userId);
       const periodStart = item.current_period_start
         ? new Date(item.current_period_start * 1000)
@@ -130,12 +163,27 @@ app.post("/api/stripe/webhook", bodyParser.raw({ type: "application/json" }), as
         : null;
 
      if (existingUserSub) {
-      await storage.updateSubscriptionDetails(existingUserSub.stripeSubscriptionId!, {
-        status: subscription.status,
-        cancelAtPeriodEnd: subscription.cancel_at_period_end,
-        currentPeriodStart: periodStart,
-        currentPeriodEnd: periodEnd,
-      });
+      const product = await stripe.products.retrieve(
+        item.price.product as string
+      );
+
+      await storage.updateSubscriptionDetails(
+        existingUserSub.stripeSubscriptionId!,
+        {
+          status: subscription.status,
+          cancelAtPeriodEnd: subscription.cancel_at_period_end,
+          currentPeriodStart: periodStart,
+          currentPeriodEnd: periodEnd,
+
+          // 🔥 IMPORTANT
+          priceId: item.price.id,
+          productId: item.price.product as string,
+          planName: product.name || "Beta",
+          amount: ((item.price.unit_amount ?? 0) / 100).toFixed(2),
+          currency: item.price.currency,
+          interval: item.price.recurring?.interval ?? null,
+        }
+      );
 
       return res.sendStatus(200);
     }
@@ -147,6 +195,15 @@ app.post("/api/stripe/webhook", bodyParser.raw({ type: "application/json" }), as
       const product = await stripe.products.retrieve(
         item.price.product as string
       );
+      let planName = "beta";
+
+      if (item.price.id === process.env.STRIPE_PILOT_PRICE_ID) {
+        planName = "pilot";
+      }
+
+      if (item.price.id === process.env.STRIPE_BETA_PRICE_ID) {
+        planName = "beta";
+      }
       await storage.createSubscription({
         userId,
 
@@ -156,7 +213,7 @@ app.post("/api/stripe/webhook", bodyParser.raw({ type: "application/json" }), as
 
         priceId: item.price.id,
         productId: item.price.product as string,
-        planName: product.name || "Premium Plan",
+        planName,
         amount: ((item.price.unit_amount ?? 0) / 100).toFixed(2),
         currency: item.price.currency,
 
@@ -204,7 +261,7 @@ app.post("/api/stripe/webhook", bodyParser.raw({ type: "application/json" }), as
         if (sub) {
           await storage.upsertUserMaturityProfile({
             userId: sub.userId,
-            subscriptionTier: "freemium",
+            subscriptionTier: "beta",
           });
 
           await storage.updateSubscriptionStatus(
@@ -243,7 +300,7 @@ app.post("/api/stripe/webhook", bodyParser.raw({ type: "application/json" }), as
     }
   }
 );
-  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+
   const server = await registerRoutes(app);
   app.use("/api", vendorRoutes);
   app.use("/api", contractorRoutes);
@@ -258,29 +315,30 @@ app.post("/api/stripe/webhook", bodyParser.raw({ type: "application/json" }), as
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+  // Vite / Static
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen(port, () => {
-  log(`serving on port ${port}`);
-});
+  return server;
+}
 
-  // server.listen({
-  //   port,
-  //   host: "0.0.0.0",
-  //   reusePort: true,
-  // }, () => {
-  //   log(`serving on port ${port}`);
-  // });
-})();
+/* =========================
+   🚀 START SERVER (ONLY NON-TEST)
+========================= */
+async function startServer() {
+  const server = await setupApp();
+
+  const port = parseInt(process.env.PORT || "5000", 10);
+
+  server.listen(port, () => {
+    log(`serving on port ${port}`);
+  });
+}
+
+// 🔥 THIS LINE IS KEY
+if (process.env.NODE_ENV !== "test") {
+  startServer();
+}

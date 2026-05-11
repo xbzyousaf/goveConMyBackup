@@ -1,8 +1,8 @@
-# GovScale Alliance - AI-Powered Growth Platform
+# PROOF - AI-Powered Growth Platform
 
 ## Overview
 
-GovScale Alliance is a professional, enterprise-grade AI-driven platform designed to guide government contractors from startup to scale. It assesses user maturity, provides proven guidance through core business processes (Business Structure, Strategy, Execution), and delivers a corporate-polished user experience emphasizing measurable outcomes and data-driven insights. The platform aims to accelerate business development for government contractors through proven frameworks and expert guidance.
+PROOF is a professional, enterprise-grade AI-driven platform designed to guide government contractors from startup to scale. It assesses user maturity, provides proven guidance through core business processes (Business Structure, Strategy, Execution), and delivers a corporate-polished user experience emphasizing measurable outcomes and data-driven insights. The platform aims to accelerate business development for government contractors through proven frameworks and expert guidance.
 
 ## Recent Changes (November 2025)
 

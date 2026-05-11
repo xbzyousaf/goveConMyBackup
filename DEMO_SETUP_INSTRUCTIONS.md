@@ -1,7 +1,7 @@
-# GovScale Alliance - Demo Setup Instructions
+# PROOF - Demo Setup Instructions
 
 ## Overview
-This guide explains how to set up test accounts for partners to explore the GovScale Alliance platform.
+This guide explains how to set up test accounts for partners to explore the PROOF platform.
 
 ## Test User Profiles
 

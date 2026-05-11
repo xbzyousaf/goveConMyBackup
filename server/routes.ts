@@ -305,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       businessStructureProgress: 0,
       businessStrategyProgress: 0,
       executionProgress: 0,
-      subscriptionTier: 'freemium',
+      subscriptionTier: 'beta',
       assessmentData: {
         status: 'not_started',
       },

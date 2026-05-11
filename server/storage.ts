@@ -51,7 +51,7 @@ import { PRIORITY_STATUSES } from "constants/serviceRequest";
 import { Gap, GapType } from '@shared/types/gaps';
 import { ServiceCategory } from '@shared/types/service';
 import { GAP_CATEGORY_MAP } from './../constants/gapCategoryMap';
-
+import bcrypt from 'bcryptjs';
 export interface IStorage {
   // User management
   getUser(id: string): Promise<User | undefined>;
@@ -1937,6 +1937,67 @@ async getCategoryVendors(categoryId: string) {
       users.lastName,
       userMaturityProfiles.maturityStage
     );
+}
+async setupContractorUser() {
+  const email = 'contractor2@gmail.com';
+
+  // 1. check user
+  let user = await db.query.users.findFirst({
+    where: eq(users.email, email),
+  });
+
+  // 2. if NOT exists → create
+  if (!user) {
+    const hashed = await bcrypt.hash('11223344', 10);
+    const newUser = await db.insert(users).values({
+      email,
+      password: hashed,
+      userType: 'contractor',
+      isEmailVerified: true,
+      hasCompletedOnboarding: true,
+    }).returning();
+
+    user = newUser[0];
+
+    return {
+      type: 'created',
+      user,
+    };
+  }
+  console.log('User already exists, resetting maturity profile...', user.id);
+
+  // 3. if exists → DELETE maturity profile
+  await db.delete(userMaturityProfiles)
+    .where(eq(userMaturityProfiles.userId, user.id));
+
+  return {
+    type: 'reset',
+    user,
+  };
+}
+// for testing purposes only - resets user subscription data
+async deleteSubscriptionByUserId(userId: string) {
+  const result = await db.delete(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .returning();
+}
+async resetUserSubscription(userId: string) {
+  const result =await db
+    .update(userMaturityProfiles)
+    .set({
+      subscriptionTier: 'beta',
+      stripeCustomerId: null,
+      stripeSubscriptionId: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(userMaturityProfiles.userId, userId));
+}
+async getUserCount() {
+  const result = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(users);
+
+  return Number(result[0]?.count || 0);
 }
 
 // end

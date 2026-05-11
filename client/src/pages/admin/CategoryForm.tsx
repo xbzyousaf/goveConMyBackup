@@ -160,54 +160,73 @@ console.log(categoryId, isEdit);
 
               {/* FORM */}
               {!isLoading && (
-                <form onSubmit={form.handleSubmit(onSubmit)}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-                  <div className="flex gap-3 items-center">
-
-                    {/* NAME */}
+                {/* ROW 1: NAME + KEY */}
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium mb-1">
+                      Category Name
+                    </label>
                     <Input
-                      placeholder="Category Name"
-                      className="w-1/4"
+                      placeholder="Enter category name"
                       {...form.register("name", { required: true })}
                     />
-                    
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium mb-1">
+                      Category Key
+                    </label>
                     <Input
-                      placeholder="Category Key"
-                      className="w-1/4"
+                      placeholder="Enter unique key"
                       {...form.register("key", { required: true })}
                     />
-
-                    {/* DESCRIPTION */}
-                    <Input
-                      placeholder="Description"
-                      className="w-3/4"
-                      {...form.register("description")}
-                    />
-                    {/* KEY DELIVERABLES */}
-                    <Input
-                      placeholder="Key Deliverables (comma separated)"
-                      className="w-3/4"
-                      {...form.register("keyDeliverables")}
-                    />
-                    {/* SUBMIT */}
-                    <Button
-                      type="submit"
-                      disabled={
-                        createMutation.isPending ||
-                        updateMutation.isPending
-                      }
-                    >
-                      {categoryId
-                        ? updateMutation.isPending
-                          ? "Updating..."
-                          : "Update"
-                        : createMutation.isPending
-                        ? "Creating..."
-                        : "Create"}
-                    </Button>
-
                   </div>
-                </form>
+                </div>
+
+                {/* ROW 2: DESCRIPTION */}
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium mb-1">
+                    Description
+                  </label>
+                  <textarea className="border rounded-md p-2 min-h-[100px] resize-none"
+                    placeholder="Enter description"
+                    {...form.register("description")}
+                  />
+                </div>
+
+                {/* ROW 3: KEY DELIVERABLES */}
+                <div className="flex flex-col">
+                  <label className="text-sm font-medium mb-1">
+                    Key Deliverables
+                  </label>
+                  <Input
+                    placeholder="Comma separated (e.g. Design, Strategy, Audit)"
+                    {...form.register("keyDeliverables")}
+                  />
+                </div>
+
+                {/* ROW 4: BUTTON RIGHT */}
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    disabled={
+                      createMutation.isPending ||
+                      updateMutation.isPending
+                    }
+                  >
+                    {categoryId
+                      ? updateMutation.isPending
+                        ? "Updating..."
+                        : "Update"
+                      : createMutation.isPending
+                      ? "Creating..."
+                      : "Create"}
+                  </Button>
+                </div>
+
+              </form>
               )}
 
             </CardContent>

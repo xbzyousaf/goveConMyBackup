@@ -96,7 +96,7 @@ const intent = new URLSearchParams(window.location.search).get("intent");
           <CardHeader>
             <CardTitle className="text-2xl">Create Your Account</CardTitle>
             <CardDescription>
-              Join GovScale Alliance to accelerate your government contracting business
+              Join PROOF to accelerate your government contracting business
             </CardDescription>
           </CardHeader>
 

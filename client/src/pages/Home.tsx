@@ -58,7 +58,7 @@ export default function Home() {
     {
       name: "David Rodriguez",
       company: "DefenseTech Solutions",
-      text: "GovScale Alliance delivered measurable results: 30% faster contract cycle time and $5M in new awards within 12 months. The proven frameworks eliminated guesswork.",
+      text: "PROOF delivered measurable results: 30% faster contract cycle time and $5M in new awards within 12 months. The proven frameworks eliminated guesswork.",
       rating: 5
     },
     {
@@ -245,7 +245,7 @@ export default function Home() {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">Trusted by Government Contractors</h2>
             <p className="text-lg text-muted-foreground">
-              See how <span className="gradient-text font-semibold">GovScale Alliance</span> has helped businesses scale their operations
+              See how <span className="text-accent font-semibold">PROOF</span> has helped businesses scale their operations
             </p>
           </div>
           <div className="grid gap-8 md:grid-cols-2">
@@ -306,7 +306,7 @@ export default function Home() {
                 <div className="h-8 w-8 rounded-md gradient-bg flex items-center justify-center">
                   <span className="text-primary-foreground font-bold text-sm">GS</span>
                 </div>
-                <span className="font-semibold text-lg gradient-text">GovScale Alliance</span>
+                <span className="font-semibold text-lg gradient-text">PROOF</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 Proven frameworks and AI-driven insights helping government contractors achieve measurable growth outcomes.
@@ -341,7 +341,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
-            <p>&copy; 2024 GovScale Alliance. Proven performance. Measurable results.</p>
+            <p>&copy; 2024 PROOF. Proven performance. Measurable results.</p>
             <p className="mt-2">Powered by Tullis Strategic Solutions LLC</p>
           </div>
         </div>

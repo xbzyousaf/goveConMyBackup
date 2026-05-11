@@ -1,4 +1,4 @@
--- GovScale Alliance - Test User Seed Data
+-- PROOF - Test User Seed Data
 -- This script creates 3 test users at different maturity stages for demo purposes
 
 -- Test User 1: Startup Stage (Early Journey)
@@ -23,7 +23,7 @@ INSERT INTO user_maturity_profiles (
   28,
   0,
   0,
-  'freemium',
+  'beta',
   '{"stage": "startup", "strengths": ["Motivated team", "Clear vision"], "challenges": ["Limited compliance knowledge", "No certifications"], "recommendations": ["Complete business registration", "Obtain CAGE code", "Begin SAM.gov registration"]}'::jsonb,
   NOW(),
   NOW()

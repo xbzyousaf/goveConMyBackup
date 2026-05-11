@@ -215,14 +215,15 @@ export default function Vendors() {
     setSelectedLocation("all");
     setVerifiedOnly(false);
     setSearchQuery("");
-    setHasUserInteracted(false); 
+    setHasUserInteracted(true); 
   };
 
   const activeFiltersCount =
-    (selectedCategory !== "all" ? 1 : 0) +
-    (selectedLocation !== "all" ? 1 : 0) +
-    (verifiedOnly ? 1 : 0) +
-    (selectedCategory === "all" && gapCategories.length > 0 ? 1 : 0);
+  (selectedCategory !== "all" ? 1 : 0) +
+  (selectedLocation !== "all" ? 1 : 0) +
+  (verifiedOnly ? 1 : 0) +
+  (searchQuery.trim() !== "" ? 1 : 0) +   // ✅ FIX
+  (selectedCategory === "all" && gapCategories.length > 0 ? 1 : 0);
 
     if (categoriesLoading) {
       return <div className="p-10">Loading categories...</div>;
@@ -250,15 +251,26 @@ export default function Vendors() {
             <div className="space-y-4">
               {/* Search Bar */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, skills, or expertise..."
-                  className="pl-10"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  data-testid="input-search-vendors"
-                />
-              </div>
+  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+
+  <Input
+    placeholder="Search by name, skills, or expertise..."
+    className="pl-10 pr-10"
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    data-testid="input-search-vendors"
+  />
+
+  {searchQuery && (
+    <button
+      onClick={() => setSearchQuery("")}
+      className="absolute right-3 top-1/2 transform -translate-y-1/2"
+      data-testid="button-clear-search"
+    >
+      <X className="w-4 h-4 text-muted-foreground hover:text-black" />
+    </button>
+  )}
+</div>
 
               {/* Filter Row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

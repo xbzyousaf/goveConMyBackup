@@ -236,7 +236,7 @@ const PROCESS_CONFIG = {
           },
           {
             id: "marketing_plan",
-            title: "Create GovCon Marketing Plan",
+            title: "Create PROOF Marketing Plan",
             description: "Outreach strategy for agencies and primes",
             required: true,
             categoryKey: "marketing",
