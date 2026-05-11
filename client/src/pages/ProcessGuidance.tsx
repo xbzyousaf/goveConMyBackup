@@ -72,6 +72,7 @@ export default function ProcessGuidance() {
   queryKey: ['/api/admin/milestones'],
 });
 const [, params] = useRoute("/process/:processId");
+ const [loadingCategory, setLoadingCategory] = useState<string | null>(null);
   const processId = params?.processId as keyof typeof PROCESS_CONFIG | undefined;
  const { data: profile } = useQuery<any>({
     queryKey: ['/api/maturity-profile'],
@@ -96,6 +97,18 @@ const groupedMilestones = useMemo(() => {
 
   return groups;
 }, [stageMilestones]);
+const resetStageMutation = useMutation({
+  mutationFn: async () => {
+    return apiRequest("POST", "/api/maturity/reset-stage", {
+      currentStage: userStage,
+    });
+  },
+  onSuccess: async () => {
+    await queryClient.invalidateQueries({ queryKey: ['/api/journeys'] });
+    await queryClient.invalidateQueries({ queryKey: ['/api/maturity-profile'] });
+    setLocation("/dashboard");
+  },
+});
 
   const { data: bsJourney } = useQuery<UserJourney>({
     queryKey: ['/api/journeys', 'business_structure'],
@@ -296,16 +309,31 @@ if (!profile || isLoading) {
       </h3>
 
       {/* 🔥 VIEW VENDORS BUTTON */}
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => {
-          const categoryId = milestones[0]?.category?.id;
-          setLocation(`/vendors?categoryId=${categoryId}`);
-        }}
-      >
-        View Vendors
-      </Button>
+
+<Button
+  size="sm"
+  variant="outline"
+  data-category={categoryName}
+  disabled={loadingCategory === categoryName}
+  onClick={() => {
+    const categoryId = milestones[0]?.category?.id;
+
+    setLoadingCategory(categoryName); // ✅ start loader
+
+    setTimeout(() => {
+      setLocation(`/vendors?categoryId=${categoryId}`);
+    }, 400); // small delay so loader is visible
+  }}
+>
+  {loadingCategory === categoryName ? (
+    <span className="flex items-center gap-2">
+      <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+      Loading...
+    </span>
+  ) : (
+    'View Vendors'
+  )}
+</Button>
     </div>
 
     {/* CATEGORY MILESTONES */}
@@ -385,9 +413,20 @@ if (!profile || isLoading) {
                 </Button>
               )}
 
-              <Button variant="ghost">
-                Stay in {userStage}
-              </Button>
+              <Button
+  variant="ghost"
+  disabled={resetStageMutation.isPending}
+  onClick={() => resetStageMutation.mutate()}
+>
+  {resetStageMutation.isPending ? (
+    <span className="flex items-center gap-2">
+      <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+      Processing...
+    </span>
+  ) : (
+    'Stay in Current'
+  )}
+</Button>
             </CardContent>
           </Card>
         )}

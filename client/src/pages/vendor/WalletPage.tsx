@@ -101,26 +101,26 @@ const handleNext = () => {
       <div className="flex flex-wrap gap-2">
         <span className={`px-3 py-1 text-sm rounded-full ${
           account.chargesEnabled
-            ? "bg-green-100 text-green-700"
+            ? "bg-gold text-white"
             : "bg-red-100 text-red-600"
         }`}>
-          Charges {account.chargesEnabled ? "Enabled ✅" : "Disabled"}
+          Charges {account.chargesEnabled ? "Enabled" : "Disabled"}
         </span>
 
         <span className={`px-3 py-1 text-sm rounded-full ${
           account.payoutsEnabled
-            ? "bg-green-100 text-green-700"
+            ? "bg-gold text-white"
             : "bg-yellow-100 text-yellow-700"
         }`}>
-          Payouts {account.payoutsEnabled ? "Enabled ✅" : "Pending"}
+          Payouts {account.payoutsEnabled ? "Enabled" : "Pending"}
         </span>
 
         <span className={`px-3 py-1 text-sm rounded-full ${
           account.detailsSubmitted
-            ? "bg-green-100 text-green-700"
+            ? "bg-gold text-white"
             : "bg-gray-100 text-gray-600"
         }`}>
-          Details {account.detailsSubmitted ? "Submitted ✅" : "Incomplete"}
+          Details {account.detailsSubmitted ? "Submitted" : "Incomplete"}
         </span>
       </div>
       </div>
@@ -179,8 +179,8 @@ const handleNext = () => {
 
       {/* READY MESSAGE */}
       {account.payoutsEnabled && (
-        <div className="p-3 bg-green-50 border rounded-lg text-green-700 font-medium">
-          ✅ Your account is fully verified and ready for payouts
+        <div className="p-3 bg-gold text-white border rounded-lg font-medium">
+          Your account is fully verified and ready for payouts
         </div>
       )}
      <div className="mt-6 border rounded-2xl p-5 shadow-sm bg-white">
@@ -223,8 +223,8 @@ const handleNext = () => {
           <span
             className={`text-xs px-2 py-1 rounded-full ${
               isDisputedRelease
-                ? "bg-yellow-100 text-yellow-700"
-                : "bg-green-100 text-green-700"
+                ? "bg-accent text-white"
+                : "bg-gold text-white"
             }`}
           >
             {isDisputedRelease ? "Disputed" : "Paid"}

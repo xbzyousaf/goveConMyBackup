@@ -192,7 +192,7 @@ export default function VendorSignup() {
               <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
               <h2 className="text-2xl font-bold mb-4">Application Approved!</h2>
               <p className="text-muted-foreground mb-6">
-                Congratulations! Your vendor profile has been approved and is now live on GovScale Alliance.
+                Congratulations! Your vendor profile has been approved and is now live on PROOF.
               </p>
               <p className="text-sm text-muted-foreground">
                 Redirecting to your dashboard...
@@ -212,7 +212,7 @@ export default function VendorSignup() {
         <div className="mb-8">
           <Badge variant="outline" className="mb-4">Vendor Application</Badge>
           <h1 className="text-4xl font-bold mb-2" data-testid="text-page-title">
-            Join <span className="gradient-text">GovScale Alliance</span> as a Vendor
+            Join <span className="gradient-text">PROOF</span> as a Vendor
           </h1>
           <p className="text-lg text-muted-foreground">
             Complete this application to offer your services to government contractors. All applications are reviewed by our AI vetting system to ensure quality and compliance.

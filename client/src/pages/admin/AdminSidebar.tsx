@@ -25,7 +25,7 @@ const nav = [
 export function AdminSidebar() {
   return (
     <aside className="w-64 bg-background border-r">
-      <div className="p-6 font-bold text-lg">GovScale Admin</div>
+      <div className="p-6 font-bold text-lg">PROOF Admin</div>
 
       <nav className="space-y-1 px-3">
         {nav.map(({ label, href, icon: Icon }) => (

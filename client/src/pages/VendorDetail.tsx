@@ -167,7 +167,7 @@ export default function VendorDetail() {
                     {vendor.certifications.map((cert, index) => (
                       <Badge key={index} variant="outline" className="text-sm" data-testid={`badge-cert-${index}`}>
                         {cert === 'MBE Certified' && <Award className="w-4 h-4 mr-1" />}
-                        {cert === 'GovCon Experienced' && <Shield className="w-4 h-4 mr-1" />}
+                        {cert === 'PROOF Experienced' && <Shield className="w-4 h-4 mr-1" />}
                         {cert}
                       </Badge>
                     ))}

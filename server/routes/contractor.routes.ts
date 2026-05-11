@@ -1,14 +1,14 @@
 import { Router } from "express";
 import { isAuthenticated } from "../middleware/auth.middleware";
-import { getUserId } from "server/utills/auth.util";
-import { storage } from "server/storage";
-import { upload } from "server/utills/upload.util";
+import { getUserId } from "../utills/auth.util";
+import { storage } from "../storage";
+import { upload } from "../utills/upload.util";
 import OpenAI from "openai";
-import { stripe } from "server/lib/stripe";
-import { Gap, GapType } from '@shared/types/gaps';
+import { stripe } from "../lib/stripe";
+import { Gap, GapType } from '../../shared/types/gaps';
 import { z } from "zod";
-import { isContractor } from "server/middleware/contractor.middleware";
-import { SERVICE_CATEGORIES } from "@shared/types/service";
+import { isContractor } from "../middleware/contractor.middleware";
+import { SERVICE_CATEGORIES } from "../../shared/types/service";
 
 const router = Router();
 if (!process.env.OPENAI_API_KEY) {
@@ -325,6 +325,41 @@ try{
         stripeCustomerId: customerId,
     });
     }
+    const { plan } = req.body;
+    
+    let priceId: string | undefined;
+
+    if (plan === "pilot") {
+      priceId = process.env.STRIPE_PILOT_PRICE_ID;
+    }
+
+    if (plan === "beta") {
+      const MAX_BETA_SLOTS = parseInt(
+        process.env.MAX_BETA_SLOTS_LIMIT || "1000"
+      );
+
+      const SIMULATED_FILL = parseInt(
+        process.env.SIMULATED_FILL_LIMIT || "642"
+      );
+
+      const realUserCount = await storage.getUserCount();
+
+      const usedSlots = realUserCount + SIMULATED_FILL;
+
+      if (usedSlots >= MAX_BETA_SLOTS) {
+        return res.status(403).json({
+          message: "Beta program is full",
+        });
+      }
+
+      priceId = process.env.STRIPE_BETA_PRICE_ID;
+    }
+
+    if (!priceId) {
+      return res.status(400).json({
+        message: "Invalid plan selected",
+      });
+    }
 
     const session = await stripe.checkout.sessions.create({
     customer: customerId,
@@ -333,7 +368,7 @@ try{
 
     line_items: [
         {
-        price: process.env.STRIPE_PREMIUM_PRICE_ID!,
+        price: priceId,
         quantity: 1,
         },
     ],
@@ -382,7 +417,7 @@ router.post("/subscription/cancel", isAuthenticated, isContractor, async (req, r
     if (!userId) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-    const sub = await storage.getActiveSubscriptionByUserId(userId);
+    const sub = await storage.getSubscriptionByUserId(userId);
     console.log('new', sub, userId)
     if (!sub) {
       return res.status(404).json({ message: "No active subscription" });
@@ -412,25 +447,72 @@ router.post("/subscription/resume", isAuthenticated, isContractor, async (req, r
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const sub = await storage.getActiveSubscriptionByUserId(userId);
+    const user = await storage.getUser(userId);
+    const sub = await storage.getSubscriptionByUserId(userId);
 
-    if (!sub) {
-      return res.status(404).json({ message: "No subscription found" });
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
     }
 
-   const updated = await stripe.subscriptions.update(
-      sub.stripeSubscriptionId!,
-      {
+    // ✅ CASE 1: Active but cancel scheduled → RESUME
+    if (sub && sub.status === "active" && sub.cancelAtPeriodEnd) {
+      await stripe.subscriptions.update(sub.stripeSubscriptionId!, {
         cancel_at_period_end: false,
-      }
-    );
+      });
 
-    // 🔥 ADD THIS
-    await storage.updateSubscriptionDetails(sub.stripeSubscriptionId!, {
-      cancelAtPeriodEnd: false,
+      await storage.updateSubscriptionDetails(sub.stripeSubscriptionId!, {
+        cancelAtPeriodEnd: false,
+      });
+
+      return res.json({ type: "resumed" });
+    }
+
+    // ✅ CASE 2: Expired / canceled → CREATE NEW CHECKOUT
+    const profile = await storage.getUserMaturityProfile(userId);
+
+    let customerId = profile?.stripeCustomerId;
+
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email,
+      });
+
+      customerId = customer.id;
+
+      await storage.upsertUserMaturityProfile({
+        userId,
+        stripeCustomerId: customerId,
+      });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      payment_method_types: ["card"],
+      mode: "subscription",
+
+      line_items: [
+        {
+          price: process.env.STRIPE_PILOT_PRICE_ID!,
+          quantity: 1,
+        },
+      ],
+
+      client_reference_id: userId,
+      subscription_data: {
+        metadata: {
+          userId,
+        },
+      },
+
+      success_url: `${process.env.APP_URL}/billing`,
+      cancel_url: `${process.env.APP_URL}/marketplace`,
     });
 
-    res.json({ message: "Subscription resumed" });
+    return res.json({
+      type: "checkout",
+      url: session.url,
+    });
+
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
@@ -581,9 +663,9 @@ try {
     }
 
     Maturity Stage Criteria:
-    - Startup (0-40 score): New to GovCon, limited/no contracts, basic registrations incomplete, small team, learning phase
-    - Growth (41-70 score): Some GovCon experience, 1-3 contracts, registrations complete, building capabilities, seeking more opportunities
-    - Scale (71-100 score): Established GovCon player, multiple contracts, strong past performance, specialized capabilities, scaling operations
+    - Startup (0-40 score): New to PROOF, limited/no contracts, basic registrations incomplete, small team, learning phase
+    - Growth (41-70 score): Some PROOF experience, 1-3 contracts, registrations complete, building capabilities, seeking more opportunities
+    - Scale (71-100 score): Established PROOF player, multiple contracts, strong past performance, specialized capabilities, scaling operations
 
     Otherwise, continue the conversation by asking relevant follow-up questions.
     Also identify business gaps based on missing capabilities.
@@ -605,7 +687,7 @@ try {
 
     Rules:
     - Include gaps based on user's answers AND common government contracting requirements
-    - You may infer standard GovCon gaps even if not explicitly stated
+    - You may infer standard PROOF gaps even if not explicitly stated
     - Do NOT invent random gaps
     - Maximum 5 gaps
     - If user is in startup, prioritize:
@@ -613,7 +695,7 @@ try {
 
     Important:
     - For Startup stage, ALWAYS include at least 3 gaps
-    - Focus on real GovCon gaps such as:
+    - Focus on real PROOF gaps such as:
     - Missing SAM.gov registration
     - Missing DUNS or CAGE code
     - No capability statement
@@ -744,7 +826,7 @@ try {
 
         const GAP_ACTIONS: Record<GapType, string> = {
           legal: "business_structure",
-          certifications: "registrations",
+          certifications: "business_structure",
           cybersecurity: "compliance",
           finance: "financial_setup",
           marketing: "capability_statement",
@@ -770,7 +852,7 @@ try {
             gaps: gaps
         },
         currentFocus: currentFocus,
-        subscriptionTier: existingProfile?.subscriptionTier || 'freemium',
+        subscriptionTier: existingProfile?.subscriptionTier || null,
         });
 
         console.log('[ASSESSMENT CHAT] Assessment complete:', assessmentResult.maturityStage, assessmentResult.readinessScore);
@@ -798,9 +880,13 @@ try {
     nextQuestion: response,
     });
 } catch (error) {
-    console.error("Error in assessment chat:", error);
-    res.status(500).json({ message: "Failed to process assessment" });
-}
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    return res.status(500).json({ message: 'Internal server error' });
+  }
 });
   // Toggle milestone completion
   router.post('/journeys/milestone', isAuthenticated, async (req: any, res) => {
@@ -969,7 +1055,6 @@ router.post('/skip-assessment', isAuthenticated, isContractor, async (req: any, 
       businessStructureProgress: 0,
       businessStrategyProgress: 0,
       executionProgress: 0,
-      subscriptionTier: 'freemium',
       assessmentData: {
         ...(existingProfile?.assessmentData ?? {}),
         status: 'skipped',
@@ -1047,6 +1132,174 @@ router.get('/categories/:categoryId/vendors', isAuthenticated, async (req: any, 
 
     res.status(500).json({ message: "Internal server error" });
   }
+});
+// /api/test/setup-contractor
+router.post('/setup-contractor', async (req: any, res) => {
+  try {
+    console.log('🔥 ROUTE HIT');
+
+    const result = await storage.setupContractorUser();
+
+    if (result.type === 'created') {
+      return res.json({
+        message: 'User created',
+        user: result.user,
+      });
+    }
+
+    if (result.type === 'reset') {
+      return res.json({
+        message: 'User exists, profile reset',
+        user: result.user,
+      });
+    }
+
+    return res.status(400).json({ message: 'Unexpected state' });
+
+  } catch (error) {
+
+    if (error instanceof Error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+router.post('/maturity/reset-stage', isAuthenticated, async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
+
+    if (!userId) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    const { currentStage } = req.body;
+
+    const validStages = ['startup', 'growth', 'scale'];
+    if (!currentStage || !validStages.includes(currentStage)) {
+      return res.status(400).json({ message: "Invalid stage" });
+    }
+
+    // ======================
+    // GET USER PROFILE
+    // ======================
+    const profile = await storage.getUserMaturityProfile(userId);
+
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    // ======================
+    // GET ALL JOURNEYS
+    // ======================
+    const processes = ['business_structure', 'business_strategy', 'execution'];
+
+    const updatedJourneys: any[] = [];
+
+    for (const process of processes) {
+
+      const journeys = await storage.getUserJourneys(userId, process);
+      let journey = journeys.length > 0 ? journeys[0] : null;
+
+      // create if missing (edge case safety)
+      if (!journey) {
+        journey = await storage.createUserJourney({
+          userId,
+          coreProcess: process as any,
+          currentStage,
+          completedMilestones: [],
+          progressPercentage: 0,
+        });
+      }
+
+      // ======================
+      // RESET JOURNEY
+      // ======================
+      const updated = await storage.updateUserJourney(journey.id, {
+        currentStage, // stay same
+        completedMilestones: [],
+        progressPercentage: 0,
+      });
+
+      updatedJourneys.push(updated);
+    }
+
+    // ======================
+    // RESET PROFILE PROGRESS
+    // ======================
+    await storage.upsertUserMaturityProfile({
+      userId,
+      maturityStage: currentStage, // explicitly keep same
+      businessStructureProgress: 0,
+      businessStrategyProgress: 0,
+      executionProgress: 0,
+    });
+
+    return res.json({
+      success: true,
+      message: "Stage reset successfully",
+      stage: currentStage,
+      journeys: updatedJourneys,
+    });
+
+  } catch (error) {
+    console.error('[MATURITY] Error resetting stage:', error);
+
+    return res.status(500).json({
+      message: "Failed to reset stage",
+      error: process.env.NODE_ENV === 'development' ? error : undefined,
+    });
+  }
+});
+router.post('/test/reset-subscription', async (req, res) => {
+  try{
+  const email = 'contractor@gmail.com';
+
+  const user = await storage.getUserByEmail(email);
+
+  if (!user) return res.sendStatus(404);
+
+  await storage.deleteSubscriptionByUserId(user.id);
+
+  await storage.resetUserSubscription(user.id);
+
+  res.json({ success: true });
+  } catch (error) {
+    console.error('[MATURITY] Error resetting stage:', error);
+
+    return res.status(500).json({
+      message: "Failed to reset stage",
+      error: process.env.NODE_ENV === 'development' ? error : undefined,
+    });
+  }
+});
+router.get("/urgency-slots", async (req, res) => {
+  const MAX_BETA_SLOTS = parseInt(
+    process.env.MAX_BETA_SLOTS_LIMIT || "1000"
+  );
+
+  const SIMULATED_FILL = parseInt(
+    process.env.SIMULATED_FILL_LIMIT || "642"
+  );
+
+  const realUserCount = await storage.getUserCount();
+
+  const usedSlots = realUserCount + SIMULATED_FILL;
+
+  let remainingSlots = MAX_BETA_SLOTS - usedSlots;
+
+  if (remainingSlots < 0) {
+    remainingSlots = 0;
+  }
+
+  const betaClosed = remainingSlots <= 0;
+
+  res.json({
+    betaClosed,
+    remainingSlots,
+    usedSlots,
+    maxSlots: MAX_BETA_SLOTS,
+  });
 });
 
 export default router;

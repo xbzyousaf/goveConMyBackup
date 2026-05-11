@@ -35,6 +35,7 @@ export default function Assessment() {
   const [assessmentStatus, setAssessmentStatus] = useState<
     'not_started' | 'in_progress' | 'completed' | 'skipped' | null
   >(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,7 +65,7 @@ export default function Assessment() {
           {
             role: "assistant",
             content:
-              "Welcome to GovScale Alliance! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
+              "Welcome to PROOF! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
           },
         ]);
         return;
@@ -138,18 +139,24 @@ export default function Assessment() {
   };
 
   const handleContinueToDashboard = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: ["/api/maturity-profile"],
-    });
-    setLocation("/dashboard");
-  };
+  setIsNavigating(true);
+
+  await queryClient.invalidateQueries({
+    queryKey: ["/api/maturity-profile"],
+  });
+
+  // 👇 allow UI to update (CRITICAL)
+  await new Promise((r) => setTimeout(r, 300));
+
+  setLocation("/dashboard");
+};
 
   if (isComplete && result) {
     const stageConfig = {
       startup: {
         label: "Startup Stage",
         color: "bg-blue-500",
-        description: "You're in the foundational phase of your GovCon journey",
+        description: "You're in the foundational phase of your PROOF journey",
       },
       growth: {
         label: "Growth Stage",
@@ -233,14 +240,24 @@ export default function Assessment() {
                 </div>
 
                 <Button
-                  size="lg"
-                  className="w-full"
-                  onClick={handleContinueToDashboard}
-                  data-testid="button-continue-dashboard"
-                >
-                  Continue to Your Dashboard
-                  <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
+  size="lg"
+  className="w-full"
+  onClick={handleContinueToDashboard}
+  disabled={isNavigating}
+  data-testid="button-continue-dashboard"
+>
+  {isNavigating ? (
+    <>
+      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+      Redirecting...
+    </>
+  ) : (
+    <>
+      Continue to Your Dashboard
+      <ArrowRight className="ml-2 w-4 h-4" />
+    </>
+  )}
+</Button>
               </div>
             </CardContent>
           </Card>
@@ -258,7 +275,7 @@ export default function Assessment() {
             AI-Powered Assessment
           </Badge>
           <h1 className="text-3xl font-bold mb-2" data-testid="text-page-title">
-            Discover Your GovCon Maturity Level
+            Discover Your PROOF Maturity Level
           </h1>
           <p className="text-muted-foreground">
             Answer a few questions to get personalized guidance and resources

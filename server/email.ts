@@ -7,7 +7,7 @@ import nodemailer from "nodemailer";
 
 export class EmailService {
   // private static readonly FROM_EMAIL = 'noreply@tullisstrategic.com';
-  private static readonly COMPANY_NAME = 'GovScale Alliance';
+  private static readonly COMPANY_NAME = 'PROOF';
 private static transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT),

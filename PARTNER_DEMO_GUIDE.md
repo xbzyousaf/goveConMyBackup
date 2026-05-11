@@ -1,4 +1,4 @@
-# GovScale Alliance - Partner Demo Access Guide
+# PROOF - Partner Demo Access Guide
 
 ## Quick Start for Partners
 
@@ -40,7 +40,7 @@ Your demo accounts are now ready! Here's how to access them:
 
 ## Important: Authentication Note
 
-**GovScale Alliance uses Replit Auth**, which means your partners will need to:
+**PROOF uses Replit Auth**, which means your partners will need to:
 
 1. **Create a Replit account** (free, takes 30 seconds)
 2. **Sign in with Replit** when accessing the app
@@ -52,7 +52,7 @@ Your demo accounts are now ready! Here's how to access them:
 Send them the app link and ask them to:
 1. Click "Sign In"
 2. Create a Replit account (or sign in if they have one)
-3. Authorize GovScale Alliance
+3. Authorize PROOF
 4. Send you their email address they used
 
 ### Step 2: Find Their Replit User IDs

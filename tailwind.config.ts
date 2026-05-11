@@ -76,10 +76,15 @@ export default {
           border: "var(--sidebar-accent-border)"
         },
         status: {
-          online: "rgb(34 197 94)",
-          away: "rgb(245 158 11)",
-          busy: "rgb(239 68 68)",
-          offline: "rgb(156 163 175)",
+          online: "hsl(var(--gold))",
+          away: "hsl(var(--accent))",
+          busy: "hsl(var(--destructive))",
+          offline: "hsl(var(--muted-foreground))",
+        },
+        gold: {
+          DEFAULT: "hsl(var(--gold) / <alpha-value>)",
+          foreground: "hsl(var(--primary-foreground) / <alpha-value>)",
+          border: "hsl(var(--gold) / 0.8)",
         },
       },
       fontFamily: {

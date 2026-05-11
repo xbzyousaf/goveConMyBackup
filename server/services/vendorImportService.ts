@@ -1,7 +1,7 @@
-import { storage } from "server/storage";
+import { storage } from "../storage";
 import { vendorStorage }    from "../storage/vendorStorage";
 import { adminStorage }    from "../storage/adminStorage";
-import { ServiceCategory } from '@shared/types/service';
+import { ServiceCategory } from "../../shared/types/service";
 
 const CHUNK_SIZE = process.env.CHUNK_SIZE ? parseInt(process.env.CHUNK_SIZE) : 50;
 function resolveCompanyName(companyName?: string, email?: string): string {

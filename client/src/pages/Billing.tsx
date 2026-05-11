@@ -2,24 +2,51 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/Header";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 
 export default function BillingPage() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+  const url = new URL(window.location.href);
+
+  if (url.searchParams.get("success")) {
+    toast.success("Subscription activated successfully 🎉");
+  }
+
+  if (url.searchParams.get("canceled")) {
+    toast.error("Payment was canceled");
+  }
+}, []);
 
   const { data: sub } = useQuery({
     queryKey: ["/api/subscription/current"],
   });
+  const { data: gateData } = useQuery({
+    queryKey: ["/api/urgency-slots"],
+  });
+    
+    console.log("Stripe URL missing", sub);
 
   const [confirmAction, setConfirmAction] = useState<null | "cancel" | "resume">(null);
-
+  const [isSubscribing, setIsSubscribing] = useState<null | "pilot" | "beta">(null);
   // =============================
   // ✅ REAL STATUS FROM DB
   // =============================
-  const status = sub?.status || "free";
+  const status = sub?.status || "inactive";
 
   const isActive = status === "active";
   const isCanceled = status === "canceled";
   const isPastDue = status === "past_due";
+  const currentPlan = (
+  sub?.subscriptionTier ||
+  sub?.planName ||
+  ""
+).toLowerCase();
 
   const isCancelScheduled = sub?.cancelAtPeriodEnd === true;
 
@@ -28,31 +55,76 @@ export default function BillingPage() {
     new Date(sub.currentPeriodEnd).getTime() < Date.now();
 
   // ✅ CURRENT PLAN DETECTION
-  const isOnMonthly = isActive && !isExpired;
-    const isOnFree = !isOnMonthly;
+  const isOnPilot = isActive && !isExpired;
+    const isOnFree = !isOnPilot;
 
   // ✅ MUTATIONS
-  const cancelMutation = useMutation({
-    mutationFn: async () => {
-      await fetch("/api/subscription/cancel", { method: "POST" });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/subscription/current"] });
-      setConfirmAction(null);
-    },
-  });
+ const cancelMutation = useMutation({
+  mutationFn: async () => {
+    await fetch("/api/subscription/cancel", { method: "POST" });
+  },
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/subscription/current"] });
+    setConfirmAction(null);
 
-  const resumeMutation = useMutation({
-    mutationFn: async () => {
-      await fetch("/api/subscription/resume", { method: "POST" });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/subscription/current"] });
-      setConfirmAction(null);
-    },
-  });
+    toast({
+      title: "Subscription Cancelled",
+      description: "Your subscription will end at the billing period.",
+    });
+  },
+  onError: () => {
+    toast({
+      title: "Error",
+      description: "Failed to cancel subscription",
+      variant: "destructive",
+    });
+  },
+});
 
-  const subscribe = async (plan: "monthly" | "yearly") => {
+const handleResume = async () => {
+  try {
+    const res = await fetch("/api/subscription/resume", {
+      method: "POST",
+    });
+
+    const data = await res.json();
+
+    // 🔥 redirect case (resubscribe)
+    if (data.type === "checkout") {
+      toast({
+        title: "Redirecting...",
+        description: "Taking you to secure payment page",
+      });
+
+      window.location.href = data.url;
+      return;
+    }
+
+    // ✅ normal resume
+    queryClient.invalidateQueries({ queryKey: ["/api/subscription/current"] });
+    setConfirmAction(null);
+
+    toast({
+      title: "Subscription Resumed",
+      description: "Your subscription is active again.",
+    });
+
+  } catch (err) {
+    toast({
+      title: "Error",
+      description: "Failed to resume subscription",
+      variant: "destructive",
+    });
+  }
+};
+const subscribe = async (plan: "pilot" | "beta") => {
+  if (isSubscribing) return;
+
+  setIsSubscribing(plan);
+
+  await new Promise((r) => setTimeout(r, 300));
+
+  try {
     const res = await fetch("/api/subscription", {
       method: "POST",
       credentials: "include",
@@ -63,40 +135,63 @@ export default function BillingPage() {
     });
 
     const data = await res.json();
-    console.log("Stripe response:", data);
+
     if (!data?.url) {
-      console.error("Stripe URL missing", data);
-      return alert(data?.message || "Checkout failed");
+      toast({
+        title: "Error",
+        description: data?.message || "Checkout failed",
+        variant: "destructive",
+      });
+
+      setIsSubscribing(null);
+      return;
     }
+
+    toast({
+      title: "Redirecting...",
+      description: "Opening Stripe checkout",
+    });
+
     window.location.href = data.url;
-  };
+
+  } catch (err) {
+    toast({
+      title: "Error",
+      description: "Something went wrong",
+      variant: "destructive",
+    });
+
+    setIsSubscribing(null);
+  }
+};
 
   // =============================
   // ✅ PLANS (UNCHANGED)
   // =============================
   const plans = [
-    {
-      id: "free",
-      name: "Free",
-      price: "$0",
-      description: "Basic access",
-      features: ["Limited Marketplace", "Basic Visibility"],
-    },
-    {
-      id: "monthly",
-      name: "Monthly",
-      price: "$9.97",
-      description: "Billed monthly",
-      features: ["Full Access", "Templates", "Priority Support"],
-    },
-    {
-      id: "yearly",
-      name: "Yearly",
-      price: "$119.64",
-      description: "Billed yearly (save more)",
-      features: ["Full Access", "Templates", "Priority Support"],
-    },
-  ];
+  {
+    id: "beta",
+    name: "Beta",
+    price: "$0",
+    description: "Assessment with blurred report",
+    features: [
+      "AI Audit",
+      "Readiness Score",
+      "Blurred Report",
+    ],
+  },
+  {
+    id: "pilot",
+    name: "Pilot",
+    price: "$49.95/month",
+    description: "Full access",
+    features: [
+      "Full Report",
+      "Templates",
+      "Vendor Matching",
+    ],
+  },
+];
 
   return (
     <div>
@@ -110,7 +205,9 @@ export default function BillingPage() {
         ============================= */}
         <div className="border p-6 rounded-lg space-y-3">
           <p>
-            <b>Plan:</b> {isOnMonthly ? "Monthly" : "Free"}
+            <b>Plan:</b>{" "} {currentPlan
+                ? currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1)
+                : "No Subscription"}
           </p>
 
           <p>
@@ -118,7 +215,7 @@ export default function BillingPage() {
             <span
               className={
                 isActive
-                  ? "text-green-600"
+                  ? "text-gold"
                   : isPastDue
                   ? "text-yellow-600"
                   : "text-red-600"
@@ -153,23 +250,39 @@ export default function BillingPage() {
             ✅ PLANS GRID (FIXED LOGIC ONLY)
         ============================= */}
         <div className="grid md:grid-cols-3 gap-6">
-          {plans.map((plan) => {
+          {plans
+            .filter((plan) => {
+              // hide beta only for new users
+              if (
+                plan.id === "beta" &&
+                gateData?.betaClosed &&
+                currentPlan !== "beta"
+              ) {
+                return false;
+              }
+
+              return true;
+            })
+            .map((plan) => {
             // ✅ FIXED CURRENT PLAN LOGIC
             let isCurrent = false;
 
-            if (plan.id === "monthly" && isOnMonthly) {
-            isCurrent = true;
+            if (plan.id === "beta") {
+              isCurrent = currentPlan === "beta";
             }
 
-            if (plan.id === "free" && isOnFree) {
-            isCurrent = true;
+            if (plan.id === "pilot") {
+              isCurrent =
+                currentPlan === "pilot" &&
+                isActive &&
+                !isExpired;
             }
 
             return (
               <div
                 key={plan.id}
                 className={`border rounded-lg p-6 space-y-4 ${
-                  isCurrent ? "border-green-500" : ""
+                  isCurrent ? "border-gold" : ""
                 }`}
               >
                 <h2 className="text-xl font-semibold">{plan.name}</h2>
@@ -185,48 +298,74 @@ export default function BillingPage() {
 
                 {/* ✅ CURRENT PLAN TEXT */}
                 {isCurrent && (
-                  <p className="text-green-600">Current Plan</p>
+                  <p className="text-gold">Current Plan</p>
                 )}
 
                 {/* =============================
                     ✅ MONTHLY PLAN
                 ============================= */}
-                {plan.id === "monthly" && (
+                {plan.id === "beta" && (
+  <>
+    {!gateData?.betaClosed && !isCurrent && (
+      <Button
+        onClick={() => subscribe("beta")}
+        disabled={isSubscribing === "beta"}
+      >
+        {isSubscribing === "beta" ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Redirecting...
+          </>
+        ) : (
+          "Join Beta Free"
+        )}
+      </Button>
+    )}
+
+    {!gateData?.betaClosed && (
+      <p className="text-sm text-muted-foreground">
+        {gateData?.remainingSlots} slots remaining
+      </p>
+    )}
+  </>
+)}
+
+                {plan.id === "pilot" && (
                   <>
-                  
-                    {/* SUBSCRIBE */}
-                    {( !sub) && (
-                      <Button onClick={() => subscribe("monthly")}>
-                        Subscribe ($9.97/month)
+                    {/* ✅ SUBSCRIBE (only if no active plan) */}
+                    {currentPlan !== "pilot" && (
+                      <Button
+                        onClick={() => subscribe("pilot")}
+                        disabled={isSubscribing === "pilot"}
+                      >
+                        {isSubscribing === "pilot" ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Redirecting...
+                          </>
+                        ) : (
+                          "Upgrade to Pilot"
+                        )}
                       </Button>
                     )}
 
-                    {/* CANCEL */}
+                    {/* ✅ CANCEL (only if active & not already cancel scheduled) */}
                     {isCurrent && isActive && !isCancelScheduled && (
                       <Button
-                        variant="destructive"
+                        className="bg-accent"
                         onClick={() => setConfirmAction("cancel")}
                       >
                         Cancel
                       </Button>
                     )}
 
-                    {/* RESUME */}
-                    {sub && isExpired && (
-                    <Button onClick={() => setConfirmAction("resume")}>
-                        Resume
-                    </Button>
+                    {/* ✅ RESUME (only if expired or canceled) */}
+                   {(isCancelScheduled || isExpired || isCanceled) && (
+                      <Button onClick={() => setConfirmAction("resume")}>
+                        {isExpired || isCanceled ? "Resubscribe" : "Resume"}
+                      </Button>
                     )}
                   </>
-                )}
-
-                {/* =============================
-                    // ❌ YEARLY PLAN
-                ============================= */}
-                {plan.id === "yearly" && (
-                  <p className="text-sm text-gray-400">
-                    Coming soon
-                  </p>
                 )}
               </div>
             );
@@ -265,7 +404,7 @@ export default function BillingPage() {
                   if (confirmAction === "cancel") {
                     cancelMutation.mutate();
                   } else {
-                    resumeMutation.mutate();
+                    handleResume();
                   }
                 }}
               >

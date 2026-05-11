@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { isAuthenticated } from "../middleware/auth.middleware";
-import { getUserId } from "server/utills/auth.util";
-import { storage } from "server/storage";
-import { upload } from "server/utills/upload.util";
-import { isVendor } from "server/middleware/vendor.middleware";
-import { stripe } from "server/lib/stripe";
-import { vendorStorage } from "server/storage/vendorStorage";
+import { getUserId } from "../utills/auth.util";
+import { storage } from "../storage";
+import { upload } from "../utills/upload.util";
+import { isVendor } from "../middleware/vendor.middleware";
+import { stripe } from "../lib/stripe";
+import { vendorStorage } from "../storage/vendorStorage";
 import OpenAI from "openai";
 
 const router = Router();
@@ -290,8 +290,15 @@ router.post("/vendor-profile", isAuthenticated, isVendor, upload.single("avatar"
 
       res.status(200).json(profile);
     } catch (error) {
-      console.error("Error creating vendor profile:", error);
-      res.status(500).json({ message: "Failed to create vendor profile" });
+      if (error instanceof Error) {
+        return res.status(400).json({
+          message: error.message
+        });
+      }
+
+      res.status(500).json({
+        message: "Internal server error"
+      });
     }
   },
 );
@@ -373,7 +380,7 @@ router.post("/vendor-profile", isAuthenticated, isVendor, upload.single("avatar"
             messages: [
             {
                 role: "system",
-                content: `You are an AI vetting system for GovScale Alliance, an AI-powered platform helping government contractors scale their businesses. 
+                content: `You are an AI vetting system for PROOF, an AI-powered platform helping government contractors scale their businesses. 
 
             Your job is to review vendor applications and determine if they should be approved based on:
             1. Professionalism and completeness of application

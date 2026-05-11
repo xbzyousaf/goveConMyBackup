@@ -22,7 +22,7 @@ export const serviceCategoryEnum = pgEnum("service_category", ["legal", "hr", "f
 export const maturityStageEnum = pgEnum("maturity_stage", ["startup", "growth", "scale"]);
 export const coreProcessEnum = pgEnum("core_process", ["business_structure", "business_strategy", "execution"]);
 export const contentTypeEnum = pgEnum("content_type", ["playbook", "template", "guide", "webinar", "faq", "checklist"]);
-export const subscriptionTierEnum = pgEnum("subscription_tier", ["freemium", "premium"]);
+export const subscriptionTierEnum = pgEnum("subscription_tier", ["beta", "pilot"]);
 export const vendorJourneyStageEnum = pgEnum("vendor_journey_stage", ["awareness", "application", "vetting", "onboarding", "active", "inactive"]);
 export const serviceTierEnum = pgEnum("service_tier", ["free","standard","premium"]);
 export const messageTypeEnum = pgEnum("message_type", ["text", "system", "file", ]);
@@ -85,7 +85,7 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   isFeatured: boolean("is_featured").default(false),
   // Vendor journey & monetization
   journeyStage: vendorJourneyStageEnum("journey_stage").default("application"),
-  subscriptionTier: subscriptionTierEnum("subscription_tier").default("freemium"),
+  subscriptionTier: subscriptionTierEnum("subscription_tier").default("beta"),
   leadCreditsBalance: integer("lead_credits_balance").default(0),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
@@ -389,7 +389,7 @@ export const userMaturityProfiles = pgTable("user_maturity_profiles", {
   businessStructureProgress: integer("business_structure_progress").default(0), // 0-100%
   businessStrategyProgress: integer("business_strategy_progress").default(0),
   executionProgress: integer("execution_progress").default(0),
-  subscriptionTier: subscriptionTierEnum("subscription_tier").default("freemium"),
+  subscriptionTier: subscriptionTierEnum("subscription_tier"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   // --- CONTRACTOR PERFORMANCE ---

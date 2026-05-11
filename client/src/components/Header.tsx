@@ -12,6 +12,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { getFirstLetter } from "../utility/textUtils"
+import Logo from "@/assets/PROOF LOGO.png";
+import { UrgencyBanner } from "../components/UrgencyBanner";
+import { BlurGate } from "./gates/BlurGate";
+import { UserMaturityProfile } from "@shared/types/maturity-profile";
 interface HeaderProps {
   onSearch?: (query: string) => void;
   notificationCount?: number;
@@ -23,6 +27,12 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { toggleMessages } = useMessages();
+   const { data: profile, isLoading, isError, error } = useQuery<UserMaturityProfile>({
+      queryKey: ['/api/maturity-profile'],
+      retry: false,
+    });
+  const isPaidUser = profile?.subscriptionTier === "pilot";
+  const isFreeUser = !isPaidUser;
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -88,6 +98,11 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      {/* ✅ Urgency Banner (ADD HERE) */}
+      {user?.userType !== "admin" && (
+        <UrgencyBanner />
+      )}
+  {/* Existing Header */}
       <div className="container flex h-14 items-center justify-between px-4">
         <div className="flex items-center gap-6">
           <Link href={
@@ -98,10 +113,13 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                   : "/dashboard"
             }>
             <div className="flex items-center gap-2 cursor-pointer hover-elevate active-elevate-2 px-2 py-1 rounded-md transition-all">
-              <div className="h-8 w-8 rounded-md gradient-bg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">GS</span>
-              </div>
-              <span className="font-semibold text-lg gradient-text">GovScale Alliance</span>
+              <span className="font-semibold text-lg">
+                <img
+                src={Logo}
+                alt="PROOF Logo"
+                className="h-12 object-contain"
+              />
+              </span>
             </div>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
@@ -128,12 +146,13 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                     Dashboard
                   </Button>
                 </Link>
-
+                <BlurGate isLocked={isFreeUser } showButtonOnClick={true} onUnlock={() => setLocation("/billing")} >
                 <Link href="/marketplace">
                   <Button variant="ghost" className="text-sm">
                     Marketplace
                   </Button>
                 </Link>
+              </BlurGate>
               </>
             )}
           </nav>
