@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 
 export function UrgencyBanner() {
   const [slots, setSlots] = useState<number | null>(null);
@@ -32,10 +33,15 @@ export function UrgencyBanner() {
   if (slots === null) return null;
 
   return (
-    <div className="bg-primary text-gold text-center py-2 text-sm font-medium tracking-wide">
-      {slots > 0
-      ? `Hurry! Only ${slots} Free PROOF Audits remaining`
-      : `⚠️ Free Access Closed — Upgrade Required`}
+    <div className="bg-primary text-gold text-center py-2 text-sm font-medium tracking-wide flex items-center justify-center gap-2">
+      {slots > 0 ? (
+        `Hurry! Only ${slots} Free PROOF Audits remaining`
+      ) : (
+        <>
+          <AlertTriangle className="w-4 h-4" />
+          <span>Free Access Closed — Upgrade Required</span>
+        </>
+      )}
     </div>
   );
 }

@@ -240,7 +240,6 @@ router.get("/contractor/:id/reviews", isAuthenticated, async (req, res) => {
   try {
     const contractorId = req.params.id;
     const contractor = await storage.getContractorById(contractorId);
-    console.log(contractor, "okkk");
     if (!contractor) {
       return res.status(404).json({ message: "Contractor not found" });
     }

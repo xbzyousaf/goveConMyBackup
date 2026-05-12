@@ -1,11 +1,12 @@
 import "dotenv/config";
 import { db } from "./server/db";
-import { users, wallets, processes, stages, milestones, categories } from "./shared/schema";
+import { users, wallets, processes, stages, milestones, categories, platformFee } from "./shared/schema";
 import { AuthService } from "./server/auth";
 import { and, eq } from "drizzle-orm";
 import type { InferInsertModel } from "drizzle-orm";
 
 type UserInsert = InferInsertModel<typeof users>;
+type feesInsert = InferInsertModel<typeof platformFee>;
 type ProcessInsert = InferInsertModel<typeof processes>;
 type StageInsert = InferInsertModel<typeof stages>;
 type MilestoneInsert = InferInsertModel<typeof milestones>;
@@ -441,6 +442,38 @@ async function seed() {
     { email: "vendor@gmail.com", firstName: "Vendor", lastName: "1", password: passwordHash, userType: "vendor", isEmailVerified: true },
     { email: "contractor@gmail.com", firstName: "Contractor", lastName: "1", password: passwordHash, userType: "contractor", isEmailVerified: true },
   ];
+   const seedFees: feesInsert[] = [
+    { type: "fixed", value: 20 , isActive: true},
+    { type: "percentage", value: 20, isActive: false},
+  ];
+  // --- Seed Platform Fees ---
+for (const fee of seedFees) {
+  const existingFee = await db
+    .select()
+    .from(platformFee)
+    .where(
+      and(
+        eq(platformFee.type, fee.type),
+        eq(platformFee.value, fee.value)
+      )
+    );
+
+  if (existingFee.length) {
+    console.log(
+      `⚠️ Skipping fee: ${fee.type} ${fee.value}`
+    );
+  } else {
+    await db.insert(platformFee).values({
+      type: fee.type,
+      value: fee.value,
+      isActive: fee.isActive,
+    });
+
+    console.log(
+      `💵 Platform fee created: ${fee.type} ${fee.value}`
+    );
+  }
+}
   // --- 3️⃣ Seed Categories ---
 for (const cat of CATEGORY_SEED) {
   const existing = await db

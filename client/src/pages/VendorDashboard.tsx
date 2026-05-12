@@ -50,25 +50,11 @@ const { data } = useQuery<{
     return res.json();
   }
 });
-const applyFilter = (requests: ServiceRequest[]) => {
-  return requests.filter((request) => {
-    const statusMatch =
-      statusFilter === "all" ||
-      (statusFilter === "priority" && PRIORITY_STATUSES.includes(request.status)) ||
-      request.status === statusFilter;
+const serviceRequests = data?.data ?? [];
 
-    const searchMatch =
-      search === "" ||
-      request.title?.toLowerCase().includes(search.toLowerCase()) ||
-      request.description?.toLowerCase().includes(search.toLowerCase()) ||
-      request.service?.name?.toLowerCase().includes(search.toLowerCase());
-
-    return statusMatch && searchMatch;
-  });
-};
-const rawRequests = data?.data ?? [];
-const serviceRequests = applyFilter(rawRequests);
-const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
+const totalPages = Math.ceil(
+  Number(data?.total || 0) / PAGE_SIZE
+);
   // Fetch vendor profile
   const { data: vendorProfile, isLoading: profileLoading } = useQuery({
     queryKey: ["/api/vendor-profile"],
@@ -153,7 +139,7 @@ const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
 
     title?: string; // request title
   };
- const allRequests = serviceRequests;
+ const allRequests = data?.data ?? [];
   const mockStats = {
     totalRequests: allRequests.length,
     completedRequests: allRequests.filter(r => r.status === 'completed').length,

@@ -72,7 +72,7 @@ export default function CategoryVendors() {
                       <p className="text-sm font-medium">{vendor?.companyName}</p>
                       <p className="text-xs text-muted-foreground">{vendor?.title}</p>
                     </div>
-                <span className="bg-green-100 text-green-700 px-2 py-1 text-xs rounded font-semibold">
+                <span className="bg-gold text-white px-2 py-1 text-xs rounded font-semibold">
                   {vendor.subscriptionTier?.toUpperCase()}
                 </span>
               </div>
@@ -96,7 +96,7 @@ export default function CategoryVendors() {
 
                 <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4" />
-                    <span>(coming soon)</span>
+                    <span>{vendor.phone ?? 'N/A'}</span>
                 </div>
 
                 {/* Categories */}

@@ -425,5 +425,47 @@ router.delete("/categories/:id", isAuthenticated, isAdmin, async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 });
+router.get( "/platform-fees", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const data = await adminStorage.getPlatformFees();
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({
+        message: error.message,
+      });
+    }
+  }
+);
+router.get("/platform-fees/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const data =
+        await adminStorage.getPlatformFee(
+          req.params.id
+        );
+
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({
+        message: error.message,
+      });
+    }
+  }
+);
+router.put( "/platform-fees/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const fee =
+        await adminStorage.updatePlatformFee(
+          req.params.id,
+          req.body
+        );
+
+      res.json(fee);
+    } catch (error: any) {
+      res.status(400).json({
+        message: error.message,
+      });
+    }
+  }
+);
 
 export default router;

@@ -1,4 +1,4 @@
-import { categories, milestones, processes, serviceRequests, services, stages, users, vendorImports, vendorProfiles, type VendorProfile, } from "@shared/schema";
+import { categories, InsertPlatformFee, milestones, platformFee, processes, serviceRequests, services, stages, users, vendorImports, vendorProfiles, type VendorProfile, } from "@shared/schema";
 import { db } from "../db";
 import { and, desc, eq, sql } from "drizzle-orm";
 
@@ -389,6 +389,58 @@ async deleteCategory(id: string): Promise<boolean> {
     .returning({ id: categories.id });
 
   return result.length > 0;
+},
+// ================= PLATFORM FEE =================
+// Get all platform fees
+async getPlatformFees() {
+  return await db
+    .select()
+    .from(platformFee)
+    .orderBy(desc(platformFee.createdAt));
+},
+
+// Get single platform fee
+async getPlatformFee(id: string) {
+  const result = await db
+    .select()
+    .from(platformFee)
+    .where(eq(platformFee.id, id))
+    .limit(1);
+
+  return result[0] || null;
+},
+
+// Update platform fee
+async updatePlatformFee(
+  id: string,
+  data: InsertPlatformFee
+) {
+
+  // deactivate other active fees
+  if (data.isActive) {
+    await db
+      .update(platformFee)
+      .set({
+        isActive: false,
+      })
+      .where(eq(platformFee.isActive, true));
+  }
+
+  const [fee] = await db
+    .update(platformFee)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(platformFee.id, id))
+    .returning();
+
+  return fee;
+},
+async getActivePlatformFee() {
+  return await db.query.platformFee.findFirst({
+    where: eq(platformFee.isActive, true),
+  });
 },
 // end===============================
 };

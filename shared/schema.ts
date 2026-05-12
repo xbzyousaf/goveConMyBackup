@@ -30,6 +30,7 @@ export const extentionStatusEnum = pgEnum("status", ["pending", "accepted", "rej
 export const escrowStatusEnum = pgEnum("escrow_status", ["held", "released", "refunded", "disputed"]);
 export const paymentStatus = pgEnum("payment_status", ["payment_pending", "payment_received", "escrow_held", "released", "refunded", "failed"]);
 export const businessTypeEnum = pgEnum("business_type", ["commercial", "government", "both",]);
+export const platformFeeTypeEnum = pgEnum("platform_fee_type", ["percentage", "fixed"]);
 
 
 export type BusinessType = (typeof businessTypeEnum.enumValues)[number];
@@ -228,6 +229,18 @@ export const serviceTiers = pgTable("service_tiers", {
     deliveryDeadline: timestamp("delivery_deadline"),
     deliveredAt: timestamp("delivered_at"),
     completedAt: timestamp("completed_at"),
+    // Fee fields
+    platformFeeId: uuid("platform_fee_id").references(() => platformFee.id),
+    platformFeeType: platformFeeTypeEnum("platform_fee_type"),
+    platformFeeValue: integer("platform_fee_value"),
+    platformFeeAmount: decimal("platform_fee_amount", {
+      precision: 10,
+      scale: 2,
+    }),
+    vendorEarning: decimal("vendor_earning", {
+      precision: 10,
+      scale: 2,
+    }),
     
     aiAnalysis: text("ai_analysis"),
     estimatedCost: decimal("estimated_cost", { precision: 10, scale: 2 }),
@@ -604,6 +617,27 @@ export const categories = pgTable("categories", {
   keyDeliverables: text("key_deliverables").array(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+export const platformFee = pgTable("platform_fee", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    type: platformFeeTypeEnum("type").notNull(),
+    value: integer("value").default(0).notNull(), // e.g. 10 for 10% or 5 for $5
+    isActive: boolean("is_active").default(true),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  }
+);
+export const insertPlatformFeeSchema =
+  createInsertSchema(platformFee).omit({
+    id: true,
+    createdAt: true,
+    updatedAt: true,
+  });
+
+export type InsertPlatformFee =
+  z.infer<typeof insertPlatformFeeSchema>;
+
+export type PlatformFee =
+  typeof platformFee.$inferSelect;
 
 // Relations
 

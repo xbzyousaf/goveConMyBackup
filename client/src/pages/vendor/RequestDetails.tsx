@@ -16,7 +16,7 @@ import { Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ServiceRequestCard } from "@/components/service-requests/ServiceRequestCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
-import { getFirstLetter } from "../../utility/textUtils"
+import { getFirstLetter, truncateText } from "../../utility/textUtils"
 
 export default function RequestDetails() {
   const [, params] = useRoute("/vendor/requests/:id");
@@ -98,21 +98,48 @@ const openDispute = useMutation({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
+          }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(
+            data.message ||
+            "Failed to update status"
+          );
+        }
+
+        return data;
+      },
+
+      onSuccess: () => {
+        toast({
+          title: "Status Updated",
+          description:
+            "Service request updated successfully",
         });
 
-        if (!res.ok) throw new Error("Failed to update status");
+        queryClient.invalidateQueries({
+          queryKey: ["service-request", id],
+        });
 
-        return res.json();
-        },
-        onSuccess: () => {
-            toast({
-            title: "Status Updated",
-            description: "Service request updated successfully",
-            });
+        queryClient.invalidateQueries({
+          queryKey: [
+            "/api/service-requests",
+          ],
+        });
+      },
 
-            queryClient.invalidateQueries({ queryKey: ["service-request", id] });
-            queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
-        },
+      onError: (error: any) => {
+        toast({
+          title: "Error",
+          description:
+            error.message ||
+            "Failed to update status",
+          variant: "destructive",
+        });
+      },
     });
 
     const [reviewModal, setReviewModal] = useState(false);
@@ -323,10 +350,10 @@ const handleDeliver = async () => {
                         Service
                     </p>
                     <CardTitle className="font-semibold text-lg">
-                        {request.service?.name}
+                        {truncateText(request.service?.name, 60)}
                     </CardTitle>
                     <CardDescription>
-                        {request.service?.description}
+                        {truncateText(request.service?.description, 100)}
                     </CardDescription>
                     <hr />
                 </CardHeader>
@@ -334,10 +361,10 @@ const handleDeliver = async () => {
                 <CardContent className="space-y-4 text-sm">
 
                     {/* Escrow Funded Card */}
-                    {user?.userType === "vendor" && request.status!== "disputed" && request.paymentStatus === "escrow_held" && request.escrow && (
-                      <Card className="rounded-xl border border-green-200 bg-green-50">
+                    {user?.userType === "vendor" && request.status!== "disputed" && request.escrow && (
+                      <Card className="rounded-xl border-gold">
                         <CardContent className="p-4 space-y-2">
-                          <p className="font-semibold text-green-700">
+                          <p className="font-semibold text-gold">
                             Escrow Funded
                           </p>
 
@@ -348,8 +375,14 @@ const handleDeliver = async () => {
                             </div>
 
                             <div className="flex justify-between">
-                              <span>Platform Fee</span>
-                              <span>${request.escrow?.platformFee}</span>
+                              <span>
+                                Platform Fee (
+                                {request?.platformFeeType === "percentage"
+                                  ? `${request?.platformFeeValue}%`
+                                  : `$${request?.platformFeeValue}`}
+                                )
+                              </span>
+                              <span>${request?.escrow?.platformFee}</span>
                             </div>
 
                             <div className="flex justify-between font-semibold">
@@ -523,7 +556,7 @@ const handleDeliver = async () => {
                   <Dialog open={isDisputeOpen} onOpenChange={setIsDisputeOpen}>
                     <DialogTrigger asChild>
                     {["in_progress","delivered"].includes(request.status) && (
-                      <Button variant="destructive" className="w-full mt-3">
+                      <Button variant="" className="w-full mt-3 border-accent bg-accent">
                         Open Dispute
                       </Button>
                     )}

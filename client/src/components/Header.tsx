@@ -16,6 +16,8 @@ import Logo from "@/assets/PROOF LOGO.png";
 import { UrgencyBanner } from "../components/UrgencyBanner";
 import { BlurGate } from "./gates/BlurGate";
 import { UserMaturityProfile } from "@shared/types/maturity-profile";
+import { useGateStatus } from "../hooks/useGateStatus";
+
 interface HeaderProps {
   onSearch?: (query: string) => void;
   notificationCount?: number;
@@ -26,6 +28,7 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { gateClosed } = useGateStatus();
   const { toggleMessages } = useMessages();
    const { data: profile, isLoading, isError, error } = useQuery<UserMaturityProfile>({
       queryKey: ['/api/maturity-profile'],
@@ -99,7 +102,7 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       {/* ✅ Urgency Banner (ADD HERE) */}
-      {user?.userType !== "admin" && (
+      {user?.userType !== "admin" && isFreeUser &&(
         <UrgencyBanner />
       )}
   {/* Existing Header */}

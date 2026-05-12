@@ -52,6 +52,8 @@ import AdminCategories from "./pages/admin/AdminCategories";
 import CategoryForm from "./pages/admin/CategoryForm";
 import ServiceVendors from "./pages/admin/ServiceVendors";
 import CategoryVendors from "./pages/admin/CategoryVendors";
+import AdminPlatformFees from "./pages/admin/AdminPlatformFees";
+import PlatformFeeForm from "./pages/admin/PlatformFeeForm";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -196,6 +198,11 @@ function Router() {
               <CreateMilestone />
             </ProtectedRoute>
           </Route>
+          <Route path="/admin/edit-platform-fee/:id">
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <PlatformFeeForm />
+            </ProtectedRoute>
+          </Route>
           <Route path="/admin/:rest*">
             <ProtectedRoute allowedRoles={["admin"]}>
               <Switch>
@@ -211,6 +218,7 @@ function Router() {
                 
                 <Route path="/admin/create-categories" component={CategoryForm} />
                 <Route path="/admin/categories" component={AdminCategories} />
+                <Route path="/admin/platform-fees" component={AdminPlatformFees} />
               </Switch>
             </ProtectedRoute>
           </Route>

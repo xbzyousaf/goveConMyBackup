@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, User, DollarSign, CalendarDays, EyeIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
+import { truncateText } from "../../utility/textUtils";
 
 type ServiceRequest = {
   id: string;
@@ -57,7 +58,7 @@ export function ServiceRequestCard({ request, userType, detailsUrl }: Props) {
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-lg">
-            {request.service?.name ?? "Service"}
+            {truncateText(request?.service?.name ?? "Service", 60)}
           </CardTitle>
 
           <Badge className={cn("capitalize px-3 py-1 text-xs", STATUS_COLORS[request?.status??'pending'])}>

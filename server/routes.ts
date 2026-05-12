@@ -15,6 +15,7 @@ import { scoringService } from "./services/scoring.service";
 import { releaseEscrow } from './services/escrowService';
 import { canTransition } from './services/statusEngine';
 import { isAuthenticated } from "./middleware/auth.middleware";
+import { calculatePlatformFee } from './services/platformFeeService';
 
 // recreate __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -439,14 +440,15 @@ app.get("/api/vendors", async (req: any, res) => {
       const limit = parseInt(req.query.limit) || 5;
       const offset = (page - 1) * limit;
       const status = req.query.status;
+      const search = req.query.search;
       let total = 0;
       let requests: any[] = [];
       if (user?.userType === 'contractor') {
-        requests = await storage.getServiceRequestsByContractor(userId, limit, offset, status);
-        total = await storage.countServiceRequestsByContractor(userId, status);
+        requests = await storage.getServiceRequestsByContractor(userId, limit, offset, status, search);
+        total = await storage.countServiceRequestsByContractor(userId, status, search );
       } else if (user?.userType === 'vendor') {
-        requests = await storage.getServiceRequestsByVendor(userId, limit, offset);
-        total = await storage.countServiceRequestsByVendor(userId, status);
+        requests = await storage.getServiceRequestsByVendor(userId, limit, offset, status, search);
+        total = await storage.countServiceRequestsByVendor(userId, status, search);
       }
 
       res.json({
@@ -747,21 +749,36 @@ app.get("/api/vendors", async (req: any, res) => {
 
       // Accept request
       if (status === "accepted") {
-
-        const finalPrice =
-          serviceRequest.finalPrice != null
-            ? Number(serviceRequest.finalPrice)
-            : Number(serviceRequest.proposedPrice);
-
+        const finalPrice = Number(
+            serviceRequest.finalPrice ??
+            serviceRequest.proposedPrice
+          );
+        const feeData = await calculatePlatformFee(finalPrice);
         if (!finalPrice || finalPrice <= 0) {
           return res.status(400).json({
             message: "Final price required"
           });
         }
+        if (!feeData.platformFeeType || feeData.platformFeeValue === undefined || feeData.platformFeeAmount === undefined || feeData.vendorEarning === undefined) {
+          return res.status(400).json({
+            message: "Fee data required"
+          });
+        }
+        if (!feeData.vendorEarning || feeData.vendorEarning <= 0 || feeData.vendorEarning === undefined) {
+          return res.status(400).json({
+            message: "Vendor earning must be greater than zero or platform fee, current fee: " + JSON.stringify(feeData.platformFeeValue)
+          });
+        }
 
         await storage.updateServiceRequest(id, {
           finalPrice: finalPrice.toString(),
-          status: "accepted"
+          platformFeeId: feeData.platformFeeId,
+          platformFeeType: feeData.platformFeeType,
+          platformFeeValue: feeData.platformFeeValue,
+          platformFeeAmount: feeData.platformFeeAmount.toString(),
+
+          vendorEarning:
+            feeData.vendorEarning.toString(),
         });
 
       }

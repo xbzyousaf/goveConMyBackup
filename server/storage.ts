@@ -45,7 +45,7 @@ import {
   InsertSubscription,
 } from "@shared/schema";
 import { db } from "./db";
-import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
+import { sql, eq, ne, and, desc, asc, inArray, or, ilike } from "drizzle-orm";
 import { notifications } from "@shared/schema";
 import { PRIORITY_STATUSES } from "constants/serviceRequest";
 import { Gap, GapType } from '@shared/types/gaps';
@@ -444,6 +444,17 @@ export class DatabaseStorage implements IStorage {
   
   if (updates.vendorId !== undefined)
     allowedUpdates.vendorId = updates.vendorId;
+    if (updates.platformFeeId !== undefined)
+    allowedUpdates.platformFeeId = updates.platformFeeId;
+
+  if (updates.platformFeeType !== undefined)
+    allowedUpdates.platformFeeType = updates.platformFeeType;
+
+  if (updates.platformFeeValue !== undefined)
+    allowedUpdates.platformFeeValue = updates.platformFeeValue;
+
+  if (updates.platformFeeAmount !== undefined)
+    allowedUpdates.platformFeeAmount = updates.platformFeeAmount;
 
   if (updates.status !== undefined)
     allowedUpdates.status = updates.status;
@@ -489,7 +500,8 @@ export class DatabaseStorage implements IStorage {
   contractorId: string,
   limit: number,
   offset: number,
-  status?: string
+  status?: string,
+  search?: string
 ) {
 
   let whereCondition = eq(serviceRequests.contractorId, contractorId);
@@ -507,8 +519,16 @@ export class DatabaseStorage implements IStorage {
         eq(serviceRequests.status, status)
       );
     }
-
   }
+  if (search) {
+      whereCondition = and(
+        whereCondition,
+        or(
+          ilike(serviceRequests.title, `%${search}%`),
+          ilike(serviceRequests.description, `%${search}%`)
+        )
+      );
+    }
 
   return await db.query.serviceRequests.findMany({
     where: whereCondition,
@@ -544,7 +564,8 @@ export class DatabaseStorage implements IStorage {
 
 async countServiceRequestsByContractor(
   contractorId: string,
-  status?: string
+  status?: string,
+  search?: string
 ) {
 
   let whereCondition = eq(serviceRequests.contractorId, contractorId);
@@ -564,6 +585,15 @@ async countServiceRequestsByContractor(
     }
 
   }
+  if (search) {
+      whereCondition = and(
+        whereCondition,
+        or(
+          ilike(serviceRequests.title, `%${search}%`),
+          ilike(serviceRequests.description, `%${search}%`)
+        )
+      );
+    }
 
   const result = await db
     .select({ count: sql<number>`count(*)` })
@@ -575,10 +605,39 @@ async countServiceRequestsByContractor(
   async getServiceRequestsByVendor(
   vendorId: string,
   limit: number,
-  offset: number
+  offset: number,
+  status?: string,
+  search?: string
 ) {
+  let whereCondition = eq(serviceRequests.vendorId, vendorId);
+
+  if (status && status !== "all") {
+
+    if (status === "priority") {
+      whereCondition = and(
+        eq(serviceRequests.vendorId, vendorId),
+        inArray(serviceRequests.status, PRIORITY_STATUSES)
+      );
+    } else {
+      whereCondition = and(
+        eq(serviceRequests.vendorId, vendorId),
+        eq(serviceRequests.status, status)
+      );
+    }
+
+  }
+    
+    if (search) {
+      whereCondition = and(
+        whereCondition,
+        or(
+          ilike(serviceRequests.title, `%${search}%`),
+          ilike(serviceRequests.description, `%${search}%`)
+        )
+      );
+    }
   return await db.query.serviceRequests.findMany({
-    where: eq(serviceRequests.vendorId, vendorId),
+    where: whereCondition,
 
     with: {
       contractor: {
@@ -604,7 +663,7 @@ async countServiceRequestsByContractor(
     offset,
   });
 }
-async countServiceRequestsByVendor(vendorId: string, status?: string) {
+async countServiceRequestsByVendor(vendorId: string, status?: string, search?: string) {
  let whereCondition = eq(serviceRequests.vendorId, vendorId);
 
   if (status && status !== "all") {
@@ -622,6 +681,15 @@ async countServiceRequestsByVendor(vendorId: string, status?: string) {
     }
 
   }
+   if (search) {
+      whereCondition = and(
+        whereCondition,
+        or(
+          ilike(serviceRequests.title, `%${search}%`),
+          ilike(serviceRequests.description, `%${search}%`)
+        )
+      );
+    }
 
   const result = await db
     .select({ count: sql<number>`count(*)` })
@@ -1786,6 +1854,7 @@ async getServiceVendors(categoryId: string) {
       description: vendorProfiles.description,
       hourlyRate: vendorProfiles.hourlyRate,
       rating: vendorProfiles.rating,
+      phone: vendorProfiles.phone,
       reviewCount: vendorProfiles.reviewCount,
       categories: vendorProfiles.categories,
       subscriptionTier: vendorProfiles.subscriptionTier,
@@ -1843,6 +1912,7 @@ async getServiceVendors(categoryId: string) {
       vendorProfiles.categories,
       vendorProfiles.reviewCount,
       vendorProfiles.rating,
+      vendorProfiles.phone,
       vendorProfiles.subscriptionTier,
       users.email,
       users.username,
@@ -1867,6 +1937,7 @@ async getCategoryVendors(categoryId: string) {
       reviewCount: vendorProfiles.reviewCount,
       categories: vendorProfiles.categories,
       subscriptionTier: vendorProfiles.subscriptionTier,
+      phone: vendorProfiles.phone,
 
       // User
       email: users.email,
@@ -1927,6 +1998,7 @@ async getCategoryVendors(categoryId: string) {
       vendorProfiles.description,
       vendorProfiles.hourlyRate,
       vendorProfiles.rating,
+      vendorProfiles.phone,
       vendorProfiles.reviewCount,
       vendorProfiles.categories,
       vendorProfiles.subscriptionTier,

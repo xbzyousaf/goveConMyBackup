@@ -9,6 +9,7 @@ import { Gap, GapType } from '../../shared/types/gaps';
 import { z } from "zod";
 import { isContractor } from "../middleware/contractor.middleware";
 import { SERVICE_CATEGORIES } from "../../shared/types/service";
+import { calculatePlatformFee } from "server/services/platformFeeService";
 
 const router = Router();
 if (!process.env.OPENAI_API_KEY) {
@@ -249,8 +250,7 @@ router.post("/service-requests/:id/pay", isAuthenticated,isContractor, async (re
     }
 
     // 💰 Calculate split
-    const platformFee = finalPrice * 0.1;
-    const vendorEarning = finalPrice - platformFee;
+    const feeData = await calculatePlatformFee(finalPrice);
 
     // 🧾 Create escrow
     await storage.createEscrow({
@@ -258,10 +258,10 @@ router.post("/service-requests/:id/pay", isAuthenticated,isContractor, async (re
       contractorId,
       vendorId: request.vendorId,
       amount: finalPrice.toString(),
-      platformFee: platformFee.toString(),
-      vendorEarning: vendorEarning.toString(),
+      platformFee: feeData.platformFeeAmount.toString(),
+      vendorEarning: feeData.vendorEarning.toString(),
       paymentIntentId: finalPI.id,
-      chargeId: chargeId,
+      chargeId,
     });
 
     // 🔄 Update request
