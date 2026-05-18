@@ -1,4 +1,4 @@
-import { BusinessType, businessTypeEnum, categories } from './../shared/schema';
+import { BusinessType, businessTypeEnum, categories, conversations } from './../shared/schema';
 // From javascript_database integration
 import { 
   users, 
@@ -45,7 +45,7 @@ import {
   InsertSubscription,
 } from "@shared/schema";
 import { db } from "./db";
-import { sql, eq, ne, and, desc, asc, inArray, or } from "drizzle-orm";
+import { sql, eq, ne, and, desc, asc, inArray, or, ilike } from "drizzle-orm";
 import { notifications } from "@shared/schema";
 import { PRIORITY_STATUSES } from "constants/serviceRequest";
 import { Gap, GapType } from '@shared/types/gaps';
@@ -108,6 +108,8 @@ export interface IStorage {
   deleteUserMaturityProfile(userId: string): Promise<void>;
   deleteUserAssessments(userId: string): Promise<void>;
   deleteUserJourneys(userId: string): Promise<void>;
+  getConversationBetweenUsers( contractorId: string, vendorId: string): Promise<any>;
+  createConversation(data: { contractorId: string; vendorId: string; serviceRequestId?: string | null;}): Promise<any>;
 
 }
 
@@ -214,7 +216,7 @@ export class DatabaseStorage implements IStorage {
       title: vendorProfiles.title,
       companyName: vendorProfiles.companyName,
       description: vendorProfiles.description,
-      categories: vendorProfiles.categories,
+      categories: vendorProfiles.categoryIds,
       avatar: vendorProfiles.avatar,
       skills: vendorProfiles.skills,
       location: vendorProfiles.location,
@@ -404,7 +406,11 @@ export class DatabaseStorage implements IStorage {
           username: true,
         },
       },
-      service: true,      // if relation exists
+      service: {
+        with: {
+          categoryData: true,
+        },
+      },
       escrow: true,
       disputes: true,
       messages: true,     // optional
@@ -444,6 +450,17 @@ export class DatabaseStorage implements IStorage {
   
   if (updates.vendorId !== undefined)
     allowedUpdates.vendorId = updates.vendorId;
+    if (updates.platformFeeId !== undefined)
+    allowedUpdates.platformFeeId = updates.platformFeeId;
+
+  if (updates.platformFeeType !== undefined)
+    allowedUpdates.platformFeeType = updates.platformFeeType;
+
+  if (updates.platformFeeValue !== undefined)
+    allowedUpdates.platformFeeValue = updates.platformFeeValue;
+
+  if (updates.platformFeeAmount !== undefined)
+    allowedUpdates.platformFeeAmount = updates.platformFeeAmount;
 
   if (updates.status !== undefined)
     allowedUpdates.status = updates.status;
@@ -470,6 +487,9 @@ export class DatabaseStorage implements IStorage {
   if (updates.finalPrice !== undefined)
     allowedUpdates.finalPrice = updates.finalPrice;
 
+  if (updates.proposedPrice !== undefined)
+    allowedUpdates.proposedPrice = updates.proposedPrice;
+
   if (updates.platformFee !== undefined)
     allowedUpdates.platformFee = updates.platformFee;
 
@@ -489,7 +509,8 @@ export class DatabaseStorage implements IStorage {
   contractorId: string,
   limit: number,
   offset: number,
-  status?: string
+  status?: string,
+  search?: string
 ) {
 
   let whereCondition = eq(serviceRequests.contractorId, contractorId);
@@ -507,8 +528,16 @@ export class DatabaseStorage implements IStorage {
         eq(serviceRequests.status, status)
       );
     }
-
   }
+  if (search) {
+      whereCondition = and(
+        whereCondition,
+        or(
+          ilike(serviceRequests.title, `%${search}%`),
+          ilike(serviceRequests.description, `%${search}%`)
+        )
+      );
+    }
 
   return await db.query.serviceRequests.findMany({
     where: whereCondition,
@@ -544,7 +573,8 @@ export class DatabaseStorage implements IStorage {
 
 async countServiceRequestsByContractor(
   contractorId: string,
-  status?: string
+  status?: string,
+  search?: string
 ) {
 
   let whereCondition = eq(serviceRequests.contractorId, contractorId);
@@ -564,6 +594,15 @@ async countServiceRequestsByContractor(
     }
 
   }
+  if (search) {
+      whereCondition = and(
+        whereCondition,
+        or(
+          ilike(serviceRequests.title, `%${search}%`),
+          ilike(serviceRequests.description, `%${search}%`)
+        )
+      );
+    }
 
   const result = await db
     .select({ count: sql<number>`count(*)` })
@@ -575,10 +614,39 @@ async countServiceRequestsByContractor(
   async getServiceRequestsByVendor(
   vendorId: string,
   limit: number,
-  offset: number
+  offset: number,
+  status?: string,
+  search?: string
 ) {
+  let whereCondition = eq(serviceRequests.vendorId, vendorId);
+
+  if (status && status !== "all") {
+
+    if (status === "priority") {
+      whereCondition = and(
+        eq(serviceRequests.vendorId, vendorId),
+        inArray(serviceRequests.status, PRIORITY_STATUSES)
+      );
+    } else {
+      whereCondition = and(
+        eq(serviceRequests.vendorId, vendorId),
+        eq(serviceRequests.status, status)
+      );
+    }
+
+  }
+    
+    if (search) {
+      whereCondition = and(
+        whereCondition,
+        or(
+          ilike(serviceRequests.title, `%${search}%`),
+          ilike(serviceRequests.description, `%${search}%`)
+        )
+      );
+    }
   return await db.query.serviceRequests.findMany({
-    where: eq(serviceRequests.vendorId, vendorId),
+    where: whereCondition,
 
     with: {
       contractor: {
@@ -604,7 +672,7 @@ async countServiceRequestsByContractor(
     offset,
   });
 }
-async countServiceRequestsByVendor(vendorId: string, status?: string) {
+async countServiceRequestsByVendor(vendorId: string, status?: string, search?: string) {
  let whereCondition = eq(serviceRequests.vendorId, vendorId);
 
   if (status && status !== "all") {
@@ -622,6 +690,15 @@ async countServiceRequestsByVendor(vendorId: string, status?: string) {
     }
 
   }
+   if (search) {
+      whereCondition = and(
+        whereCondition,
+        or(
+          ilike(serviceRequests.title, `%${search}%`),
+          ilike(serviceRequests.description, `%${search}%`)
+        )
+      );
+    }
 
   const result = await db
     .select({ count: sql<number>`count(*)` })
@@ -1234,7 +1311,7 @@ async countMarketplaceServices() {
       .set({ isRead: true })
       .where(
         and(
-          eq(messages.serviceRequestId, conversationId),
+          eq(messages.conversationId, conversationId),
           eq(messages.receiverId, userId),
           eq(messages.isRead, false)
         )
@@ -1362,6 +1439,137 @@ async countMarketplaceServices() {
 
   return {
     conversations,
+    totalUnread,
+  };
+}
+async getConversationBetweenUsers(
+  userA: string,
+  userB: string
+) {
+  return await db.query.conversations.findFirst({
+
+    where: or(
+
+      and(
+        eq(conversations.contractorId, userA),
+        eq(conversations.vendorId, userB)
+      ),
+
+      and(
+        eq(conversations.contractorId, userB),
+        eq(conversations.vendorId, userA)
+      ),
+
+    ),
+  });
+}
+async updateConversation(id: string, data: any) {
+  const [updated] = await db
+    .update(conversations)
+    .set(data)
+    .where(eq(conversations.id, id))
+    .returning();
+
+  return updated;
+}
+async createConversation(data: { contractorId: string; vendorId: string; serviceRequestId?: string | null;}) {
+  const [conversation] = await db
+    .insert(conversations)
+    .values({
+      contractorId: data.contractorId,
+      vendorId: data.vendorId,
+      serviceRequestId: data.serviceRequestId || null,
+    })
+    .returning();
+
+  return conversation;
+}
+async getConversationById(id: string) {
+  return await db.query.conversations.findFirst({
+    where: eq(conversations.id, id),
+
+    with: {
+      vendor: true,
+      contractor: true,
+      messages: {
+        orderBy: asc(messages.createdAt),
+      },
+    },
+  });
+}
+async getConversationMessages(conversationId: string) {
+  return await db.query.messages.findMany({
+    where: eq(messages.conversationId, conversationId),
+    orderBy: asc(messages.createdAt),
+  });
+}
+async getUserConversations(userId: string) {
+
+  const conversationsData =
+    await db.query.conversations.findMany({
+
+      where: or(
+        eq(conversations.vendorId, userId),
+        eq(conversations.contractorId, userId)
+      ),
+
+      with: {
+        vendor: true,
+        contractor: true,
+        messages: {
+          orderBy: desc(messages.createdAt),
+          limit: 1,
+        },
+      },
+
+      orderBy: desc(conversations.updatedAt),
+    });
+
+  const formatted = await Promise.all(
+    conversationsData.map(async (conv) => {
+
+      const otherUser =
+        conv.vendorId === userId
+          ? conv.contractor
+          : conv.vendor;
+
+      const unreadCount =
+        await db.$count(
+          messages,
+          and(
+            eq(messages.conversationId, conv.id),
+            eq(messages.receiverId, userId),
+            eq(messages.isRead, false)
+          )
+        );
+
+      return {
+        id: conv.id,
+
+        otherUser: {
+          id: otherUser?.id,
+          name:
+            `${otherUser?.firstName ?? ""} ${otherUser?.lastName ?? ""}`.trim(),
+        },
+
+        lastMessage:
+          conv.messages?.[0]?.content ?? "",
+
+        unreadCount,
+
+        updatedAt: conv.updatedAt,
+      };
+    })
+  );
+
+  const totalUnread =
+    formatted.reduce(
+      (sum, c) => sum + c.unreadCount,
+      0
+    );
+
+  return {
+    conversations: formatted,
     totalUnread,
   };
 }
@@ -1786,6 +1994,7 @@ async getServiceVendors(categoryId: string) {
       description: vendorProfiles.description,
       hourlyRate: vendorProfiles.hourlyRate,
       rating: vendorProfiles.rating,
+      phone: vendorProfiles.phone,
       reviewCount: vendorProfiles.reviewCount,
       categories: vendorProfiles.categories,
       subscriptionTier: vendorProfiles.subscriptionTier,
@@ -1843,6 +2052,7 @@ async getServiceVendors(categoryId: string) {
       vendorProfiles.categories,
       vendorProfiles.reviewCount,
       vendorProfiles.rating,
+      vendorProfiles.phone,
       vendorProfiles.subscriptionTier,
       users.email,
       users.username,
@@ -1865,8 +2075,9 @@ async getCategoryVendors(categoryId: string) {
       hourlyRate: vendorProfiles.hourlyRate,
       rating: vendorProfiles.rating,
       reviewCount: vendorProfiles.reviewCount,
-      categories: vendorProfiles.categories,
+      categoryIds: vendorProfiles.categoryIds,
       subscriptionTier: vendorProfiles.subscriptionTier,
+      phone: vendorProfiles.phone,
 
       // User
       email: users.email,
@@ -1874,13 +2085,18 @@ async getCategoryVendors(categoryId: string) {
       firstName: users.firstName,
       lastName: users.lastName,
 
-      //categories
-      categoryName: categories.name,
+      // Real Categories Relation
+      categories: sql<any>`
+        json_agg(
+          distinct jsonb_build_object(
+            'id', ${categories.id},
+            'name', ${categories.name},
+            'key', ${categories.key}
+          )
+        )
+      `,
 
-      // Maturity
-      maturityStage: userMaturityProfiles.maturityStage,
-
-      // ONE SERVICE (for that category only)
+      // ONE SERVICE
       serviceId: sql<string>`(ARRAY_AGG(${services.id}))[1]`,
       serviceName: sql<string>`(ARRAY_AGG(${services.name}))[1]`,
       serviceDescription: sql<string>`(ARRAY_AGG(${services.description}))[1]`,
@@ -1890,26 +2106,25 @@ async getCategoryVendors(categoryId: string) {
     })
     .from(vendorProfiles)
 
-    // JOIN SERVICES (INNER JOIN = MUST HAVE SERVICE)
+    // Services
     .innerJoin(
       services,
       eq(services.vendorId, vendorProfiles.userId)
     )
 
-    // User
-    .leftJoin(users, eq(users.id, vendorProfiles.userId))
-
-    // Maturity
+    // Users
     .leftJoin(
-      userMaturityProfiles,
-      eq(userMaturityProfiles.userId, vendorProfiles.userId)
+      users,
+      eq(users.id, vendorProfiles.userId)
     )
-    // JOIN CATEGORY TABLE
+
+    // Categories
     .innerJoin(
       categories,
-      eq(categories.id, services.categoryId)
+      sql`${categories.id} = ANY(${vendorProfiles.categoryIds})`
     )
-    // FILTERS
+
+    // Filters
     .where(
       sql`
         ${vendorProfiles.categoryIds} && ARRAY[${categoryId}]::uuid[]
@@ -1917,7 +2132,7 @@ async getCategoryVendors(categoryId: string) {
       `
     )
 
-    // GROUP BY vendor only
+    // Group By
     .groupBy(
       users.id,
       vendorProfiles.companyName,
@@ -1927,15 +2142,14 @@ async getCategoryVendors(categoryId: string) {
       vendorProfiles.description,
       vendorProfiles.hourlyRate,
       vendorProfiles.rating,
+      vendorProfiles.phone,
       vendorProfiles.reviewCount,
-      vendorProfiles.categories,
+      vendorProfiles.categoryIds,
       vendorProfiles.subscriptionTier,
-      categories.name,
       users.email,
       users.username,
       users.firstName,
       users.lastName,
-      userMaturityProfiles.maturityStage
     );
 }
 async setupContractorUser() {

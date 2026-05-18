@@ -7,6 +7,7 @@ import {
   Briefcase,
   Import,
   CheckCircle,
+  DollarSign
 } from "lucide-react";
 
 const nav = [
@@ -19,6 +20,7 @@ const nav = [
   { label: "Request Logs", href: "/admin/request-logs", icon: FileText },
   { label: "Vendor Imports", href: "/admin/vendor-imports", icon: Import },
   { label: "Categories", href: "/admin/categories", icon: LayoutDashboard },
+  { label: "Platform Fees", href: "/admin/platform-fees", icon: DollarSign },
 
 ];
 

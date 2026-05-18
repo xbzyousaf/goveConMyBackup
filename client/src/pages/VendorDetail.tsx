@@ -13,6 +13,7 @@ import { useLocation } from "wouter";
 import type { Service } from "@shared/schema";
 import { useState } from "react";
 import { getFirstLetter, truncateText } from "../utility/textUtils"
+import { useMessages } from "../components/ui/MessageContext";
 
 export default function VendorDetail() {
   const [, params] = useRoute("/vendor/:id");
@@ -23,6 +24,7 @@ export default function VendorDetail() {
     enabled: !!vendorId,
   });
   const [activeTab, setActiveTab] = useState("about");
+  const { openConversation } = useMessages();
 
   const { data: reviews = [] } = useQuery<Review[]>({
     queryKey: vendorId ? [`/api/vendors/${vendorId}/reviews`] : ["disabled"],
@@ -514,9 +516,7 @@ export default function VendorDetail() {
                 <Separator />
 
                 <Button className="w-full" size="lg"
-                  onClick={() =>
-                    setLocation(`/?section=request&vendorId=${vendor.id}`)
-                  }
+                  onClick={() => openConversation(vendor.userId)}
                 >
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Contact Vendor

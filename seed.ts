@@ -1,11 +1,12 @@
 import "dotenv/config";
 import { db } from "./server/db";
-import { users, wallets, processes, stages, milestones, categories } from "./shared/schema";
+import { users, wallets, processes, stages, milestones, categories, platformFee } from "./shared/schema";
 import { AuthService } from "./server/auth";
 import { and, eq } from "drizzle-orm";
 import type { InferInsertModel } from "drizzle-orm";
 
 type UserInsert = InferInsertModel<typeof users>;
+type feesInsert = InferInsertModel<typeof platformFee>;
 type ProcessInsert = InferInsertModel<typeof processes>;
 type StageInsert = InferInsertModel<typeof stages>;
 type MilestoneInsert = InferInsertModel<typeof milestones>;
@@ -398,37 +399,86 @@ const CATEGORY_SEED = [
   {
     key: "legal",
     name: "Legal & Compliance",
-    description: "Contract review, regulatory compliance",
-  },
-  {
-    key: "hr",
-    name: "HR & Talent",
-    description: "Recruitment, payroll, benefits",
+    description:
+      'Establish a "bulletproof" corporate foundation. This service guides you through legal entity formation, operating agreements, and the mandatory federal registrations (SAM, CAGE, UEI) required to receive government payments.',
+    keyDeliverables: [
+      "Entity Structuring",
+      "Operating Agreements",
+      "SAM/CAGE Registration",
+      "8(a)/HUBZone Certification Eligibility",
+    ],
   },
   {
     key: "finance",
     name: "Finance & Accounting",
-    description: "Bookkeeping, tax, financial planning",
-  },
-  {
-    key: "cybersecurity",
-    name: "IT & Cybersecurity",
-    description: "Security audits, system administration",
-  },
-  {
-    key: "marketing",
-    name: "Marketing & Branding",
-    description: "Digital marketing, proposal writing",
-  },
-  {
-    key: "business_tools",
-    name: "Business Tools",
-    description: "CRM, ERP, operational software",
+    description:
+      'Transition from basic bookkeeping to "audit-ready" PROOF accounting. These specialists help you implement DCAA-compliant systems and cost-allocation strategies necessary for winning lucrative Cost-Plus and T&M contracts.',
+    keyDeliverables: [
+      "DCAA Compliance Setup",
+      "Chart of Accounts Design",
+      "Indirect Rate Calculation",
+      "Monthly Financial Oversight",
+    ],
   },
   {
     key: "insurance",
     name: "Insurance",
-    description: "Business and compliance insurance",
+    description:
+      "Protect your business from the unique risks of federal contracting. Most government solicitations require proof of specific coverages like Professional Liability (E&O) or Cyber Insurance before an award can be finalized.",
+    keyDeliverables: [
+      "General Liability",
+      "Errors & Omissions (E&O)",
+      "Workers’ Comp",
+      "Cyber Liability",
+    ],
+  },
+  {
+    key: "marketing",
+    name: "Marketing & Branding",
+    description:
+      'Your "digital storefront" for Contracting Officers. These experts help you craft a powerful Capability Statement and a professional online presence that clearly articulates your Past Performance and "Value Add" to the government.',
+    keyDeliverables: [
+      "Capability Statement Design",
+      "PROOF-Focused Website",
+      "Brand Messaging",
+      "Social Proof & Portfolio Development",
+    ],
+  },
+  {
+    key: "cybersecurity",
+    name: "IT and Security (CMMC/NIST)",
+    description:
+      "Secure your data to secure your contracts. With mandatory NIST 800-171 and CMMC requirements, these providers ensure your technology infrastructure meets the strict security standards required to handle government information.",
+    keyDeliverables: [
+      "CMMC Readiness Assessment",
+      "NIST 800-171 Compliance",
+      "Managed Security Services",
+      "Secure Cloud Hosting",
+    ],
+  },
+  {
+    key: "hr",
+    name: "HR & Talent",
+    description:
+      "Scale your team with compliance and speed. From Service Contract Act (SCA) wage determinations to finding specialized cleared personnel, these services ensure your workforce management meets federal labor laws.",
+    keyDeliverables: [
+      "Compliant Employee Handbooks",
+      "SCA/Davis-Bacon Guidance",
+      "Recruiting for Cleared Talent",
+      "Compensation Benchmarking",
+    ],
+  },
+  {
+    key: "business_tools",
+    name: "Business Tools",
+    description:
+      "Automate your growth with specialized PROOF software. These tools streamline capture management, GSA Schedule maintenance, and pipeline tracking so you can spend less time on admin and more time winning.",
+    keyDeliverables: [
+      "PROOF-specific CRM",
+      "GSA Schedule Management Tools",
+      "Opportunity Tracking Software",
+      "Contract Management Systems",
+    ],
   },
 ];
 
@@ -441,6 +491,37 @@ async function seed() {
     { email: "vendor@gmail.com", firstName: "Vendor", lastName: "1", password: passwordHash, userType: "vendor", isEmailVerified: true },
     { email: "contractor@gmail.com", firstName: "Contractor", lastName: "1", password: passwordHash, userType: "contractor", isEmailVerified: true },
   ];
+   const seedFees: feesInsert[] = [
+    { type: "percentage", value: 20, isActive: true},
+  ];
+  // --- Seed Platform Fees ---
+for (const fee of seedFees) {
+  const existingFee = await db
+    .select()
+    .from(platformFee)
+    .where(
+      and(
+        eq(platformFee.type, fee.type),
+        eq(platformFee.value, fee.value)
+      )
+    );
+
+  if (existingFee.length) {
+    console.log(
+      `⚠️ Skipping fee: ${fee.type} ${fee.value}`
+    );
+  } else {
+    await db.insert(platformFee).values({
+      type: fee.type,
+      value: fee.value,
+      isActive: fee.isActive,
+    });
+
+    console.log(
+      `💵 Platform fee created: ${fee.type} ${fee.value}`
+    );
+  }
+}
   // --- 3️⃣ Seed Categories ---
 for (const cat of CATEGORY_SEED) {
   const existing = await db
@@ -450,15 +531,17 @@ for (const cat of CATEGORY_SEED) {
 
   if (existing.length) {
     console.log(`⚠️ Skipping category: ${cat.name}`);
-  } else {
-    await db.insert(categories).values({
-      key: cat.key,
-      name: cat.name,
-      description: cat.description,
-    });
-
-    console.log(`📁 Category created: ${cat.name}`);
+    continue;
   }
+
+  await db.insert(categories).values({
+    key: cat.key,
+    name: cat.name,
+    description: cat.description,
+    keyDeliverables: cat.keyDeliverables,
+  });
+
+  console.log(`📁 Category created: ${cat.name}`);
 }
 
   for (const user of seedUsers) {

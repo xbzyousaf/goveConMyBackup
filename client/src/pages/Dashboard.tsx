@@ -151,12 +151,14 @@ useEffect(() => {
   const tier = profile?.subscriptionTier;
 
   // allowed users
-  if (tier === "pilot" || tier === "beta") {
+  if ( tier === "pilot") {
     return;
   }
 
   // no subscription selected
-  setLocation("/billing");
+  if (gateClosed && tier === "beta") {
+    setLocation("/billing");
+  }
 
 }, [user, profile]);
 
@@ -243,6 +245,9 @@ useEffect(() => {
   
   // Show empty state only if no profile exists AND it's a 404
   if (profile?.assessmentData?.status === "not_started") {
+    if (gateClosed && profile?.subscriptionTier === "beta") {
+      setLocation("/billing");
+    }
     return (
       <div>
         <Header />
@@ -375,7 +380,7 @@ useEffect(() => {
                     </div>
                     
                       <Button
-                        className={`w-full ${colorStyles.button}`}
+                        className={`w-full ${colorStyles.button} border-none`}
                         data-testid={`button-view-${key}`}
                         disabled={loadingProcess === key}
                         onClick={() => {

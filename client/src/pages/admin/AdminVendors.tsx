@@ -6,11 +6,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { VendorProfile } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-
+import { Loader2 } from "lucide-react";
 
 export default function AdminVendors() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [loadingVendorId, setLoadingVendorId] = useState<string | null>(null);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
 
   // Fetch vendors
   const { data: vendors = [], isLoading } = useQuery<VendorProfile[]>({
@@ -25,14 +27,19 @@ export default function AdminVendors() {
   // Mutation to toggle vendor approval
   const toggleApproval = useMutation({
     mutationFn: async ({ id, approve }: { id: string; approve: boolean }) => {
+      setLoadingVendorId(id);
+
       const res = await fetch(`/api/admin/vendors/${id}/approve`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ approve }),
       });
+
       if (!res.ok) throw new Error("Failed to update vendor status");
+
       return res.json();
     },
+
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/vendors"] });
 
@@ -42,6 +49,8 @@ export default function AdminVendors() {
           ? "Vendor activated successfully"
           : "Vendor deactivated successfully",
       });
+
+      setLoadingVendorId(null);
     },
 
     onError: (error: any) => {
@@ -50,21 +59,27 @@ export default function AdminVendors() {
         description: error.message || "Failed to update vendor",
         variant: "destructive",
       });
+
+      setLoadingVendorId(null);
     },
   });
  const deleteVendor = useMutation({
   mutationFn: async (id: string) => {
+    setDeleteLoadingId(id);
+
     const res = await fetch(`/api/admin/vendors/${id}`, {
       method: "DELETE",
     });
 
     if (!res.ok) {
       const text = await res.text();
+
       throw new Error("Failed to delete vendor", { cause: text });
     }
 
     return res.json();
   },
+
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ["/api/admin/vendors"] });
 
@@ -72,6 +87,8 @@ export default function AdminVendors() {
       title: "Deleted",
       description: "Vendor deleted successfully",
     });
+
+    setDeleteLoadingId(null);
   },
 
   onError: (error: any) => {
@@ -80,6 +97,8 @@ export default function AdminVendors() {
       description: error.message || "Failed to delete vendor",
       variant: "destructive",
     });
+
+    setDeleteLoadingId(null);
   },
 });
 
@@ -101,10 +120,10 @@ export default function AdminVendors() {
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="text-sm bg-white divide-y divide-gray-200">
               {vendors.map((vendor) => (
                 <tr key={vendor.id}>
-                  <td className="px-4 py-2">{vendor.title}</td>
+                  <td className="px-4 py-2">{vendor.userName}</td>
                   <td className="px-4 py-2">{vendor.companyName || "-"}</td>
                   <td className="px-4 py-2">{vendor.categories?.[0] || "General"}</td>
                   <td className="px-4 py-2">
@@ -115,18 +134,36 @@ export default function AdminVendors() {
                     )}
                   </td>
                   <td className="px-4 py-2">
-                    <Button className="mr-2"
+                    <Button
+                      className="mr-2"
                       size="sm"
+                      data-testid={`button-toggle-${vendor.id}`}
                       variant={vendor.isApproved ? "destructive" : "default"}
+                      disabled={loadingVendorId === vendor.id}
                       onClick={() =>
-                        toggleApproval.mutate({ id: vendor.id, approve: !vendor.isApproved })
+                        toggleApproval.mutate({
+                          id: vendor.id,
+                          approve: !vendor.isApproved,
+                        })
                       }
                     >
-                      {vendor.isApproved ? "Deactivate" : "Activate"}
+                      {loadingVendorId === vendor.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+
+                          {vendor.isApproved ? "Deactivating..." : "Activating..."}
+                        </>
+                      ) : vendor.isApproved ? (
+                        "Deactivate"
+                      ) : (
+                        "Activate"
+                      )}
                     </Button>
                     <Button
                       size="sm"
                       variant="destructive"
+                      data-testid={`button-delete-${vendor.id}`}
+                      disabled={deleteLoadingId === vendor.userId}
                       onClick={() => {
                         const confirmDelete = window.confirm(
                           "Are you sure you want to delete this vendor? This action cannot be undone."
@@ -134,11 +171,19 @@ export default function AdminVendors() {
 
                         if (confirmDelete) {
                           console.log("Deleting vendor ID:", vendor.userId);
+
                           deleteVendor.mutate(vendor.userId);
                         }
                       }}
                     >
-                      Delete
+                      {deleteLoadingId === vendor.userId ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        "Delete"
+                      )}
                     </Button>
                   </td>
                 </tr>

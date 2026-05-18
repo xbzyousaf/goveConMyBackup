@@ -154,17 +154,17 @@ export default function Assessment() {
   if (isComplete && result) {
     const stageConfig = {
       startup: {
-        label: "Startup Stage",
+        label: "Startup",
         color: "bg-blue-500",
         description: "You're in the foundational phase of your PROOF journey",
       },
       growth: {
-        label: "Growth Stage",
+        label: "Growth",
         color: "bg-green-500",
         description: "You're actively pursuing opportunities and building momentum",
       },
       scale: {
-        label: "Scale Stage",
+        label: "Scale",
         color: "bg-purple-500",
         description: "You're an established player scaling your operations",
       },

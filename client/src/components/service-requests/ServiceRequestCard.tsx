@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, User, DollarSign, CalendarDays, EyeIcon } from "lucide-react";
+import { FileText, User, DollarSign, CalendarDays, EyeIcon, CopySlashIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocation } from "wouter";
+import { truncateText } from "../../utility/textUtils";
 
 type ServiceRequest = {
   id: string;
@@ -26,6 +27,9 @@ type ServiceRequest = {
 
   service?: {
     name?: string | null;
+    categoryData?: {
+      name?: string | null;
+    };
   };
 };
 const STATUS_COLORS = {
@@ -57,7 +61,7 @@ export function ServiceRequestCard({ request, userType, detailsUrl }: Props) {
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-lg">
-            {request.service?.name ?? "Service"}
+            {truncateText(request?.service?.name ?? "Service", 60)}
           </CardTitle>
 
           <Badge className={cn("capitalize px-3 py-1 text-xs", STATUS_COLORS[request?.status??'pending'])}>
@@ -71,14 +75,14 @@ export function ServiceRequestCard({ request, userType, detailsUrl }: Props) {
           <div className="space-y-2 mb-6">
             <div className="flex items-start gap-2">
               <FileText className="w-4 h-4 mt-1 text-muted-foreground" />
-              <h4 className="font-semibold">
-                {request.title ?? "Untitled Request"}
+              <h4 className="">
+                {request.description ?? "No description provided"}
               </h4>
             </div>
 
-            <p className="text-sm text-muted-foreground pl-6">
+            {/* <p className="text-sm text-muted-foreground pl-6">
               {request.description ?? "No description provided"}
-            </p>
+            </p> */}
           </div>
             <hr />
           {/* Person */}
@@ -100,11 +104,12 @@ export function ServiceRequestCard({ request, userType, detailsUrl }: Props) {
         )}
 
           {/* Budget */}
-          <div className="flex justify-between text-sm">
-            <div className="flex gap-2">
-              <DollarSign className="w-4 h-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Budget:</span>
-            </div>
+          {request.proposedPrice !== undefined && request.proposedPrice > 0 && (
+            <div className="flex justify-between text-sm">
+              <div className="flex gap-2">
+                <DollarSign className="w-4 h-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Budget:</span>
+              </div>
 
             <span className="font-medium">
                 {request?.proposedPrice
@@ -112,8 +117,19 @@ export function ServiceRequestCard({ request, userType, detailsUrl }: Props) {
                 : "Not specified"}
             </span>
           </div>
+          )}
 
+          {/* Created */}
+          <div className="flex justify-between text-sm">
+            <div className="flex gap-2">
+              <CopySlashIcon className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Category:</span>
+            </div>
 
+            <span className="font-medium">
+              {request.service?.categoryData?.name ?? "N/A"}
+            </span>
+          </div>
           {/* Created */}
           <div className="flex justify-between text-sm">
             <div className="flex gap-2">

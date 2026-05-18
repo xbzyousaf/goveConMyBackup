@@ -39,13 +39,13 @@ router.post("/services", isAuthenticated, isVendor, async (req: any, res) => {
     const service = await vendorStorage.createService(req.body, userId);
 
     res.json(service);
-  } catch (error) {
+  } catch (error:any) {
     console.error("Error creating service:", error);
-    res.status(500).json({ message: "Failed to create service" });
+    res.status(500).json({ message: error.message || "Failed to create service" });
   }
 });
 // update service
-router.put(  "/services/:id", isAuthenticated, isVendor, async (req: any, res) => 
+router.put("/services/:id", isAuthenticated, isVendor, async (req: any, res) => 
 {
     try {
       const userId = getUserId(req);
@@ -240,7 +240,6 @@ router.get("/contractor/:id/reviews", isAuthenticated, async (req, res) => {
   try {
     const contractorId = req.params.id;
     const contractor = await storage.getContractorById(contractorId);
-    console.log(contractor, "okkk");
     if (!contractor) {
       return res.status(404).json({ message: "Contractor not found" });
     }

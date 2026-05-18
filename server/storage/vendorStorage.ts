@@ -6,6 +6,7 @@ import { certificates, escrows, portfolios, services, vendorImports, vendorProfi
 
  } from "@shared/schema";
 import { and, count, desc, eq } from "drizzle-orm";
+import { syncVendorProfileCategory } from "server/services/vendor-profile.service";
 export interface IStorage {
     // Deliveries
   createDelivery(data: {
@@ -95,7 +96,6 @@ async createService(data: any, vendorId: string) {
           vendorId,
           name: data.name,
           description: data.description,
-          category: data.category,
           categoryId: data.categoryId,
           pricingModel: data.pricingModel ?? null,
           priceMin: data.priceMin != null ? String(data.priceMin) : null,
@@ -103,6 +103,11 @@ async createService(data: any, vendorId: string) {
           isActive: true,
         })
         .returning();
+        await syncVendorProfileCategory(
+          tx,
+          vendorId,
+          data.categoryId
+        );
 
       return service;
     });
@@ -114,7 +119,7 @@ async updateService(id: string, data: any, vendorId: string) {
         .set({
           name: data.name,
           description: data.description,
-          category: data.category,
+          categoryId: data.categoryId ?? null,
           pricingModel: data.pricingModel ?? null,
           priceMin: data.priceMin != null ? String(data.priceMin) : null,
           priceMax: data.priceMax != null ? String(data.priceMax) : null,
@@ -126,6 +131,11 @@ async updateService(id: string, data: any, vendorId: string) {
           )
         )
         .returning();
+        await syncVendorProfileCategory(
+          tx,
+          vendorId,
+          data.categoryId
+        );
 
       return service;
     });
@@ -262,23 +272,12 @@ async updateService(id: string, data: any, vendorId: string) {
   }
   
   // Parse categories if string
-  if (typeof sanitizedProfile.categories === "string") {
+  if (typeof sanitizedProfile.categoryIds === "string") {
   try {
-  sanitizedProfile.categories = JSON.parse(sanitizedProfile.categories);
-  } catch (e) {
-  console.warn("Failed to parse categories:", sanitizedProfile.categories);
-  sanitizedProfile.categories = [];
-  }
-  }
-  if (Array.isArray(sanitizedProfile.categories)) {
-    sanitizedProfile.categoryIds = sanitizedProfile.categories.map(
-      (cat: any) => cat.id
-    );
-
-    // OPTIONAL: normalize categories to only keys (recommended for consistency)
-    sanitizedProfile.categories = sanitizedProfile.categories.map(
-      (cat: any) => cat.key
-    );
+      sanitizedProfile.categoryIds = JSON.parse(sanitizedProfile.categoryIds);
+    } catch {
+      sanitizedProfile.categoryIds = [];
+    }
   }
 
   
@@ -320,26 +319,12 @@ async updateVendorProfile(
   // -----------------------------
   // Parse categories
   // -----------------------------
-  if (typeof sanitizedUpdates.categories === "string") {
+  if (typeof sanitizedUpdates.categoryIds === "string") {
     try {
-      sanitizedUpdates.categories = JSON.parse(sanitizedUpdates.categories);
+      sanitizedUpdates.categoryIds = JSON.parse(sanitizedUpdates.categoryIds);
     } catch {
-      sanitizedUpdates.categories = [];
+      sanitizedUpdates.categoryIds = [];
     }
-  }
-
-  // -----------------------------
-  // Extract categoryIds directly
-  // -----------------------------
-  if (Array.isArray(sanitizedUpdates.categories)) {
-    sanitizedUpdates.categoryIds = sanitizedUpdates.categories.map(
-      (cat: any) => cat.id
-    );
-
-    // OPTIONAL: normalize categories to only keys (recommended for consistency)
-    sanitizedUpdates.categories = sanitizedUpdates.categories.map(
-      (cat: any) => cat.key
-    );
   }
 
   // -----------------------------

@@ -179,7 +179,7 @@ const handleNext = () => {
 
       {/* READY MESSAGE */}
       {account.payoutsEnabled && (
-        <div className="p-3 bg-gold text-white border rounded-lg font-medium">
+        <div className="p-3 border-gold text-gold border rounded-lg font-medium">
           Your account is fully verified and ready for payouts
         </div>
       )}
@@ -195,8 +195,11 @@ const handleNext = () => {
       const amount = Number(e.amount);
       const fee = Number(e.platformFee || 0);
       const earning = Number(e.vendorEarning);
+      console.log(amount - fee);
 
-      const isDisputedRelease = earning !== (amount - fee);
+      const isDisputedRelease =
+            Number(earning.toFixed(2)) !==
+            Number((amount - fee).toFixed(2));
 
       const displayStatus = isDisputedRelease
         ? "released after disputed"

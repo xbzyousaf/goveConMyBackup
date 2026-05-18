@@ -16,7 +16,7 @@ import { Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ServiceRequestCard } from "@/components/service-requests/ServiceRequestCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
-import { getFirstLetter } from "../../utility/textUtils"
+import { getFirstLetter, truncateText } from "../../utility/textUtils"
 
 export default function RequestDetails() {
   const [, params] = useRoute("/vendor/requests/:id");
@@ -31,6 +31,8 @@ export default function RequestDetails() {
 const [isDisputeOpen, setIsDisputeOpen] = useState(false);
 const [disputeReason, setDisputeReason] = useState("");
 const [disputeDescription, setDisputeDescription] = useState("");
+const [proposedPrice, setProposedPrice] = useState("");
+
 const openDispute = useMutation({
   mutationFn: async () => {
     const res = await fetch("/api/disputes", {
@@ -93,26 +95,56 @@ const openDispute = useMutation({
     const queryClient = useQueryClient();
     const { toast } = useToast();
     const updateStatus = useMutation({
-    mutationFn: async ({ status }: { status: string }) => {
+    mutationFn: async ({status, proposedPrice,}: {
+      status: string;
+      proposedPrice?: string;
+    }) => {
         const res = await fetch(`/api/service-requests/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, proposedPrice }),
+          }
+        );
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(
+            data.message ||
+            "Failed to update status"
+          );
+        }
+
+        return data;
+      },
+
+      onSuccess: () => {
+        toast({
+          title: "Status Updated",
+          description:
+            "Service request updated successfully",
         });
 
-        if (!res.ok) throw new Error("Failed to update status");
+        queryClient.invalidateQueries({
+          queryKey: ["service-request", id],
+        });
 
-        return res.json();
-        },
-        onSuccess: () => {
-            toast({
-            title: "Status Updated",
-            description: "Service request updated successfully",
-            });
+        queryClient.invalidateQueries({
+          queryKey: [
+            "/api/service-requests",
+          ],
+        });
+      },
 
-            queryClient.invalidateQueries({ queryKey: ["service-request", id] });
-            queryClient.invalidateQueries({ queryKey: ["/api/service-requests"] });
-        },
+      onError: (error: any) => {
+        toast({
+          title: "Error",
+          description:
+            error.message ||
+            "Failed to update status",
+          variant: "destructive",
+        });
+      },
     });
 
     const [reviewModal, setReviewModal] = useState(false);
@@ -323,10 +355,10 @@ const handleDeliver = async () => {
                         Service
                     </p>
                     <CardTitle className="font-semibold text-lg">
-                        {request.service?.name}
+                        {truncateText(request.service?.name, 60)}
                     </CardTitle>
                     <CardDescription>
-                        {request.service?.description}
+                        {truncateText(request.service?.description, 100)}
                     </CardDescription>
                     <hr />
                 </CardHeader>
@@ -334,24 +366,14 @@ const handleDeliver = async () => {
                 <CardContent className="space-y-4 text-sm">
 
                     {/* Escrow Funded Card */}
-                    {user?.userType === "vendor" && request.status!== "disputed" && request.paymentStatus === "escrow_held" && request.escrow && (
-                      <Card className="rounded-xl border border-green-200 bg-green-50">
+                    {user?.userType === "vendor" && request.status!== "disputed" && request.escrow && (
+                      <Card className="rounded-xl border-gold">
                         <CardContent className="p-4 space-y-2">
-                          <p className="font-semibold text-green-700">
+                          <p className="font-semibold text-gold">
                             Escrow Funded
                           </p>
 
                           <div className="text-sm space-y-1">
-                            <div className="flex justify-between">
-                              <span>Total Price</span>
-                              <span>${request.escrow?.amount}</span>
-                            </div>
-
-                            <div className="flex justify-between">
-                              <span>Platform Fee</span>
-                              <span>${request.escrow?.platformFee}</span>
-                            </div>
-
                             <div className="flex justify-between font-semibold">
                               <span>
                                 {user?.userType === "vendor"
@@ -359,6 +381,21 @@ const handleDeliver = async () => {
                                   : "Vendor Will Receive"}
                               </span>
                               <span>${request.escrow?.vendorEarning}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Total Price</span>
+                              <span>${request.escrow?.amount}</span>
+                            </div>
+
+                            <div className="flex justify-between">
+                              <span>
+                                Platform Fee (
+                                {request?.platformFeeType === "percentage"
+                                  ? `${request?.platformFeeValue}%`
+                                  : `$${request?.platformFeeValue}`}
+                                )
+                              </span>
+                              <span>${request?.escrow?.platformFee}</span>
                             </div>
 
                             <div className="text-xs text-muted-foreground pt-2">
@@ -504,7 +541,13 @@ const handleDeliver = async () => {
                 <Button
                   variant="secondary"
                   className="w-full"
-                  onClick={() => openConversation(request.id)}
+                  onClick={() =>
+                    openConversation(
+                      user?.userType === "contractor"
+                        ? request.vendorId
+                        : request.contractorId
+                    )
+                  }
                 >
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Message
@@ -523,7 +566,7 @@ const handleDeliver = async () => {
                   <Dialog open={isDisputeOpen} onOpenChange={setIsDisputeOpen}>
                     <DialogTrigger asChild>
                     {["in_progress","delivered"].includes(request.status) && (
-                      <Button variant="destructive" className="w-full mt-3">
+                      <Button variant="" className="w-full mt-3 border-accent bg-accent">
                         Open Dispute
                       </Button>
                     )}
@@ -675,6 +718,17 @@ const handleDeliver = async () => {
       </DialogHeader>
 
       <p className="text-sm text-muted-foreground">
+        {confirmAction.status === "accepted" && (
+          <div className="space-y-2 mt-4 mb-4">
+            <label className="text-sm font-medium">
+              Proposed Price
+            </label>
+
+            <Input type="number" min="1" placeholder="Enter proposed price" className="mb-2" value={proposedPrice}
+              onChange={(e) => setProposedPrice(e.target.value)}
+            />
+          </div>
+        )}
         Are you sure you want to change status to{" "}
         <strong>{confirmAction.status.replace("_", " ")}</strong>?
       </p>
@@ -689,7 +743,10 @@ const handleDeliver = async () => {
 
         <Button
           onClick={() => {
-            updateStatus.mutate({ status: confirmAction.status });
+            updateStatus.mutate({
+              status: confirmAction.status,
+              proposedPrice,
+            });
             setConfirmAction(null);
           }}
         >

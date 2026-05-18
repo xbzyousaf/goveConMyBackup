@@ -20,7 +20,7 @@ const formSchema = insertVendorProfileSchema
   .omit({ userId: true, responseTime: true })
   .extend({
     phone: z.string().optional(),
-    categories: z.array(z.string()).min(1, "Select at least one category"),
+    categoryIds: z.array(z.string()).min(1, "Select at least one category"),
     skills: z.array(z.string()).min(1, "Add at least one skill"),
   });
 
@@ -60,7 +60,7 @@ export function VendorProfileForm({defaultValues,profileId, mode = "create", onS
       hourlyRate: "",
       phone: "", 
       skills: [],
-      categories: [],
+      categoryIds: [],
       avatar: "",
       ...defaultValues,
     },
@@ -86,7 +86,7 @@ useEffect(() => {
       hourlyRate: defaultValues.hourlyRate ?? "",
       phone: defaultValues.phone ?? "",
       skills: defaultValues.skills ?? [],
-      categories: defaultValues.categories ?? [],
+      categoryIds: defaultValues.categoryIds ?? [],
       avatar: defaultValues.avatar ?? "",
     });
   }
@@ -143,19 +143,7 @@ useEffect(() => {
     formData.append("phone", data.phone || "");
 
     formData.append("skills", JSON.stringify(data.skills));
-    const selectedCategories = categories.filter((cat: any) =>
-      data.categories.includes(cat.key)
-    );
-
-    formData.append(
-      "categories",
-      JSON.stringify(
-        selectedCategories.map((cat: any) => ({
-          id: cat.id,
-          key: cat.key,
-        }))
-      )
-    );
+    formData.append("categoryIds", JSON.stringify(data.categoryIds)); 
     if (selectedFile) {
       formData.append("avatar", selectedFile);
     }
@@ -178,7 +166,7 @@ useEffect(() => {
     form.setValue("skills", currentSkills.filter(skill => skill !== skillToRemove));
   };
 
-  const selectedCategories = form.watch("categories");
+  const selectedCategories = form.watch("categoryIds");
   const currentSkills = form.watch("skills");
 
   return (
@@ -244,7 +232,7 @@ useEffect(() => {
                   name="companyName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company Name (Optional)</FormLabel>
+                      <FormLabel>Company Name</FormLabel>
                       <FormControl>
                         <Input 
                           placeholder="Your company or freelance name"
@@ -378,7 +366,7 @@ useEffect(() => {
               
               <FormField
                 control={form.control}
-                name="categories"
+                name="categoryIds"
                 render={() => (
                   <FormItem>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -386,7 +374,7 @@ useEffect(() => {
                         <FormField
                           key={category.id}
                           control={form.control}
-                          name="categories"
+                          name="categoryIds"
                           render={({ field }) => {
                             return (
                               <FormItem
@@ -396,12 +384,12 @@ useEffect(() => {
                                 <FormControl>
                                   <Checkbox
                                     data-testid={`checkbox-category-${category.id}`}
-                                    checked={field.value?.includes(category.key)}
+                                    checked={field.value?.includes(category.id)}
                                     onCheckedChange={(checked) => {
                                       return checked
-                                        ? field.onChange([...field.value, category.key])
+                                        ? field.onChange([...field.value, category.id])
                                         : field.onChange(
-                                            field.value?.filter((value) => value !== category.key)
+                                            field.value?.filter((value) => value !== category.id)
                                           );
                                     }}
                                   />

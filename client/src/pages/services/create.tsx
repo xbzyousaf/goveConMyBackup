@@ -44,7 +44,6 @@ export default function CreateService() {
   }));
   const [form, setForm] = useState({
     name: "",
-    category: "",
     categoryId: "", 
     description: "",
     pricingModel: "Fixed",
@@ -67,7 +66,6 @@ export default function CreateService() {
     if (service) {
       setForm({
         name: service.name || "",
-        category: service.category || "",
         categoryId: service.categoryId?.toString() || "", // id
         description: service.description || "",
         pricingModel: service.pricingModel || "Fixed",
@@ -79,7 +77,7 @@ export default function CreateService() {
 
   const isValid =
     form.name.trim() &&
-    form.category.trim() &&
+    form.categoryId.trim() &&
     form.description.trim() &&
     form.priceMin !== "" &&
     form.priceMax !== "";
@@ -94,7 +92,6 @@ export default function CreateService() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
-          category: form.category,
           categoryId: form.categoryId,
           description: form.description,
           pricingModel: form.pricingModel,
@@ -175,16 +172,13 @@ export default function CreateService() {
             <Select
               value={form.categoryId}
               onValueChange={(v) => {
-                const selected = serviceCategories.find(c => c.id.toString() === v);
-
                 setForm({
                   ...form,
-                  categoryId: v,            // ✅ DB id
-                  category: selected?.key || ""  // ✅ key
+                  categoryId: v
                 });
               }}
             >
-              <SelectTrigger className={!form.category ? "border-red-500" : ""}>
+              <SelectTrigger className={!form.categoryId ? "border-red-500" : ""}>
                 <SelectValue placeholder="Select category *" />
               </SelectTrigger>
 

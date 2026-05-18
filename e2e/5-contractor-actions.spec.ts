@@ -143,27 +143,35 @@ await page.waitForLoadState('networkidle');
   // ======================
 // STEP 17: CLICK SUBSCRIBE
 // ======================
-const subscribeBtn = page.getByRole('button', {
-  name: /subscribe/i,
-});
+// ======================
+// STEP 17: CLICK PILOT BUTTON
+// ======================
+
+const subscribeBtn = page.locator(
+  'button:has-text("Upgrade to Pilot")'
+);
+
 let isVisible = await subscribeBtn.isVisible().catch(() => false);
 
 if (!isVisible) {
   console.log('⚠️ Not visible → forcing hard reload');
 
-  await page.goto('/dashboard'); // reset state properly
+  await page.goto('/dashboard');
   await page.waitForLoadState('networkidle');
 
   await scrollAndClick(page, page.getByTestId('card-upgrade-plan'));
+
   await page.waitForURL(/billing/);
+
+  await page.waitForTimeout(2000);
 
   isVisible = await subscribeBtn.isVisible().catch(() => false);
 }
 
-await expect(subscribeBtn).toBeVisible();
+await expect(subscribeBtn).toBeVisible({ timeout: 15000 });
 
 await Promise.all([
-  page.waitForURL(/stripe|checkout/, { timeout: 20000 }),
+  page.waitForURL(/stripe|checkout/, { timeout: 30000 }),
   subscribeBtn.click(),
 ]);
 

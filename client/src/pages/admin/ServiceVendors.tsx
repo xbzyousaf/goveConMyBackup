@@ -71,45 +71,22 @@ export default function ServiceVendors() {
                       <p className="text-sm font-medium">{vendor?.companyName}</p>
                       <p className="text-xs text-muted-foreground">{vendor?.title}</p>
                     </div>
-                <span className="bg-green-100 text-green-700 px-2 py-1 text-xs rounded font-semibold">
-                  {vendor.subscriptionTier?.toUpperCase()}
-                </span>
               </div>
 
               {/* ===================== COLUMN 2 ===================== */}
               <div className="flex flex-col gap-3 min-w-0 p-2">
                 <div>
                       <p className="text-lg font-semibold">{displayName}</p>
-                      <p className="text-xs text-muted-foreground">@: {vendor?.username || "NA"}</p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    <span>{vendor.location || "N/A"}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    <span className="truncate">{vendor.email}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
-                    <span>(coming soon)</span>
                 </div>
 
                 {/* Categories */}
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {vendor.categories?.map((cat: string, i: number) => (
+                  {vendor.categories?.map((cat: any, i: number) => (
                     <span
                       key={i}
-                      className={`px-2 py-1 text-xs rounded ${
-                        cat === vendor.serviceName?.toLowerCase()
-                          ? "bg-black text-white font-semibold"
-                          : "bg-gray-200"
-                      }`}
+                      className={`px-2 py-1 text-xs rounded bg-gray-200`}
                     >
-                      {cat}
+                      {cat.name}
                     </span>
                   ))}
                 </div>
@@ -122,68 +99,19 @@ export default function ServiceVendors() {
                 </p>
                 <p>
                   {truncateText(vendor.description, 190)}
-                </p>
-
-                <p>
-                    <span className="font-semibold">MATURITY STAGE: </span>
-                  {vendor.maturityStage || "N/A"}
-                </p>
-
-                {/* Rating */}
-                <div>
-                    <p className="font-semibold mb-1">
-                      CUSTOMER RATING:
-                    </p>
-                    <div className="flex items-center gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                        key={i}
-                        className={`w-4 h-4 ${
-                            i < Math.round(rating)
-                            ? "fill-yellow-400 text-yellow-400"
-                            : "text-gray-300"
-                        }`}
-                        />
-                    ))}
-                    <span className="ml-2 text-sm text-muted-foreground">
-                        {vendor.rating || 0}/5.00
-                    </span>
-
-                    <span className="ml-2 text-sm text-muted-foreground">
-                        ({vendor.reviewCount || 0} reviews)
-                    </span>
-                </div>
-                </div>
-                
+                </p>                
 
               </div>
 
               {/* ===================== COLUMN 4 ===================== */}
-              <div className="flex flex-col gap-3 min-w-0 p-2">
-
-                <div>
-                  <p className="font-semibold">HOURLY RATE:</p>
-                  <p>${vendor.hourlyRate || "0"}</p>
-                </div>
-
-                <div>
-                  <p className="font-semibold">PRICE MODEL:</p>
-                  <p>{vendor.pricingModel}</p>
-                </div>
-
-                <div>
-                  <p className="font-semibold">PRICE RANGE:</p>
-                  <p>
-                    ${vendor.priceMin} - ${vendor.priceMax}
-                  </p>
-                </div>
+              <div className="flex flex-col gap-3 min-w-0 p-2 justify-center text-center">
                 <Link href={`/vendor/${vendor.vendorId}`}>
-                    <Button className="w-full">
+                    <Button variant="outline" className="w-full h-12">
                     View Vendor Profile
                     </Button>
                 </Link>
                 <Link href={`/request?vendorId=${vendor.vendorId}&serviceId=${vendor.serviceId}`}>
-                    <Button variant="outline" className="w-full">
+                    <Button  className="w-full h-12">
                     Request Consultation
                     </Button>
                 </Link>

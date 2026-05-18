@@ -53,12 +53,12 @@ export function ServiceRequestCardCompact({ request, userType, detailsUrl }: Pro
         {/* Title + Description */}
         <div>
           <p className="text-base flex items-start gap-1">
-            <span className="font-bold">Title:</span>
-            <span>{truncateText(request.title ?? "Request")}</span>
+            <span className="font-bold">Service:</span>
+            <span>{truncateText(request.service?.name ?? "Service Name")}</span>
           </p>
 
           <p className="text-base flex items-start gap-1">
-            <span className="font-bold">Description:</span>
+            <span className="font-bold">Request:</span>
             <span>{truncateText(request.description ?? "Request Description")}</span>
           </p>
         </div>
@@ -81,7 +81,7 @@ export function ServiceRequestCardCompact({ request, userType, detailsUrl }: Pro
         {detailsUrl && (
           <Button
             size="sm"
-            className="bg-[hsl(var(--gold))] hover:opacity-90 text-white"
+            className="bg-primary hover:opacity-90 text-white border-none"
             onClick={() => setLocation(`${detailsUrl}/${request.id}`)}
           >
             More Details

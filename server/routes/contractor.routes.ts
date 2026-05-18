@@ -9,6 +9,7 @@ import { Gap, GapType } from '../../shared/types/gaps';
 import { z } from "zod";
 import { isContractor } from "../middleware/contractor.middleware";
 import { SERVICE_CATEGORIES } from "../../shared/types/service";
+import { calculatePlatformFee } from "server/services/platformFeeService";
 
 const router = Router();
 if (!process.env.OPENAI_API_KEY) {
@@ -85,12 +86,12 @@ router.post('/service-requests', isAuthenticated, isContractor, async (req: any,
     if (!contractorId) {
         return res.status(401).json({ message: "Not authenticated" });
     }
-    const { vendorId, serviceId} = req.body;
+    const { vendorId, serviceId, categoryId} = req.body;
     const service = await storage.getService(serviceId);
     if (!service) {
         return res.status(404).json({ message: "Service not found" });
     }
-    const proposedPrice = service.priceMax ?? "0";
+    const proposedPrice = "0.00";
     // const existing =
     //   await storage.findServiceRequestByContractorVendorService({
     //     contractorId,
@@ -110,6 +111,7 @@ router.post('/service-requests', isAuthenticated, isContractor, async (req: any,
         vendorId,
         serviceId,
         proposedPrice,
+        categoryId: service.categoryId ?? categoryId,
         status: "pending",
         paymentStatus: "payment_pending",
     });
@@ -129,7 +131,7 @@ router.post('/service-requests', isAuthenticated, isContractor, async (req: any,
         ? `${existingRequest.contractor.firstName} ${existingRequest.contractor.lastName ?? ""} (${existingRequest.contractor.id})`.trim()
         : "contractor",
         serviceTitle: existingRequest?.service?.name ?? 'Service Title',
-        requestTitle: existingRequest?.title ?? 'Request Title'
+        // requestTitle: existingRequest?.title ?? 'Request Title'
         }
     })
     await storage.createNotification({
@@ -249,8 +251,7 @@ router.post("/service-requests/:id/pay", isAuthenticated,isContractor, async (re
     }
 
     // 💰 Calculate split
-    const platformFee = finalPrice * 0.1;
-    const vendorEarning = finalPrice - platformFee;
+    const feeData = await calculatePlatformFee(finalPrice);
 
     // 🧾 Create escrow
     await storage.createEscrow({
@@ -258,10 +259,10 @@ router.post("/service-requests/:id/pay", isAuthenticated,isContractor, async (re
       contractorId,
       vendorId: request.vendorId,
       amount: finalPrice.toString(),
-      platformFee: platformFee.toString(),
-      vendorEarning: vendorEarning.toString(),
+      platformFee: feeData.platformFeeAmount.toString(),
+      vendorEarning: feeData.vendorEarning.toString(),
       paymentIntentId: finalPI.id,
-      chargeId: chargeId,
+      chargeId,
     });
 
     // 🔄 Update request

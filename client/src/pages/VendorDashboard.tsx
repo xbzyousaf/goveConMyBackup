@@ -50,25 +50,20 @@ const { data } = useQuery<{
     return res.json();
   }
 });
-const applyFilter = (requests: ServiceRequest[]) => {
-  return requests.filter((request) => {
-    const statusMatch =
-      statusFilter === "all" ||
-      (statusFilter === "priority" && PRIORITY_STATUSES.includes(request.status)) ||
-      request.status === statusFilter;
+const serviceRequests = data?.data ?? [];
 
-    const searchMatch =
-      search === "" ||
-      request.title?.toLowerCase().includes(search.toLowerCase()) ||
-      request.description?.toLowerCase().includes(search.toLowerCase()) ||
-      request.service?.name?.toLowerCase().includes(search.toLowerCase());
+const totalPages = Math.ceil(
+  Number(data?.total || 0) / PAGE_SIZE
+);
+const { data: categories = [] } = useQuery<any[]>({
+  queryKey: ["/api/admin/categories"],
+  queryFn: async () => {
+    const res = await fetch("/api/admin/categories");
+    const json = await res.json();
 
-    return statusMatch && searchMatch;
-  });
-};
-const rawRequests = data?.data ?? [];
-const serviceRequests = applyFilter(rawRequests);
-const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
+    return Array.isArray(json) ? json : json.data || [];
+  },
+});
   // Fetch vendor profile
   const { data: vendorProfile, isLoading: profileLoading } = useQuery({
     queryKey: ["/api/vendor-profile"],
@@ -153,7 +148,7 @@ const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
 
     title?: string; // request title
   };
- const allRequests = serviceRequests;
+ const allRequests = data?.data ?? [];
   const mockStats = {
     totalRequests: allRequests.length,
     completedRequests: allRequests.filter(r => r.status === 'completed').length,
@@ -451,7 +446,7 @@ const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
                       <div className="flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm" data-testid="text-hourly-rate">
-                          ${vendorProfile.hourlyRate}/hr
+                          {vendorProfile.hourlyRate}/hr
                         </span>
                       </div>
                     )}
@@ -471,18 +466,29 @@ const totalPages = Math.ceil(serviceRequests.length / PAGE_SIZE);
                   </div>
 
                   {/* Categories */}
-                  {vendorProfile?.categories && vendorProfile.categories.length > 0 && (
-                    <div>
-                      <h4 className="font-medium mb-2">Service Categories</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {vendorProfile.categories.map((category, index) => (
-                          <Badge key={index} variant="outline" data-testid={`badge-category-${index}`}>
-                            {category.replace('_', ' ').toUpperCase()}
+                  {vendorProfile?.categoryIds?.length > 0 && (
+                  <div>
+                    <h4 className="font-medium mb-2">Service Categories</h4>
+
+                    <div className="flex flex-wrap gap-2">
+                      {vendorProfile.categoryIds.map((categoryId: string, index: number) => {
+                        const category = categories.find(
+                          (cat: any) => cat.id === categoryId
+                        );
+
+                        return (
+                          <Badge
+                            key={index}
+                            variant="outline"
+                            data-testid={`badge-category-${index}`}
+                          >
+                            {category?.name || "Unknown"}
                           </Badge>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
-                  )}
+                  </div>
+                )}
 
                   {/* Skills */}
                   {vendorProfile?.skills && vendorProfile.skills.length > 0 && (

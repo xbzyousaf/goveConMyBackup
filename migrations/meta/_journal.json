@@ -36,6 +36,13 @@
       "when": 1778052350912,
       "tag": "0004_stormy_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779085600018,
+      "tag": "0005_premium_hedge_knight",
+      "breakpoints": true
     }
   ]
 }
