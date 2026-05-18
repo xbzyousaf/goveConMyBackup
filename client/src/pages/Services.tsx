@@ -30,14 +30,15 @@ export default function Services() {
     }
   }, [categoryParam]);
 
-  const handleCategoryChange = (category: string) => {
-    setSelectedCategory(category);
-    if (category === "all") {
-      setLocation("/services");
-    } else {
-      setLocation(`/services?category=${category}`);
-    }
-  };
+  const handleCategoryChange = (categoryId: string) => {
+  setSelectedCategory(categoryId);
+
+  if (categoryId === "all") {
+    setLocation("/services");
+  } else {
+    setLocation(`/services?category=${categoryId}`);
+  }
+};
   const { data: user } = useQuery<any>({
     queryKey: ['/api/auth/current-user'],
   });
@@ -79,7 +80,7 @@ export default function Services() {
     const serviceCategories = [
       { id: "all", label: "All Categories" },
       ...categories.map((cat: any) => ({
-        id: cat.key,      // IMPORTANT: match your DB field
+        id: cat.id,      // IMPORTANT: match your DB field
         label: cat.name,
       })),
     ];
@@ -175,7 +176,7 @@ export default function Services() {
         service.description?.toLowerCase().includes(query);
 
       const matchesCategory =
-        service.category?.toLowerCase().includes(query);
+        service.categoryData?.name?.toLowerCase().includes(query);
 
       const matchesOutcomes =
         Array.isArray(service.outcomes) &&
@@ -195,36 +196,6 @@ export default function Services() {
   });
 
 
-
-  const getCategoryDescription = (categoryId: string) => {
-    const descriptions: Record<string, string> = {
-      legal: "Contract compliance, SAM registration, GSA schedules, and legal advisory services",
-      hr: "Talent acquisition, compliance consulting, payroll setup, and workforce management",
-      finance: "Cost accounting, financial reporting, DCAA compliance, and ERP systems",
-      cybersecurity: "CMMC assessments, NIST audits, penetration testing, and security compliance",
-      marketing: "Proposal writing, capture planning, BD support, and technical documentation",
-      business_tools: "Project management, document control, quality systems, and business intelligence"
-    };
-    return descriptions[categoryId] || "";
-  };
-
-  const getServiceCountByCategory = (categoryId: string) => {
-    if (categoryId === "all") return (allServices ?? []).length;
-    return allServices.filter(s => s.category === categoryId).length;
-  };
-
-  const getTierBadge = (tier: string) => {
-    switch(tier) {
-      case "free":
-        return <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" data-testid="badge-tier-free">Free Tier</Badge>;
-      case "standard":
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" data-testid="badge-tier-standard">Standard Tier</Badge>;
-      case "premium":
-        return <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100" data-testid="badge-tier-premium">Premium</Badge>;
-      default:
-        return null;
-    }
-  };
   if (servicesLoading) {
     return <p className="text-center py-10">Loading services...</p>;
   }
@@ -336,7 +307,7 @@ export default function Services() {
                 <DollarSign className="w-5 h-5 text-muted-foreground" />
                 <span className="font-semibold">
                   {service.priceMin && service.priceMax
-                    ? `$${service.priceMin} - $${service.priceMax}`
+                    ? `${service.priceMin} - ${service.priceMax}`
                     : "Contact vendor"}
                 </span>
               </div>

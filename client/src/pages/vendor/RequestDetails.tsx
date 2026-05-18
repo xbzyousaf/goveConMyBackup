@@ -31,6 +31,8 @@ export default function RequestDetails() {
 const [isDisputeOpen, setIsDisputeOpen] = useState(false);
 const [disputeReason, setDisputeReason] = useState("");
 const [disputeDescription, setDisputeDescription] = useState("");
+const [proposedPrice, setProposedPrice] = useState("");
+
 const openDispute = useMutation({
   mutationFn: async () => {
     const res = await fetch("/api/disputes", {
@@ -93,11 +95,14 @@ const openDispute = useMutation({
     const queryClient = useQueryClient();
     const { toast } = useToast();
     const updateStatus = useMutation({
-    mutationFn: async ({ status }: { status: string }) => {
+    mutationFn: async ({status, proposedPrice,}: {
+      status: string;
+      proposedPrice?: string;
+    }) => {
         const res = await fetch(`/api/service-requests/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, proposedPrice }),
           }
         );
 
@@ -369,6 +374,14 @@ const handleDeliver = async () => {
                           </p>
 
                           <div className="text-sm space-y-1">
+                            <div className="flex justify-between font-semibold">
+                              <span>
+                                {user?.userType === "vendor"
+                                  ? "You Will Receive"
+                                  : "Vendor Will Receive"}
+                              </span>
+                              <span>${request.escrow?.vendorEarning}</span>
+                            </div>
                             <div className="flex justify-between">
                               <span>Total Price</span>
                               <span>${request.escrow?.amount}</span>
@@ -383,15 +396,6 @@ const handleDeliver = async () => {
                                 )
                               </span>
                               <span>${request?.escrow?.platformFee}</span>
-                            </div>
-
-                            <div className="flex justify-between font-semibold">
-                              <span>
-                                {user?.userType === "vendor"
-                                  ? "You Will Receive"
-                                  : "Vendor Will Receive"}
-                              </span>
-                              <span>${request.escrow?.vendorEarning}</span>
                             </div>
 
                             <div className="text-xs text-muted-foreground pt-2">
@@ -537,7 +541,13 @@ const handleDeliver = async () => {
                 <Button
                   variant="secondary"
                   className="w-full"
-                  onClick={() => openConversation(request.id)}
+                  onClick={() =>
+                    openConversation(
+                      user?.userType === "contractor"
+                        ? request.vendorId
+                        : request.contractorId
+                    )
+                  }
                 >
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Message
@@ -708,6 +718,17 @@ const handleDeliver = async () => {
       </DialogHeader>
 
       <p className="text-sm text-muted-foreground">
+        {confirmAction.status === "accepted" && (
+          <div className="space-y-2 mt-4 mb-4">
+            <label className="text-sm font-medium">
+              Proposed Price
+            </label>
+
+            <Input type="number" min="1" placeholder="Enter proposed price" className="mb-2" value={proposedPrice}
+              onChange={(e) => setProposedPrice(e.target.value)}
+            />
+          </div>
+        )}
         Are you sure you want to change status to{" "}
         <strong>{confirmAction.status.replace("_", " ")}</strong>?
       </p>
@@ -722,7 +743,10 @@ const handleDeliver = async () => {
 
         <Button
           onClick={() => {
-            updateStatus.mutate({ status: confirmAction.status });
+            updateStatus.mutate({
+              status: confirmAction.status,
+              proposedPrice,
+            });
             setConfirmAction(null);
           }}
         >

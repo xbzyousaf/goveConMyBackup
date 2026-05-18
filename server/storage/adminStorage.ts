@@ -11,8 +11,20 @@ export const adminStorage = {
 
     return admins; // returns array
   },
-  async getOnlyVendors(): Promise<VendorProfile[]> {
-    return await db.select().from(vendorProfiles);
+  async getOnlyVendors() {
+    return await db
+      .select({
+        id: vendorProfiles.id,
+        title: vendorProfiles.title,
+        companyName: vendorProfiles.companyName,
+        isApproved: vendorProfiles.isApproved,
+
+        userId: users.id,
+        userEmail: users.email,
+        userName: users.username,
+      })
+      .from(vendorProfiles)
+      .leftJoin(users, eq(vendorProfiles.userId, users.id));
   },
    async updateVendorApproval(vendorId: string, approve: boolean) {
       await db.update(vendorProfiles)
@@ -92,6 +104,15 @@ export const adminStorage = {
             title: true,
             location: true,
           },
+          with: {
+          user: {
+            columns: {
+              id: true,
+              username: true,
+              email: true,
+            },
+          },
+        },
         },
       },
       orderBy: desc(services.createdAt),

@@ -9,7 +9,7 @@ import { useEffect, useRef  } from "react";
 import { IconLeft } from "react-day-picker";
 import { Link } from "wouter";
 import { getFirstLetter } from "@/utility/textUtils";
-
+import { useMessages } from "../components/ui/MessageContext";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -26,6 +26,10 @@ export default function ServiceMessages({
 }: Props) {
     const queryClient = useQueryClient();
     const { user } = useAuth();
+    const {
+        selectedConversationId,
+        setSelectedConversationId,
+        } = useMessages();
     const [message, setMessage] = useState("");
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const scrollToBottom = () => {
@@ -34,14 +38,9 @@ export default function ServiceMessages({
     });
     };
 
-    const [activeConversationId, setActiveConversationId] = useState<string | null>(serviceRequestId ?? null);
-    useEffect(() => {if (serviceRequestId) {
-        setActiveConversationId(serviceRequestId);
-        }
-        }, [serviceRequestId]);
     useEffect(() => {
-        if (activeConversationId) {
-            fetch(`/api/conversations/${activeConversationId}/mark-read`, {
+        if (selectedConversationId) {
+            fetch(`/api/conversations/${selectedConversationId}/mark-read`, {
             method: "POST",
             });
 
@@ -49,7 +48,7 @@ export default function ServiceMessages({
             queryKey: ["/api/conversations"],
             });
         }
-        }, [activeConversationId]);
+        }, [selectedConversationId]);
         
 
 
@@ -63,41 +62,52 @@ export default function ServiceMessages({
         enabled: open,
         });
     const messagesQuery = useQuery({
-        queryKey: ["/api/service-requests", activeConversationId, "messages"],
+        queryKey: ["/api/conversations", selectedConversationId, "messages"],
         queryFn: async () => {
             const res = await fetch(
-            `/api/service-requests/${activeConversationId}/messages`
+            `/api/conversations/${selectedConversationId}/messages`
             );
             if (!res.ok) throw new Error("Failed to load messages");
             return res.json();
         },
-        enabled: !!activeConversationId,
+        enabled: !!selectedConversationId,
         refetchInterval: 4000, // auto refresh chat
         });
 
 
 
-    const messages = messagesQuery.data?.messages ?? [];
-    const conversations = conversationsQuery.data?.conversations ?? [];
-    const totalUnread = conversationsQuery.data?.totalUnread ?? 0;
-    
-    const serviceId = messagesQuery.data?.service?.id;
-    const serviceRequest = messagesQuery.data?.serviceRequest ?? [];
-    const serviceTitle = messagesQuery.data?.service?.title;
-    const requestTitle = messagesQuery.data?.serviceRequest?.title;
-    const vendorName = messagesQuery.data?.participants?.vendorName;
-    const contractorName = messagesQuery.data?.participants?.contractorName;
-    const isVendor = user?.id === messagesQuery.data?.serviceRequest?.vendorId;
-    const vendorId = messagesQuery.data?.serviceRequest?.vendorId;
-    const contractorId = messagesQuery.data?.serviceRequest?.contractorId;
+        const conversations = conversationsQuery.data?.conversations ?? [];
+        const totalUnread = conversationsQuery.data?.totalUnread ?? 0;
+        
+        const conversation = messagesQuery.data?.conversation;
+
+        const messages = conversation?.messages ?? [];
+        const serviceRequest = conversation?.serviceRequest;
+        const serviceId = serviceRequest?.service?.id;
+        const serviceTitle = serviceRequest?.service?.title;
+        const requestTitle = serviceRequest?.title;
+        const vendorName = conversation?.vendor
+        ? `${conversation.vendor.firstName ?? ""} ${conversation.vendor.lastName ?? ""}`.trim()
+        : "Vendor";
+
+        const contractorName = conversation?.contractor
+        ? `${conversation.contractor.firstName ?? ""} ${conversation.contractor.lastName ?? ""}`.trim()
+        : "Contractor";
+
+        const vendorId = conversation?.vendorId;
+
+        const contractorId =
+        conversation?.contractorId;
+
+        const isVendor = user?.id === vendorId;
 
 
     const otherName = isVendor ? contractorName : vendorName;
 useEffect(() => {
-  if (activeConversationId) {
+  if (selectedConversationId) {
     scrollToBottom();
   }
-}, [messages, activeConversationId]);
+}, [messages, selectedConversationId]);
 
  const sendMessage = useMutation({
   mutationFn: async () => {
@@ -105,7 +115,7 @@ useEffect(() => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        serviceRequestId: activeConversationId,
+        conversationId: selectedConversationId,
         content: message,
         }),
     });
@@ -120,7 +130,7 @@ useEffect(() => {
         setMessage("");
 
         queryClient.invalidateQueries({
-            queryKey: ["/api/service-requests", activeConversationId, "messages"],
+            queryKey: ["/api/conversations", selectedConversationId, "messages"],
         });
 
         queryClient.invalidateQueries({
@@ -159,11 +169,11 @@ useEffect(() => {
         {/* header */}
         <div className="flex justify-between items-center p-4 border-b">
 
-        {activeConversationId ? (
+        {selectedConversationId ? (
             <>
             <div className="flex items-center gap-3">
                 <button
-                    onClick={() => setActiveConversationId(null)}
+                    onClick={() => setSelectedConversationId(null)}
                     className="text-xsm text-muted-foreground hover:text-black"
                     >
                 <IconLeft />
@@ -238,7 +248,7 @@ useEffect(() => {
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
 
             {/* Header Click → Show Conversation List */}
-            {!activeConversationId  &&
+            {!selectedConversationId  &&
                 conversations.map((conv: any) => {
                     const otherName = conv.otherUser?.name ?? "User";
 
@@ -246,7 +256,7 @@ useEffect(() => {
                     <div
                         key={conv.id}
                         className="flex items-center gap-3 p-3 border-b cursor-pointer hover:bg-muted transition"
-                        onClick={() => setActiveConversationId(conv.id)}
+                        onClick={() => setSelectedConversationId(conv.id)}
                     >
                         {/* Avatar */}
                         <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold">
@@ -274,61 +284,39 @@ useEffect(() => {
 
 
             {/* Service Card Click → Show Messages */}
-            {activeConversationId && (
+            {selectedConversationId && (
             <>
             {messages.map((m: any) => {
-                let isRightSide = false;
-                let senderName = "";
-                let senderRole = "";
+  const isRightSide =
+    m.senderId === user?.id;
 
-                if (user?.userType === "admin") {
-                    // Admin view: right = vendor, left = contractor
-                    if (m.senderId === serviceRequest.vendorId) {
-                    isRightSide = true;
-                    senderName = serviceRequest.vendorName;
-                    senderRole = `(${vendorName})`;
-                    } else if (m.senderId === serviceRequest.contractorId) {
-                    isRightSide = false;
-                    senderName = serviceRequest.contractorName;
-                    senderRole = `(${contractorName})`;
-                    } else {
-                    senderName = "Admin";
-                    senderRole = "(Admin)";
-                    }
-                } else {
-                    // Non-admin view
-                    isRightSide = m.senderId === user?.id;
+  let senderName = "User";
 
-                    if (m.senderId === serviceRequest.vendorId) {
-                    senderName = serviceRequest.vendorName;
-                    senderRole = "";
-                    } else if (m.senderId === serviceRequest.contractorId) {
-                    senderName = serviceRequest.contractorName;
-                    senderRole = "";
-                    } else {
-                    senderName = user?.name;
-                    senderRole = user?.userType === "admin"
-                        ? "Admin"
-                        : user?.userType === "vendor"
-                        ? "Vendor"
-                        : "Contractor";
-                    }
-                }
+  if (m.senderId === vendorId) {
+    senderName = vendorName;
+  } else if (
+    m.senderId === contractorId
+  ) {
+    senderName = contractorName;
+  }
 
-                return (
-                    <div
-                    key={m.id}
-                    className={`p-2 rounded-md max-w-[70%] my-1 ${
-                        isRightSide ? "ml-auto bg-primary text-white" : "bg-muted"
-                    }`}
-                    >
-                    <div className="text-xs font-semibold mb-1">
-                        {senderName} {senderRole}
-                    </div>
-                    <div>{m.content}</div>
-                    </div>
-                );
-                })}
+  return (
+    <div
+      key={m.id}
+      className={`p-2 rounded-md max-w-[70%] my-1 ${
+        isRightSide
+          ? "ml-auto bg-primary text-white"
+          : "bg-muted"
+      }`}
+    >
+      <div className="text-xs font-semibold mb-1">
+        {senderName}
+      </div>
+
+      <div>{m.content}</div>
+    </div>
+  );
+})}
 
                 {/* Scroll Anchor */}
                 <div ref={messagesEndRef} />
@@ -339,7 +327,7 @@ useEffect(() => {
 
 
         {/* input */}
-        {activeConversationId && user?.userType !== "admin" && (
+        {selectedConversationId && user?.userType !== "admin" && (
         <div className="p-3 border-t flex gap-2">
             <Input
                 value={message}

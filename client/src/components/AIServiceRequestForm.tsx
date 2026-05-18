@@ -18,6 +18,7 @@ type ServiceRequestPayload = {
   proposedPrice?: number;
   vendorId?: string;
   serviceId?: string;
+  categoryId:string;
 };
 
 interface AIServiceRequestFormProps {
@@ -91,13 +92,13 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
 
         aiMatchMutation.mutate({
           title: requesttitle,
-          category: selectedCategory,
+          categoryId: selectedCategory,
           description: request,
           serviceId: serviceId || undefined,
           vendorId: vendorId || undefined,
         });
     toast({
-      title: "AI is processing your request",
+      title: "Processing your request",
       description: "We are finding the best vendor matches for you.",
     });
   };
@@ -105,7 +106,7 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
   const handleViewVendor = (vendorId: string) => {
     navigate(`/vendor/${vendorId}`);
   };
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("");
 
   const handleCategoryChange = (value: string) => {
     setSelectedCategory(value);
@@ -114,13 +115,7 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
   const { data: service } = useQuery<any>({
     queryKey: [`/api/services/${serviceId}`],
   });
-
-  useEffect(() => {
-    if (service?.category) {
-      setSelectedCategory(service.category);
-    }
-  }, [service]);
-  const { data: categories = [] } = useQuery({
+const { data: categories = [] } = useQuery({
     queryKey: ["/api/admin/categories"],
     queryFn: async () => {
       const res = await fetch("/api/admin/categories");
@@ -130,6 +125,15 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
       return Array.isArray(data) ? data : data.data || [];
     },
   });
+  useEffect(() => {
+  if (
+    service?.categoryData?.id &&
+    categories.length > 0
+  ) {
+    setSelectedCategory(service.categoryData.id);
+  }
+}, [service, categories]);
+  
   return (
     <div className="min-h-screen bg-background">
     <Header />
@@ -149,9 +153,9 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
         {/* Title Input */}
-        <div>
+        {/* <div>
           <label className="text-sm font-medium mb-2 block">Request Title</label>
           <input
             type="text"
@@ -161,7 +165,7 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
             data-testid="input-request-title"
           />
-        </div>
+        </div> */}
 
         {/* Category Dropdown */}
         <div>
@@ -172,7 +176,7 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
             </SelectTrigger>
             <SelectContent>
               {categories.map((cat: any) => (
-                <SelectItem key={cat.id} value={cat.key}>
+                <SelectItem key={cat.id} value={cat.id}>
                   {cat.name}
                 </SelectItem>
               ))}
@@ -198,7 +202,6 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
           type="submit" 
           disabled={
             !request.trim() ||
-            !requesttitle.trim() ||
             aiMatchMutation.isPending
           }
           className="w-full"
@@ -212,7 +215,7 @@ export function AIServiceRequestForm({ onSubmit, vendorId, serviceId }: AIServic
           ) : (
             <>
               <Send className="h-4 w-4 mr-2" />
-              Get AI Recommendations
+              Request This Service
             </>
           )}
         </Button>

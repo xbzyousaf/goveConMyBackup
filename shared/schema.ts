@@ -18,7 +18,6 @@ export const sessions = pgTable(
 // Enums
 export const userTypeEnum = pgEnum("user_type", ["contractor", "vendor", 'admin']);
 export const serviceRequestStatusEnum = pgEnum("service_request_status", ["pending", "accepted", "in_progress", "delivered", "completed", "cancelled", 'disputed']);
-export const serviceCategoryEnum = pgEnum("service_category", ["legal", "hr", "finance", "cybersecurity", "marketing", "business_tools", "insurance"]);
 export const maturityStageEnum = pgEnum("maturity_stage", ["startup", "growth", "scale"]);
 export const coreProcessEnum = pgEnum("core_process", ["business_structure", "business_strategy", "execution"]);
 export const contentTypeEnum = pgEnum("content_type", ["playbook", "template", "guide", "webinar", "faq", "checklist"]);
@@ -73,7 +72,6 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   phone: text("phone"),
   responseTime: text("response_time"),
   skills: text("skills").array(),
-  categories: serviceCategoryEnum("categories").array(),
   categoryIds: uuid("category_ids").array(),
   avatar: text("avatar"),
   rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
@@ -123,7 +121,6 @@ export const services = pgTable("services", {
 
   name: text("title").notNull(),
   description: text("description").notNull(),
-  category: serviceCategoryEnum("category").notNull(),
 
   pricingModel: text("pricing_model"),
 
@@ -208,10 +205,10 @@ export const serviceTiers = pgTable("service_tiers", {
     id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
     contractorId: uuid("contractor_id").references(() => users.id).notNull(),
     vendorId: uuid("vendor_id").references(() => users.id, { onDelete: "set null" }),
-    title: text("title").notNull(),
+    title: text("title"),
     serviceId: uuid("service_id").references(() => services.id, { onDelete: "cascade" }).notNull(),
     description: text("description").notNull(),
-    category: serviceCategoryEnum("category").notNull(),
+    categoryId: uuid("category_id").references(() => categories.id).notNull(),
     budget: text("budget"),
     // --------------------------
     // PRICING
@@ -297,7 +294,8 @@ export const serviceTiers = pgTable("service_tiers", {
 // Messages for contractor-vendor communication
 export const messages = pgTable("messages", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
-  serviceRequestId: uuid("service_request_id").references(() => serviceRequests.id).notNull(),
+  conversationId: uuid("conversation_id").references(() => conversations.id).notNull(),
+  serviceRequestId: uuid("service_request_id").references(() => serviceRequests.id),
   senderId: uuid("sender_id").references(() => users.id).notNull(),
   receiverId: uuid("receiver_id").references(() => users.id).notNull(),
   content: text("content").notNull(),
@@ -305,6 +303,15 @@ export const messages = pgTable("messages", {
   isRead: boolean("is_read").default(false),
   messageType: messageTypeEnum("message_type").default("text").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const conversations = pgTable("conversations", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractorId: uuid("contractor_id") .references(() => users.id) .notNull(),
+  vendorId: uuid("vendor_id").references(() => users.id).notNull(),
+  serviceRequestId: uuid("service_request_id").references(() => serviceRequests.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Reviews and ratings
@@ -787,6 +794,11 @@ export const milestonesRelations = relations(milestones, ({ one }) => ({
   }),
 }));
 export const messagesRelations = relations(messages, ({ one }) => ({
+   conversation: one(conversations, {
+    fields: [messages.conversationId],
+    references: [conversations.id],
+    relationName: "conversationMessages",
+  }),
   serviceRequest: one(serviceRequests, {
     fields: [messages.serviceRequestId],
     references: [serviceRequests.id],
@@ -800,6 +812,22 @@ export const messagesRelations = relations(messages, ({ one }) => ({
     references: [users.id],
   }),
 }));
+export const conversationsRelations = relations(
+  conversations,
+  ({ one, many }) => ({
+    vendor: one(users, {
+      fields: [conversations.vendorId],
+      references: [users.id],
+    }),
+
+    contractor: one(users, {
+      fields: [conversations.contractorId],
+      references: [users.id],
+    }),
+
+    messages: many(messages),
+  })
+);
 
 export const reviewsRelations = relations(reviews, ({ one }) => ({
   serviceRequest: one(serviceRequests, {

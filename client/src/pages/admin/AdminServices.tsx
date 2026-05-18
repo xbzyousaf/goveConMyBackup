@@ -105,14 +105,14 @@ export default function AdminServices() {
               <tr className="bg-gray-50 text-sm">
                 <th className="px-4 py-2 text-left">Service</th>
                 <th className="px-4 py-2 text-left">Category</th>
-                <th className="px-4 py-2 text-left">Vendor Company</th>
-                <th className="px-4 py-2 text-left">Vendor Title</th>
+                <th className="px-4 py-2 text-left">Username</th>
+                <th className="px-4 py-2 text-left">Company</th>
                 <th className="px-4 py-2 text-left">Price</th>
                 <th className="px-4 py-2 text-left">Actions</th>
               </tr>
             </thead>
 
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="text-sm bg-white divide-y divide-gray-200">
               {services.map((service) => (
                 <tr key={service.id}>
                   <td className="px-4 py-2 font-medium">
@@ -124,11 +124,11 @@ export default function AdminServices() {
                   </td>
 
                   <td className="px-4 py-2">
-                    {service.vendorProfile?.companyName || "-"}
+                    {service.vendorProfile?.user?.username || "-"}
                   </td>
 
                   <td className="px-4 py-2">
-                    {service.vendorProfile?.title || "-"}
+                    {service.vendorProfile?.companyName || "-"}
                   </td>
 
                   <td className="px-4 py-2">

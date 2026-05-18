@@ -380,7 +380,7 @@ useEffect(() => {
                     </div>
                     
                       <Button
-                        className={`w-full ${colorStyles.button}`}
+                        className={`w-full ${colorStyles.button} border-none`}
                         data-testid={`button-view-${key}`}
                         disabled={loadingProcess === key}
                         onClick={() => {

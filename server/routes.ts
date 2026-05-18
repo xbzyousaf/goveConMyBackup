@@ -360,10 +360,10 @@ app.get("/api/vendors", async (req: any, res) => {
     }
       const vendors = await storage.getVendors(filters);
       res.json(vendors);
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ FULL ERROR:", error);
         res.status(500).json({ 
-        message: "Failed to fetch vendors",
+        message: error.message || "Failed to fetch vendors",
         error: error instanceof Error ? error.message : error
       });
     }
@@ -375,9 +375,9 @@ app.get("/api/vendors", async (req: any, res) => {
         return res.status(404).json({ message: "Vendor not found" });
       }
       res.json(vendor);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching vendor:", error);
-      res.status(500).json({ message: "Failed to fetch vendor" });
+      res.status(500).json({ message:  error.message || "Failed to fetch vendor1" });
     }
   });
  
@@ -619,31 +619,34 @@ app.get("/api/vendors", async (req: any, res) => {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const { serviceRequestId, content } = req.body;
+      const { conversationId, content } = req.body;
 
-      const serviceRequest = await storage.getServiceRequest(serviceRequestId);
-      if (!serviceRequest) {
-        return res.status(404).json({ message: "Service request not found" });
+      const conversation = await storage.getConversationById(conversationId);
+      if (!conversation) {
+        return res.status(404).json({ message: "Conversation not found" });
       }
 
       if (
-        serviceRequest.vendorId !== userId &&
-        serviceRequest.contractorId !== userId
+        conversation.vendorId !== userId &&
+        conversation.contractorId !== userId
       ) {
         return res.status(403).json({ message: "Not authorized" });
       }
 
       const receiverId =
-        serviceRequest.vendorId === userId
-          ? serviceRequest.contractorId
-          : serviceRequest.vendorId;
+        conversation.vendorId === userId
+          ? conversation.contractorId
+          : conversation.vendorId;
 
       const message = await storage.createMessage({
-        serviceRequestId,
+        conversationId,
         senderId: userId,
         receiverId,
         content,
         messageType: "text",
+      });
+      await storage.updateConversation(conversationId, {
+        updatedAt: new Date(),
       });
       await storage.createNotification({
         userId: receiverId,
@@ -653,66 +656,57 @@ app.get("/api/vendors", async (req: any, res) => {
           ? content.substring(0, 100) + "..." 
           : content,
         type: "new_message",
-        relatedRequestId: serviceRequestId,
         isRead: false,
       });
 
       res.json(message);
-    } catch (error) {
+    } catch (error:any) {
       console.error("Send message error:", error);
-      res.status(500).json({ message: "Failed to send message" });
+      res.status(500).json({ message: error.message || "Failed to send message" });
     }
   });
-  app.get("/api/service-requests/:id/messages", isAuthenticated,async (req, res) => {
-    try {
-        const userId = getUserId(req);
-        if (!userId) {
-          return res.status(401).json({ message: "Not authenticated" });
-        }
-        const user = await storage.getUser(userId);
+  app.get("/api/conversations/:id/messages", isAuthenticated, async (req, res) => {
+  try {
+    const userId = getUserId(req);
 
-        const serviceRequestId = req.params.id;
-
-        const serviceRequest = await storage.getServiceRequest(serviceRequestId);
-        if (!serviceRequest) {
-          return res.status(404).json({ message: "Service request not found" });
-        }
-
-        if (
-          serviceRequest.vendorId !== userId &&
-          serviceRequest.contractorId !== userId &&
-        user?.userType !== 'admin'
-        ) {
-          return res.status(403).json({ message: "Not authorized" });
-        }
-
-      return res.json({
-        serviceRequest: {
-          id: serviceRequest.id,
-          title: serviceRequest.title,
-          vendorId: serviceRequest.vendorId,
-          contractorId: serviceRequest.contractorId,
-        },
-        service: serviceRequest.service
-          ? {
-              id: serviceRequest.service.id,
-              title: serviceRequest.service.name,
-            }
-          : null,
-        participants: {
-          vendorName: serviceRequest.vendor?.firstName,
-          contractorName: serviceRequest.contractor?.firstName,
-        },
-        messages: serviceRequest.messages,
+    if (!userId) {
+      return res.status(401).json({
+        message: "Not authenticated",
       });
-      } catch (error) {
-        console.error("Error fetching messages:", error);
-        return res.status(500).json({
-          message: "Failed to fetch messages",
-        });
-      }
     }
-  );
+
+    const conversationId = req.params.id;
+
+    const conversation =
+      await storage.getConversationById(conversationId);
+
+    if (!conversation) {
+      return res.status(404).json({
+        message: "Conversation not found",
+      });
+    }
+
+    if (
+      conversation.vendorId !== userId &&
+      conversation.contractorId !== userId
+    ) {
+      return res.status(403).json({
+        message: "Not authorized",
+      });
+    }
+
+    return res.json({
+      conversation,
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Failed to fetch messages",
+    });
+  }
+});
   app.patch("/api/service-requests/:id/status", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
@@ -722,7 +716,7 @@ app.get("/api/vendors", async (req: any, res) => {
       const user = await storage.getUser(userId);
 
       const { id } = req.params;
-      const { status, winner, vendorPercent, contractorPercent, disputeId } = req.body;
+      const { status, proposedPrice, winner, vendorPercent, contractorPercent, disputeId } = req.body;
 
       const serviceRequest = await storage.getServiceRequest(id);
 
@@ -749,39 +743,53 @@ app.get("/api/vendors", async (req: any, res) => {
 
       // Accept request
       if (status === "accepted") {
-        const finalPrice = Number(
-            serviceRequest.finalPrice ??
-            serviceRequest.proposedPrice
-          );
-        const feeData = await calculatePlatformFee(finalPrice);
-        if (!finalPrice || finalPrice <= 0) {
-          return res.status(400).json({
-            message: "Final price required"
-          });
-        }
-        if (!feeData.platformFeeType || feeData.platformFeeValue === undefined || feeData.platformFeeAmount === undefined || feeData.vendorEarning === undefined) {
-          return res.status(400).json({
-            message: "Fee data required"
-          });
-        }
-        if (!feeData.vendorEarning || feeData.vendorEarning <= 0 || feeData.vendorEarning === undefined) {
-          return res.status(400).json({
-            message: "Vendor earning must be greater than zero or platform fee, current fee: " + JSON.stringify(feeData.platformFeeValue)
-          });
-        }
 
-        await storage.updateServiceRequest(id, {
-          finalPrice: finalPrice.toString(),
-          platformFeeId: feeData.platformFeeId,
-          platformFeeType: feeData.platformFeeType,
-          platformFeeValue: feeData.platformFeeValue,
-          platformFeeAmount: feeData.platformFeeAmount.toString(),
+      const finalProposedPrice = Number(
+        proposedPrice ?? serviceRequest.proposedPrice
+      );
 
-          vendorEarning:
-            feeData.vendorEarning.toString(),
+      if (!finalProposedPrice || finalProposedPrice <= 0) {
+        return res.status(400).json({
+          message: "Valid proposed price required",
         });
-
       }
+
+      const feeData = await calculatePlatformFee(finalProposedPrice);
+
+      if (
+        !feeData.platformFeeType ||
+        feeData.platformFeeValue === undefined ||
+        feeData.platformFeeAmount === undefined ||
+        feeData.vendorEarning === undefined
+      ) {
+        return res.status(400).json({
+          message: "Fee data required",
+        });
+      }
+
+      if (feeData.vendorEarning <= 0) {
+        return res.status(400).json({
+          message:
+            "Vendor earning must be greater than zero",
+        });
+      }
+
+      await storage.updateServiceRequest(id, {
+        proposedPrice: finalProposedPrice.toString(),
+
+        finalPrice: finalProposedPrice.toString(),
+
+        platformFeeId: feeData.platformFeeId,
+        platformFeeType: feeData.platformFeeType,
+        platformFeeValue: feeData.platformFeeValue,
+
+        platformFeeAmount:
+          feeData.platformFeeAmount.toString(),
+
+        vendorEarning:
+          feeData.vendorEarning.toString(),
+      });
+    }
 
       // Prevent work without escrow
       if (status === "in_progress" && serviceRequest.paymentStatus !== "escrow_held") {
@@ -885,6 +893,46 @@ app.get("/api/vendors", async (req: any, res) => {
       });
     }
   });
+   app.post("/api/conversations/start", isAuthenticated, async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) {
+          return res.status(401).json({ message: "Not authenticated" });
+        }
+        const { vendorId } = req.body;
+
+        if (!vendorId) { return res.status(400).json({  message: "vendorId is required"});}
+        const existingConversation =
+        await storage.getConversationBetweenUsers(
+          userId,
+          vendorId
+        );
+
+        // already exists
+        if (existingConversation) {
+          return res.json({
+            success: true,
+            data: existingConversation,
+          });
+        }
+        // create new
+        const conversation =
+          await storage.createConversation({
+            contractorId: userId,
+            vendorId,
+          });
+
+        return res.json({
+          success: true,
+          data: conversation,
+        });
+
+      } catch (error:any) {
+        console.error(error);
+        return res.status(500).json({ message: error.message || "Failed to mark as read" });
+      }
+    }
+  );
   app.get("/api/conversations", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
@@ -892,7 +940,7 @@ app.get("/api/vendors", async (req: any, res) => {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const data = await storage.getUserServiceRequests(userId);
+      const data = await storage.getUserConversations(userId);
       return res.json(data);
     } catch (error) {
       console.error(error);

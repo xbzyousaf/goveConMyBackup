@@ -22,7 +22,6 @@ import { ArrowLeft } from "lucide-react";
 type FormData = {
   type: "percentage" | "fixed";
   value: number;
-  isActive: boolean;
 };
 
 export default function PlatformFeeForm() {
@@ -40,7 +39,6 @@ export default function PlatformFeeForm() {
     defaultValues: {
       type: "percentage",
       value: 0,
-      isActive: true,
     },
   });
 
@@ -68,7 +66,6 @@ export default function PlatformFeeForm() {
       form.reset({
         type: data.type,
         value: data.value,
-        isActive: data.isActive,
       });
     }
   }, [data]);
@@ -185,7 +182,7 @@ const onSubmit = (values: FormData) => {
                   </div>
 
                   {/* STATUS */}
-                  <div className="flex items-center gap-2">
+                  {/* <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       id="isActive"
@@ -198,7 +195,7 @@ const onSubmit = (values: FormData) => {
                     >
                       Active
                     </label>
-                  </div>
+                  </div> */}
 
                   {/* BUTTON */}
                   <div className="flex justify-end">
