@@ -45,7 +45,7 @@ export default function ContractorDetail() {
           <Link href="/">
             <Button>
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Go Back
+              Back
             </Button>
           </Link>
         </div>

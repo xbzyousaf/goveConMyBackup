@@ -65,12 +65,14 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   .references(() => users.id, { onDelete: "cascade" })
   .notNull(),
   companyName: text("company_name"),
-  title: text("title").notNull(),
+  title: text("title"),
   description: text("description"),
   location: text("location"),
   hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }),
   phone: text("phone"),
   responseTime: text("response_time"),
+  yearsOfExperience: text("years_of_experience"),
+  agenciesServed: text("agencies_served").array(),
   skills: text("skills").array(),
   categoryIds: uuid("category_ids").array(),
   avatar: text("avatar"),
@@ -80,7 +82,7 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   // Enhanced vendor profile fields
   pastPerformance: jsonb("past_performance"),
   certifications: text("certifications").array(),
-  availability: text("availability").default("Available"),
+  availability: integer("availability").default(1),
   isFeatured: boolean("is_featured").default(false),
   // Vendor journey & monetization
   journeyStage: vendorJourneyStageEnum("journey_stage").default("application"),

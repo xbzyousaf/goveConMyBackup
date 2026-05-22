@@ -16,39 +16,61 @@ export default function CreateCertificate() {
     certificateName: "",
     receivedFrom: "",
     yearReceived: "",
-    image: null as File | null,
+    // image: null as File | null,
   });
 
   const isValid =
     form.certificateName.trim() &&
     form.receivedFrom.trim() &&
-    form.yearReceived !== "" &&
-    form.image !== null;
+    form.yearReceived !== "";
+    // form.image !== null;
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const formData = new FormData();
-      formData.append("certificateName", form.certificateName);
-      formData.append("receivedFrom", form.receivedFrom);
-      formData.append("yearReceived", form.yearReceived);
-      if (form.image) formData.append("image", form.image);
-
       const res = await fetch("/api/certificate", {
         method: "POST",
-        body: formData, // browser handles Content-Type for multipart
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          certificateName: form.certificateName,
+          receivedFrom: form.receivedFrom,
+          yearReceived: form.yearReceived,
+        }),
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to create certificate");
+        let message = "Failed to create certificate";
+
+        try {
+          const err = await res.json();
+          message = err.message || message;
+        } catch {
+          message = await res.text();
+        }
+
+        throw new Error(message);
       }
 
       return res.json();
     },
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/certificate"] });
-      toast({ title: "Certificate created successfully" });
+
+      toast({
+        title: "Certificate created successfully",
+      });
+
       setLocation("/vendor-dashboard");
+    },
+
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -83,12 +105,12 @@ export default function CreateCertificate() {
               onChange={e => setForm({ ...form, yearReceived: e.target.value })}
             />
 
-            <Input
+            {/* <Input
               type="file"
               accept="image/*"
               className={!form.image ? "border-red-500" : ""}
               onChange={e => setForm({ ...form, image: e.target.files?.[0] || null })}
-            />
+            /> */}
           </CardContent>
         </Card>
 
@@ -100,7 +122,7 @@ export default function CreateCertificate() {
               toast({
                 title: "Missing required fields",
                 description:
-                  "Certificate name, received from, year received, and image are required",
+                  "Certificate name, received from, and year received, are required",
                 variant: "destructive",
               });
               return;

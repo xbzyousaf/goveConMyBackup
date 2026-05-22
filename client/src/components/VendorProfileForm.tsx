@@ -12,22 +12,30 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useToast } from "@/hooks/use-toast";
 import { insertVendorProfileSchema } from "@shared/schema";
 import { z } from "zod";
-import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon, Phone } from "lucide-react";
+import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon, Phone, PhoneForwarded, Layers } from "lucide-react";
 import { AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { Avatar } from "./ui/avatar";
 
 const formSchema = insertVendorProfileSchema
   .omit({ userId: true, responseTime: true })
   .extend({
+    businessType: z.enum([
+      "commercial",
+      "government",
+      "both",
+    ]),
     phone: z.string().optional(),
     categoryIds: z.array(z.string()).min(1, "Select at least one category"),
     skills: z.array(z.string()).min(1, "Add at least one skill"),
+    agenciesServed: z.array(z.string()).optional(),
+    availability: z.number().optional(),
+    location: z.string().optional(),
   });
 
-type FormData = z.infer<typeof formSchema>;
+type VendorProfileFormValues = z.infer<typeof formSchema>;
 
 interface VendorProfileFormProps {
-  defaultValues?: Partial<FormData>;
+  defaultValues?: Partial<VendorProfileFormValues>;
   profileId?: number; 
   mode?: "create" | "edit";
   onSuccess?: () => void;
@@ -36,6 +44,7 @@ interface VendorProfileFormProps {
 
 export function VendorProfileForm({defaultValues,profileId, mode = "create", onSuccess, onCancel }: VendorProfileFormProps) {
   const [skillInput, setSkillInput] = useState("");
+  const [agencyInput, setAgencyInput] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
    const { data: categories = [], isLoading, error } = useQuery({
@@ -47,22 +56,23 @@ export function VendorProfileForm({defaultValues,profileId, mode = "create", onS
     },
   });
 
-
   const serviceCategories = categories;
 
-  const form = useForm<FormData>({
+  const form = useForm<VendorProfileFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       companyName: "",
-      title: "",
       description: "",
-      location: "",
       hourlyRate: "",
+      businessType: "commercial",
       phone: "", 
       skills: [],
       categoryIds: [],
       avatar: "",
-      ...defaultValues,
+      yearsOfExperience: "",
+      agenciesServed: [],
+      availability: 1,
+      location: "",
     },
   });
   
@@ -80,14 +90,17 @@ useEffect(() => {
   if (defaultValues) {
     form.reset({
       companyName: defaultValues.companyName ?? "",
-      title: defaultValues.title ?? "",
       description: defaultValues.description ?? "",
-      location: defaultValues.location ?? "",
       hourlyRate: defaultValues.hourlyRate ?? "",
       phone: defaultValues.phone ?? "",
       skills: defaultValues.skills ?? [],
       categoryIds: defaultValues.categoryIds ?? [],
       avatar: defaultValues.avatar ?? "",
+      businessType: defaultValues.businessType || "commercial",
+      yearsOfExperience: defaultValues.yearsOfExperience ?? "",
+      agenciesServed: defaultValues.agenciesServed ?? [],
+      availability: defaultValues.availability ?? 1,
+      location: defaultValues.location ?? "",
     });
   }
 }, [defaultValues, form]);
@@ -113,8 +126,7 @@ useEffect(() => {
     },
     onSuccess: () => {
       toast({
-        title: "Profile created successfully!",
-        description: "Your vendor profile has been submitted for review.",
+        title: `Profile ${mode === "edit" ? "updated" : "created"} successfully!`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vendor-profile"] });
@@ -125,25 +137,29 @@ useEffect(() => {
     },
     onError: (error: any) => {
       toast({
-        title: "Error creating profile",
+        title: `Error ${mode === "edit" ? "updating" : "creating"} profile`,
         description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = (data: VendorProfileFormValues) => {
     const formData = new FormData();
+    console.log("businessType", data.businessType);
 
     formData.append("companyName", data.companyName);
-    formData.append("title", data.title);
     formData.append("description", data.description);
-    formData.append("location", data.location);
     formData.append("hourlyRate", data.hourlyRate);
     formData.append("phone", data.phone || "");
+    formData.append("location", data.location || "");
 
     formData.append("skills", JSON.stringify(data.skills));
     formData.append("categoryIds", JSON.stringify(data.categoryIds)); 
+    formData.append("yearsOfExperience", data.yearsOfExperience || "");
+    formData.append("agenciesServed", JSON.stringify(data.agenciesServed || []));
+    formData.append("availability", String(data.availability ?? 1));
+    formData.append("businessType", data.businessType || "");
     if (selectedFile) {
       formData.append("avatar", selectedFile);
     }
@@ -165,16 +181,42 @@ useEffect(() => {
     const currentSkills = form.getValues("skills");
     form.setValue("skills", currentSkills.filter(skill => skill !== skillToRemove));
   };
+  const addAgency = () => {
+    if (agencyInput.trim()) {
+      const currentAgencies = form.getValues("agenciesServed") || [];
+
+      if (!currentAgencies.includes(agencyInput.trim())) {
+        form.setValue("agenciesServed", [
+          ...currentAgencies,
+          agencyInput.trim(),
+        ]);
+
+        setAgencyInput("");
+      }
+    }
+  };
+
+  const removeAgency = (agencyToRemove: string) => {
+    const currentAgencies = form.getValues("agenciesServed") || [];
+
+    form.setValue(
+      "agenciesServed",
+      currentAgencies.filter(
+        agency => agency !== agencyToRemove
+      )
+    );
+  };
 
   const selectedCategories = form.watch("categoryIds");
   const currentSkills = form.watch("skills");
+  const currentAgencies = form.watch("agenciesServed") || [];
 
   return (
     <Card className="max-w-4xl mx-auto card-vendor-profile" data-testid="card-vendor-profile-form">
-      <CardHeader>
+      <CardHeader className="mt-2">
         <CardTitle className="flex items-center gap-2" data-testid="text-form-title">
           <BadgeIcon className="w-5 h-5" />
-          Create Vendor Profile
+          {mode === "edit" ? "Edit" : "Create"} Vendor Profile
         </CardTitle>
         <CardDescription data-testid="text-form-description">
           Set up your professional profile to connect with government contractors seeking your services.
@@ -201,7 +243,7 @@ useEffect(() => {
               {/* Headshot Upload */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">
-                Profile Headshot
+                Logo/Headshot
               </h3>
               <div className="flex items-center space-x-4">
                 <Avatar className="w-16 h-16 ">
@@ -220,7 +262,7 @@ useEffect(() => {
 
             </div>
             {/* Company Information */}
-            <div className="space-y-4 mt-4">
+            <div className="space-y-2 mt-6">
               <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-section-company">
                 <Building className="w-4 h-4" />
                 Company Information
@@ -244,8 +286,32 @@ useEffect(() => {
                     </FormItem>
                   )}
                 />
-                
                 <FormField
+  control={form.control}
+  name="businessType"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Market Served</FormLabel>
+
+      <FormControl>
+  <select
+    {...field}
+    value={field.value ?? "commercial"}
+    onChange={(e) => field.onChange(e.target.value)}
+    className="w-full border rounded-md p-2"
+  >
+          <option value="commercial">Commercial</option>
+          <option value="government">Government</option>
+          <option value="both">Both</option>
+        </select>
+      </FormControl>
+
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+                
+                {/* <FormField
                   control={form.control}
                   name="title"
                   render={({ field }) => (
@@ -260,8 +326,97 @@ useEffect(() => {
                       </FormControl>
                       <FormMessage />
                     </FormItem>
+                  )} */}
+                {/* /> */}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="yearsOfExperience"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Years of Experience</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="Years of Experience"
+                          data-testid="input-years-of-experience"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="availability"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Availability</FormLabel>
+
+                      <FormControl>
+                        <select
+                          {...field}
+                          className="w-full border rounded-md p-2"
+                          value={field.value}
+                          onChange={(e) => field.onChange(Number(e.target.value))}
+                        >
+                          <option value={1}>Available</option>
+                          <option value={0}>Unavailable</option>
+                        </select>
+                      </FormControl>
+
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            
+              <div className="space-y-2">
+                  <FormLabel>Agencies / Industries Served</FormLabel>
+                    <div className="flex gap-2">
+                      <Input
+                      placeholder="Add an agency and press Enter"
+                      value={agencyInput}
+                      onChange={(e) => setAgencyInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addAgency();
+                        }
+                      }}
+                  />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addAgency}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {currentAgencies.map((agency, index) => (
+                    <Badge
+                      key={index}
+                      variant="secondary"
+                      className="flex items-center gap-1"
+                    >
+                      {agency}
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-4 w-4 p-0 hover:bg-transparent"
+                        onClick={() => removeAgency(agency)}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
               </div>
 
               <FormField
@@ -269,7 +424,7 @@ useEffect(() => {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Professional Description</FormLabel>
+                    <FormLabel>Company Description</FormLabel>
                     <FormControl>
                       <Textarea 
                         placeholder="Describe your expertise, experience, and what makes you unique..."
@@ -285,31 +440,34 @@ useEffect(() => {
             </div>
 
             {/* Location and Pricing */}
-            <div className="space-y-4 mt-4">
+            <div className="space-y-2 mt-6">
               <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-section-details">
-                <MapPin className="w-4 h-4" />
-                Location & Pricing
+                <PhoneForwarded className="w-4 h-4" />
+                Contact & Pricing
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="location"
+                  name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Location</FormLabel>
+                      <FormLabel>Phone</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="City, State"
-                          data-testid="input-location"
-                          {...field} 
-                        />
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="+1 234 567 890"
+                            className="pl-10"
+                            data-testid="input-phone"
+                            {...field} 
+                          />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
                 <FormField
                   control={form.control}
                   name="hourlyRate"
@@ -331,22 +489,20 @@ useEffect(() => {
                     </FormItem>
                   )}
                 />
-                 <FormField
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+                <FormField
                   control={form.control}
-                  name="phone"
+                  name="location"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone</FormLabel>
+                      <FormLabel>Location</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input 
-                            placeholder="+1 234 567 890"
-                            className="pl-10"
-                            data-testid="input-phone"
-                            {...field} 
-                          />
-                        </div>
+                        <Input 
+                          placeholder="City, State"
+                          data-testid="input-location"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -356,10 +512,14 @@ useEffect(() => {
             </div>
 
             {/* Service Categories */}
-            <div className="mt-3">
-              <h3 className="text-lg font-semibold" data-testid="text-section-categories">
-                Service Categories *
-              </h3>
+            <div className="mt-6">
+              <div className="flex gap-2 items-center mb-2">
+                <Layers className="w-4 h-4" />
+                <h3 className="text-lg font-semibold" data-testid="text-section-categories">
+                  Service Categories *
+                </h3>
+              </div>
+              
               <p className="text-sm text-muted-foreground mb-4">
                 Select the categories that best describe your services
               </p>

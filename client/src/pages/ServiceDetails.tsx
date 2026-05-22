@@ -41,7 +41,7 @@ export default function ServiceDetails() {
               onClick={() => window.history.back()}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Go Back
+              Back
             </Button>
 
           <Card>

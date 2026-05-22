@@ -30,17 +30,17 @@ export const STAGE_INFO = {
 
 export const PROCESS_INFO = {
   business_structure: {
-    label: "Business Structure",
+    label: "Structure",
     description: "Foundation, compliance, and certifications",
     icon: Briefcase,
   },
   business_strategy: {
-    label: "Business Strategy",
+    label: "Strategy",
     description: "Market positioning and growth planning",
     icon: Target,
   },
   execution: {
-    label: "Execution",
+    label: "Scale",
     description: "Capture, proposal, and delivery excellence",
     icon: CheckCircle2,
   },

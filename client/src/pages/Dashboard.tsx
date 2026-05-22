@@ -399,7 +399,7 @@ useEffect(() => {
                         </span>
                       ) : (
                         <>
-                          View Guidance <ArrowRight className="ml-2 h-4 w-4" />
+                          View / Update Checklist<ArrowRight className="ml-2 h-4 w-4" />
                         </>
                       )}
                       </Button>

@@ -144,7 +144,7 @@ const { data: categories = [] } = useQuery({
           onClick={() => window.history.back()}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Go Back
+          Back
         </Button>
     <Card className="p-6">
       <div className="flex items-center gap-2 mb-4">

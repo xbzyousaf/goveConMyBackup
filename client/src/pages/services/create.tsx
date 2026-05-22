@@ -46,11 +46,10 @@ export default function CreateService() {
     name: "",
     categoryId: "", 
     description: "",
-    pricingModel: "Fixed",
+    // pricingModel: "Fixed",
     priceMin: "",
     priceMax: ""
   });
-  console.log("FORM DATA:", form);
 
   const { data: service, isLoading } = useQuery({
     queryKey: ["service", serviceId],
@@ -68,7 +67,7 @@ export default function CreateService() {
         name: service.name || "",
         categoryId: service.categoryId?.toString() || "", // id
         description: service.description || "",
-        pricingModel: service.pricingModel || "Fixed",
+        // pricingModel: service.pricingModel || "Fixed",
         priceMin: service.priceMin?.toString() || "",
         priceMax: service.priceMax?.toString() || ""
       });
@@ -94,7 +93,7 @@ export default function CreateService() {
           name: form.name,
           categoryId: form.categoryId,
           description: form.description,
-          pricingModel: form.pricingModel,
+          // pricingModel: form.pricingModel,
           priceMin: Number(form.priceMin),
           priceMax: Number(form.priceMax),
         }),
@@ -225,7 +224,7 @@ export default function CreateService() {
               }
             />
 
-            <Select
+            {/* <Select
               value={form.pricingModel}
               onValueChange={(v) =>
                 setForm({ ...form, pricingModel: v })
@@ -240,7 +239,7 @@ export default function CreateService() {
                 <SelectItem value="Hourly">Hourly</SelectItem>
               </SelectContent>
 
-            </Select>
+            </Select> */}
 
           </CardContent>
         </Card>

@@ -177,13 +177,13 @@ export default function CreateMilestone() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="business_structure">
-                  Business Structure
+                  Structure
                 </SelectItem>
                 <SelectItem value="business_strategy">
-                  Business Strategy
+                  Strategy
                 </SelectItem>
                 <SelectItem value="execution">
-                  Execution
+                  Scale
                 </SelectItem>
               </SelectContent>
             </Select>

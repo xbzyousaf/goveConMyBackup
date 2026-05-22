@@ -37,7 +37,7 @@ app.use((req, res, next) => {
 /* =========================
   UPLOADS
 ========================= */
-const uploadsPath = path.resolve(process.cwd(), "server/uploads");
+const uploadsPath = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
 }

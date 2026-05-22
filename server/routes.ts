@@ -260,6 +260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         firstName: user.firstName,
         lastName: user.lastName,
         userType: user.userType,
+        businessType: user.businessType,
         isEmailVerified: user.isEmailVerified,
         hasCompletedOnboarding: user.hasCompletedOnboarding,
       });
