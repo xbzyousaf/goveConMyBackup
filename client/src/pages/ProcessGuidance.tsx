@@ -48,22 +48,22 @@ interface UserJourney {
 
 const PROCESS_CONFIG = {
   business_structure: {
-    label: "Business Structure",
+    label: "Structure",
     description: "Establish your foundation, compliance, and certifications",
     icon: Briefcase,
-    color: "bg-blue-500",
+    color: "bg-primary",
   },
   business_strategy: {
-    label: "Business Strategy",
+    label: "Strategy",
     description: "Define your market position and growth strategy",
     icon: Target,
-    color: "bg-purple-500",
+    color: "bg-accent",
   },
   execution: {
-    label: "Execution",
+    label: "Scale",
     description: "Win contracts and deliver excellence",
     icon: CheckCircle2,
-    color: "bg-green-500",
+    color: "bg-gold",
   },
 };
 
@@ -188,8 +188,8 @@ const resetStageMutation = useMutation({
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-2">Process Not Found</h2>
           <Link href="/">
-            <Button data-testid="button-back-dashboard">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
+            <Button variant="outline" data-testid="button-back-dashboard">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
           </Link>
         </div>
@@ -259,8 +259,8 @@ if (!profile || isLoading) {
         {/* Header */}
         <div>
           <Link href="/">
-            <Button variant="ghost" size="sm" className="mb-4" data-testid="button-back-dashboard">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
+            <Button variant="outline" size="sm" className="mb-4" data-testid="button-back-dashboard">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
           </Link>
           
@@ -280,7 +280,7 @@ if (!profile || isLoading) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Your Progress</CardTitle>
+                <CardTitle className="mb-2">Your Progress</CardTitle>
                 <CardDescription>
                   {stageLabelMap[userStage]} - {completedCount} of {totalMilestones} milestones complete
                 </CardDescription>
@@ -297,7 +297,7 @@ if (!profile || isLoading) {
 
         {/* Milestones */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Milestones & Checklist</h2>
+          <h2 className="text-xl font-semibold">Checklist</h2>
           
         {Object.entries(groupedMilestones).map(([categoryName, milestones]) => (
   <div key={categoryName} className="space-y-4">
@@ -321,7 +321,7 @@ if (!profile || isLoading) {
     setLoadingCategory(categoryName); // ✅ start loader
 
     setTimeout(() => {
-      setLocation(`/vendors?categoryId=${categoryId}`);
+      setLocation(`/categories/${categoryId}/vendors`);
     }, 400); // small delay so loader is visible
   }}
 >

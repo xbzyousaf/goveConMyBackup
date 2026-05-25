@@ -15,17 +15,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, X } from "lucide-react";
-import { GAP_CATEGORY_MAP } from "../../../constants/gapCategoryMap";
-import type { GapType } from "@shared/types/gaps";
-import type { ServiceCategory } from "@shared/types/service";
 
 export default function Vendors() {
   const [location] = useLocation();
   const searchParams = new URLSearchParams(location.split("?")[1]);
   const categoryParam = searchParams.get("category");
-  const categoryIdParam = searchParams.get("categoryId");
-  // const categoryParam = searchParams.get("categoryId");
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -34,30 +28,22 @@ export default function Vendors() {
   );
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    setDebouncedSearch(searchQuery);
+  }, 400);
+
+  return () => clearTimeout(timer);
+}, [searchQuery]);
 
   useEffect(() => {
     if (categoryParam) {
       setSelectedCategory(categoryParam);
     }
   }, [categoryParam]);
-  const { data: recommended = [] } = useQuery({
-    queryKey: ["/api/recommended-services"],
-    queryFn: async () => {
-      const res = await fetch("/api/recommended-services");
-      return res.json();
-    },
-  });
-
-  const gapCategories: ServiceCategory[] = Array.from(
-    new Set(
-      recommended
-        .map((item: any) => {
-          const key = item.recommendedFor as GapType;
-          return GAP_CATEGORY_MAP[key];
-        })
-        .filter(Boolean),
-    ),
-  );
 
 
   const { data: categoriesData = [], isLoading: categoriesLoading } = useQuery<any[]>({
@@ -77,9 +63,10 @@ export default function Vendors() {
     id: cat.id,
     label: cat.name,
   }));
-  const keyToIdMap = useMemo(() => {
+
+  const categoryIdToNameMap = useMemo(() => {
     return Object.fromEntries(
-      categoriesData.map((cat: any) => [cat.key, cat.id])
+      categoriesData.map((cat: any) => [cat.id, cat.name])
     );
   }, [categoriesData]);
 
@@ -87,32 +74,17 @@ export default function Vendors() {
     return new URLSearchParams(window.location.search).get("categoryId");
   }, [location]);
   const finalCategories = useMemo(() => {
-    // ✅ 1. If URL has categoryId → ALWAYS use it
     if (categoryId) {
       return [categoryId];
     }
 
-    // ✅ 2. Otherwise fallback to your existing logic
-    return hasUserInteracted
-      ? selectedCategory === "all"
-        ? []
-        : [keyToIdMap[selectedCategory] || selectedCategory]
-      : gapCategories.length > 0
-      ? gapCategories.map((key) => keyToIdMap[key] || key)
-      : [];
-  }, [
-    categoryId,
-    hasUserInteracted,
-    selectedCategory,
-    gapCategories,
-    keyToIdMap,
-  ]);
-    console.log("urlCategoryId1234:", categoryId);
-  const idToKeyMap = useMemo(() => {
-    return Object.fromEntries(
-      categoriesData.map((cat: any) => [cat.id, cat.key])
-    );
-  }, [categoriesData]);
+    if (selectedCategory === "all") {
+      return [];
+    }
+
+    return [selectedCategory];
+  }, [categoryId, selectedCategory]);
+
   useEffect(() => {
     if (categoryId) {
       setSelectedCategory(categoryId);
@@ -124,7 +96,7 @@ export default function Vendors() {
       finalCategories.join(","),
       selectedLocation,
       verifiedOnly,
-      searchQuery,
+      debouncedSearch,
     ],
 
     enabled: true, // ✅ important
@@ -132,8 +104,8 @@ export default function Vendors() {
     queryFn: async () => {
       const params = new URLSearchParams();
 
-      if (searchQuery) {
-        params.append("search", searchQuery);
+      if (debouncedSearch) {
+        params.append("search", debouncedSearch);
       }
 
       if (finalCategories.length > 0) {
@@ -222,8 +194,7 @@ export default function Vendors() {
   (selectedCategory !== "all" ? 1 : 0) +
   (selectedLocation !== "all" ? 1 : 0) +
   (verifiedOnly ? 1 : 0) +
-  (searchQuery.trim() !== "" ? 1 : 0) +   // ✅ FIX
-  (selectedCategory === "all" && gapCategories.length > 0 ? 1 : 0);
+  (searchQuery.trim() !== "" ? 1 : 0);
 
     if (categoriesLoading) {
       return <div className="p-10">Loading categories...</div>;
@@ -348,13 +319,6 @@ export default function Vendors() {
                     </Badge>
                   )}
 
-                  {/* Recommended Categories */}
-                  {selectedCategory === "all" && gapCategories.length > 0 &&
-                    gapCategories.map((cat: ServiceCategory) => (
-                      <Badge key={cat}>
-                        {categories.find((c) => c.id === cat)?.label || cat}
-                      </Badge>
-                    ))}
                   {selectedLocation !== "all" && (
                     <Badge
                       variant="secondary"
@@ -404,17 +368,19 @@ export default function Vendors() {
                                 vendor.username ||
                                 "Vendor" }
                         username={vendor.username}
-                        companyName={vendor.companyName || vendor.title}
-                        category={vendor.categories?.[0] || "General"}
+                        companyName={vendor.companyName || 'N/A'}
+                        category={ categoryIdToNameMap[vendor.categoryIds?.[0]] || "N/A" }
+                        businessType={vendor.businessType}
+                        yearsOfExperience={vendor.yearsOfExperience}
+                        agenciesServed={vendor.agenciesServed}
                         rating={Number(vendor.rating).toFixed(2) || 0}
                         reviewCount={vendor.reviewCount || 0}
-                        location={vendor.location || "Remote"}
                         responseTime={vendor.responseTime || "N/A"}
                         hourlyRate={Number(vendor.hourlyRate) || 0}
                         isVerified={vendor.isApproved || false}
                         isFeatured={vendor.isFeatured || false}
                         certifications={vendor.certifications || []}
-                        availability={vendor.availability || "Available"}
+                        availability={vendor.availability || 0}
                         skills={vendor.skills || []}
                         avatar={vendor.avatar || undefined}
                       />

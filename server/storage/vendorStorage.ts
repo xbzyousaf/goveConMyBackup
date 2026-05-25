@@ -2,7 +2,8 @@ import { db } from "../db";
 import { certificates, escrows, portfolios, services, vendorImports, vendorProfiles,
   Portfolio, Certificate, serviceRequests, VendorProfile, InsertVendorProfile,
   deliveries,
-  deliveryAttachments, 
+  deliveryAttachments,
+  users, 
 
  } from "@shared/schema";
 import { and, count, desc, eq } from "drizzle-orm";
@@ -170,7 +171,7 @@ async updateService(id: string, data: any, vendorId: string) {
           receivedFrom: data.receivedFrom,
           yearReceived: data.yearReceived,
 
-          imageUrl: data.imageUrl || null,
+          // imageUrl: data.imageUrl || null,
         })
         .returning();
 
@@ -263,12 +264,21 @@ async updateService(id: string, data: any, vendorId: string) {
   
   // Parse skills if string
   if (typeof sanitizedProfile.skills === "string") {
-  try {
-  sanitizedProfile.skills = JSON.parse(sanitizedProfile.skills);
-  } catch (e) {
-  console.warn("Failed to parse skills:", sanitizedProfile.skills);
-  sanitizedProfile.skills = [];
+    try {
+        sanitizedProfile.skills = JSON.parse(sanitizedProfile.skills);
+    } catch (e) {
+      console.warn("Failed to parse skills:", sanitizedProfile.skills);
+      sanitizedProfile.skills = [];
+    }
   }
+  if (typeof sanitizedProfile.agenciesServed === "string") {
+    try {
+      sanitizedProfile.agenciesServed = JSON.parse(
+      sanitizedProfile.agenciesServed
+      );
+    } catch {
+      sanitizedProfile.agenciesServed = [];
+    }
   }
   
   // Parse categories if string
@@ -291,7 +301,6 @@ async updateService(id: string, data: any, vendorId: string) {
   userId: userId
   })
   .returning();
-  
   return vendorProfile;
   },
 async updateVendorProfile(
@@ -300,14 +309,13 @@ async updateVendorProfile(
     skills?: any;
     categories?: any;
     avatar?: string;
+    businessType?: string;
   }
 ): Promise<VendorProfile> {
 
-  const sanitizedUpdates: Partial<InsertVendorProfile> = { ...updates };
+  const sanitizedUpdates: any = { ...updates };
 
-  // -----------------------------
   // Parse skills
-  // -----------------------------
   if (typeof sanitizedUpdates.skills === "string") {
     try {
       sanitizedUpdates.skills = JSON.parse(sanitizedUpdates.skills);
@@ -315,21 +323,27 @@ async updateVendorProfile(
       sanitizedUpdates.skills = [];
     }
   }
+  if (typeof sanitizedUpdates.agenciesServed === "string") {
+    try {
+      sanitizedUpdates.agenciesServed = JSON.parse(
+        sanitizedUpdates.agenciesServed
+      );
+    } catch {
+      sanitizedUpdates.agenciesServed = [];
+    }
+  }
 
-  // -----------------------------
   // Parse categories
-  // -----------------------------
   if (typeof sanitizedUpdates.categoryIds === "string") {
     try {
-      sanitizedUpdates.categoryIds = JSON.parse(sanitizedUpdates.categoryIds);
+      sanitizedUpdates.categoryIds = JSON.parse(
+        sanitizedUpdates.categoryIds
+      );
     } catch {
       sanitizedUpdates.categoryIds = [];
     }
   }
 
-  // -----------------------------
-  // timestamp
-  // -----------------------------
   sanitizedUpdates.updatedAt = new Date();
 
   const [profile] = await db

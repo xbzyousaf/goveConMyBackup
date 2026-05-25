@@ -7,6 +7,7 @@ import { isVendor } from "../middleware/vendor.middleware";
 import { stripe } from "../lib/stripe";
 import { vendorStorage } from "../storage/vendorStorage";
 import OpenAI from "openai";
+import { uploadAvatar } from "server/middleware/upload.middleware";
 
 const router = Router();
 
@@ -102,24 +103,24 @@ router.get("/portfolio", isAuthenticated, isVendor, async (req: any, res) => {
   }
 });
 /* CERTIFICATES*/
-router.post( "/certificate", isAuthenticated, isVendor, upload.single("image"), async (req: any, res) => 
+router.post( "/certificate", isAuthenticated, isVendor, async (req: any, res) => 
 {
     try {
       const userId = getUserId(req);
       if (!userId)
         return res.status(401).json({ message: "Not authenticated" });
 
-      const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+      // const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
 
       const certificate = await vendorStorage.createCertificate(
-        { ...req.body, imageUrl: imageUrl },
+        { ...req.body },
         userId,
       );
 
       res.json(certificate);
-    } catch (error) {
+    } catch (error:any) {
       console.error("Error creating certificate:", error);
-      res.status(500).json({ message: "Failed to create certificate" });
+      res.status(500).json({ message: error.message || "Failed to create certificate" });
     }
   },
 );
@@ -264,7 +265,7 @@ router.get("/vendor-profile", isAuthenticated, async (req: any, res) => {
     res.status(500).json({ message: "Failed to fetch vendor profile" });
   }
 });
-router.post("/vendor-profile", isAuthenticated, isVendor, upload.single("avatar"), async (req: any, res) => 
+router.post("/vendor-profile", isAuthenticated, isVendor, uploadAvatar, async (req: any, res) => 
 {
     try {
       const userId = getUserId(req);
@@ -272,36 +273,41 @@ router.post("/vendor-profile", isAuthenticated, isVendor, upload.single("avatar"
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const { companyName, title } = req.body;
+      const { companyName } = req.body;
 
-      if (!companyName || !title) {
-        return res
-          .status(400)
-          .json({ message: "Missing required fields: companyName or title" });
-      }
-
-      const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
-      if (fileUrl) {
-        req.body.avatar = fileUrl;
-      }
-
-      const profile = await vendorStorage.createVendorProfile(req.body, userId);
-
-      res.status(200).json(profile);
-    } catch (error) {
-      if (error instanceof Error) {
+      if (!companyName) {
         return res.status(400).json({
-          message: error.message
+          message: "Company name is required"
         });
       }
 
-      res.status(500).json({
-        message: "Internal server error"
+      const fileUrl = req.file
+        ? `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`
+        : null;
+
+      if (fileUrl) {
+        req.body.avatar = fileUrl;
+      }
+      await storage.updateUser(userId, {
+        businessType: req.body.businessType,
+      });
+      const profile = await vendorStorage.createVendorProfile(req.body, userId);
+
+      res.status(200).json(profile);
+    } catch (error: any) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          message: "Image size must be less than 3MB",
+        });
+      }
+
+      return res.status(500).json({
+        message: error.message || "Internal server error",
       });
     }
   },
 );
-    router.put("/vendor-profile/:id", isAuthenticated, isVendor, upload.single("avatar"), async (req: any, res) => 
+    router.put("/vendor-profile/:id", isAuthenticated, isVendor, uploadAvatar, async (req: any, res) => 
     {
         try {
         const userId = getUserId(req);
@@ -323,14 +329,24 @@ router.post("/vendor-profile", isAuthenticated, isVendor, upload.single("avatar"
         if (fileUrl) {
             req.body.avatar = fileUrl;
         }
+        await storage.updateUser(userId, {
+          businessType: req.body.businessType,
+        });
+        delete req.body.businessType;
         const profile = await vendorStorage.updateVendorProfile(
             profileId,
             req.body,
         );
         res.json(profile);
-        } catch (error) {
-        console.error("Error updating vendor profile:", error);
-        res.status(500).json({ message: "Failed to update vendor profile" });
+        } catch (error: any) {
+          if (error.code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({
+              message: "Image size must be less than 3MB",
+            });
+          }
+          return res.status(500).json({
+            message: error.message || "Internal server error",
+          });
         }
     },
     );

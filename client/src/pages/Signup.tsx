@@ -212,7 +212,7 @@ const intent = new URLSearchParams(window.location.search).get("intent");
                     name="businessType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Doing Business With</FormLabel>
+                        <FormLabel>Market Served</FormLabel>
                         <FormControl>
                           <select
                             {...field}

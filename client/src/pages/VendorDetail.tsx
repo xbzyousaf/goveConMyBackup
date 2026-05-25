@@ -7,12 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MapPin, DollarSign, Clock, Star, CheckCircle, ArrowLeft, ArrowRight,MessageSquare, Award, Shield, TrendingUp, Calendar, FileText, Building, Mail } from "lucide-react";
+import { DollarSign, Clock, Star, CheckCircle, ArrowLeft, ArrowRight,MessageSquare, Award, Shield, TrendingUp, Calendar, FileText, Building, GlobeLock, CalendarFold, } from "lucide-react";
 import type { VendorProfile, Review } from "@shared/schema";
 import { useLocation } from "wouter";
 import type { Service } from "@shared/schema";
 import { useState } from "react";
-import { getFirstLetter, truncateText } from "../utility/textUtils"
+import { getFirstLetter } from "../utility/textUtils"
 import { useMessages } from "../components/ui/MessageContext";
 
 export default function VendorDetail() {
@@ -85,7 +85,7 @@ export default function VendorDetail() {
           onClick={() => window.history.back()}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Go Back
+          Back
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-4">
@@ -110,7 +110,7 @@ export default function VendorDetail() {
                           : vendor.username || "Vendor"}
                       </h1>
                       {vendor.isApproved && (
-                        <Badge variant="default" className="flex items-center gap-1" data-testid="badge-verified">
+                        <Badge variant="default" className="flex items-center gap-1 m-2" data-testid="badge-verified">
                           <CheckCircle className="w-3 h-3" />
                           Verified
                         </Badge>
@@ -142,13 +142,6 @@ export default function VendorDetail() {
                                     
                     </div>
                      )}
-                     <div>
-                      {vendor.title && (
-                      <p className="text-sm text-muted-foreground mb-3" data-testid="text-company-name">
-                        {vendor.title}
-                      </p>
-                    )}
-                     </div>
 
                   </div>
                 </div>
@@ -178,13 +171,13 @@ export default function VendorDetail() {
               </Card>
             )}
 
-            {/* Tabs for About, Past Performance, Reviews */}
+            {/* Tabs for About, Agencies Served, Reviews */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="about" data-testid="tab-about">About</TabsTrigger>
                 <TabsTrigger value="services">Services</TabsTrigger>
-                <TabsTrigger value="performance" data-testid="tab-performance">Past Performance</TabsTrigger>
-                <TabsTrigger value="reviews" data-testid="tab-reviews">Reviews ({reviews.length})</TabsTrigger>
+                {/* <TabsTrigger value="performance" data-testid="tab-performance">Performance</TabsTrigger> */}
+                <TabsTrigger className="disabled" value="reviews" data-testid="tab-reviews">Reviews</TabsTrigger>
               </TabsList>
 
               <TabsContent value="about" className="mt-6">
@@ -192,15 +185,75 @@ export default function VendorDetail() {
                 {vendor.description && (
                   <Card>
                     <CardHeader>
-                      <CardTitle>About</CardTitle>
+                      <CardTitle>Company Description</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-muted-foreground leading-relaxed" data-testid="text-description">
+                      <p className="text-muted-foreground text-sm leading-relaxed" data-testid="text-description">
                         {vendor.description}
                       </p>
                     </CardContent>
                   </Card>
                 )}
+                {/* Service Categories */}
+                {vendor.categories && vendor.categories.length > 0 && (
+                  <Card className="mt-6">
+                    <CardHeader>
+                      <CardTitle>Service Categories</CardTitle>
+                    </CardHeader>
+
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2 text-muted-foreground">
+                        {vendor.categories.map(
+                          (
+                            category: { id: string; name: string },
+                            index: number
+                          ) => (
+                            <Badge
+                              key={category.id}
+                              variant="outline"
+                              data-testid={`badge-category-${index}`}
+                            >
+                              {category.name}
+                            </Badge>
+                          )
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {/* Skills & Expertise */}
+                {vendor?.agenciesServed && vendor.agenciesServed.length > 0 && (
+                  <Card className="mt-6">
+                    <CardHeader>
+                      <CardTitle>Agencies / Industries Served</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2  text-muted-foreground">
+                        {vendor.agenciesServed.map((agency, index) => (
+                          <Badge key={index} variant="outline" data-testid={`badge-agency-${index}`}>
+                            {agency}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {/* {vendor.agenciesServed ? (
+                  <div className="space-y-4">
+                    {vendor?.agenciesServed && vendor.agenciesServed.length > 0 && (
+                      <div className="rounded-lg border p-6">
+                        <CardTitle>Agencies / Industries Served</CardTitle>
+                        <div className="flex flex-wrap gap-2 mt-4">
+                          {vendor.agenciesServed.map((agency, index) => (
+                            <Badge key={index} variant="outline" data-testid={`badge-agency-${index}`}>
+                              {agency}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  ) */}
 
                 {/* Skills & Expertise */}
                 {vendor.skills && vendor.skills.length > 0 && (
@@ -209,9 +262,9 @@ export default function VendorDetail() {
                       <CardTitle>Skills & Expertise</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2  text-muted-foreground">
                         {vendor.skills.map((skill, index) => (
-                          <Badge key={index} variant="secondary" data-testid={`badge-skill-${index}`}>
+                          <Badge key={index} variant="outline" data-testid={`badge-skill-${index}`}>
                             {skill}
                           </Badge>
                         ))}
@@ -220,29 +273,12 @@ export default function VendorDetail() {
                   </Card>
                 )}
 
-                {/* Service Categories */}
-                {vendor.categories && vendor.categories.length > 0 && (
-                  <Card className="mt-6">
-                    <CardHeader>
-                      <CardTitle>Service Categories</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-2">
-                        {vendor.categories.map((category, index) => (
-                          <Badge key={index} variant="outline" data-testid={`badge-category-${index}`}>
-                            {category.replace('_', ' ').toUpperCase()}
-                          </Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
               </TabsContent>
               <TabsContent value="services" className="mt-6">
                   {servicesLoading ? (
                     <div className="text-center py-6">Loading services...</div>
                   ) : services.length > 0 ? (
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-6 md:grid-cols-1">
                       {services.map((service) => (
                         <Card
                           key={service.id}
@@ -376,14 +412,19 @@ export default function VendorDetail() {
                 ) : (
                   <Card>
                     <CardContent className="p-8 text-center text-muted-foreground">
-                      No past performance data available yet.
+                      No performance data available yet.
                     </CardContent>
                   </Card>
                 )}
               </TabsContent>
 
               <TabsContent value="reviews" className="mt-6">
-                {reviews.length > 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    Comming soon!
+                  </CardContent>
+                </Card>
+                {/* {reviews.length > 0 ? (
                 <div className="space-y-4">
                   {reviews.map((review, index) => {
 
@@ -396,17 +437,17 @@ export default function VendorDetail() {
                           <div className="flex gap-4">
 
                             {/* Avatar */}
-                            <Avatar className="w-10 h-10">
+                            {/* <Avatar className="w-10 h-10">
                               <AvatarFallback>
                                 {getFirstLetter(review?.contractorName, "C")}
                               </AvatarFallback>
-                            </Avatar>
+                            </Avatar> */}
 
                             {/* Right Side Content */}
-                            <div className="flex-1 space-y-2">
+                            {/* <div className="flex-1 space-y-2"> */}
 
                               {/* Row 1: Name (left) + Date (right) */}
-                              <div className="flex justify-between items-center">
+                              {/* <div className="flex justify-between items-center">
                                 <p className="font-medium">
                                   {review.contractorName ?? "Contractor"}
                                 </p>
@@ -416,10 +457,10 @@ export default function VendorDetail() {
                                     ? new Date(review.createdAt).toLocaleDateString()
                                     : ""}
                                 </span>
-                              </div>
+                              </div> */}
 
                               {/* Row 2: Rating */}
-                              <div className="flex items-center gap-2">
+                              {/* <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium">
                                   {review.rating}/5
                                 </span>
@@ -436,10 +477,10 @@ export default function VendorDetail() {
                                     />
                                   ))}
                                 </div>
-                              </div>
+                              </div> */}
 
                               {/* Row 3: Comment */}
-                              {review.comment && (
+                              {/* {review.comment && (
                                 <p className="text-sm text-muted-foreground">
                                   {review.comment}
                                 </p>
@@ -449,15 +490,15 @@ export default function VendorDetail() {
                         </CardContent>
                       </Card>
                     );
-                  })}
-                </div>
-              ) : (
+                  })} */}
+                {/* </div> */}
+              {/* ) : (
                 <Card>
                   <CardContent className="p-8 text-center text-muted-foreground">
                     No reviews yet. Be the first to work with this vendor!
                   </CardContent>
-                </Card>
-              )}
+                </Card> */}
+              {/* )} */} 
 
               </TabsContent>
             </Tabs>
@@ -471,47 +512,45 @@ export default function VendorDetail() {
                 <CardTitle>Quick Info</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {vendor.hourlyRate && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <DollarSign className="w-4 h-4" />
-                      <span>Hourly Rate</span>
-                    </div>
-                    <span data-testid="text-hourly-rate">
-                      {vendor.hourlyRate}/hr
-                    </span>
-                  </div>
-                )}
                 
-                {vendor.responseTime && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      <span>Response Time</span>
-                    </div>
-                    <span data-testid="text-response-time">
-                      {vendor.responseTime ?? "N/A"}
-                    </span>
-                  </div>
-                )}
-                 {vendor.email && (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Mail className="w-4 h-4" />
-                        <span>Mail</span>
-                      </div>
-                      <span data-testid="text-email">{vendor.email ?? "N/A"}</span>
-                    </div>
-                 )}
                  {vendor.businessType && (
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Mail className="w-4 h-4" />
-                        <span>Business with</span>
+                      <div className="flex items-center gap-2">
+                        <Building className="w-4 h-4" />
+                        <span>Market Served</span>
                       </div>
-                      <span data-testid="text-business-type">{vendor.businessType ?? "N/A"}</span>
+                      <p className="text-muted-foreground text-sm">
+                        {vendor.businessType === "both"
+                          ? "Gov & Commercial"
+                          : vendor.businessType
+                              ? vendor.businessType.charAt(0).toUpperCase() +
+                                vendor.businessType.slice(1)
+                              : "N/A"}
+                      </p>
+                      {/* <span data-testid="text-business-type">{vendor.businessType ?? "N/A"}</span> */}
                     </div>
                  )}
+                 {vendor.yearsOfExperience && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <GlobeLock className="w-4 h-4" />
+                        <span>Years of Experience</span>
+                      </div>
+                      <span className="text-muted-foreground text-sm" data-testid="text-years-of-experience">{vendor.yearsOfExperience ?? "N/A"} years</span>
+                    </div>
+                 )}
+                 {/* availability  */}
+                  {vendor.availability !== undefined && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CalendarFold className="w-4 h-4" />
+                        <span>Availability</span>
+                      </div>
+                      <span className="text-sm text-muted-foreground" data-testid="text-response-time" >
+                          {vendor.availability === 0 ? "Unavailable" : "Available"}
+                      </span>
+                    </div>
+                  )}
 
                 <Separator />
 
@@ -535,7 +574,7 @@ export default function VendorDetail() {
             </Card>
 
             {/* Stats */}
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle>Performance</CardTitle>
               </CardHeader>
@@ -578,7 +617,7 @@ export default function VendorDetail() {
                   </Badge>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </main>

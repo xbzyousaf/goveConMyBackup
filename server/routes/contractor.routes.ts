@@ -1021,11 +1021,18 @@ router.get('/journeys/:processId', isAuthenticated, async (req: any, res) => {
       }
       
       // Delete all assessment-related data
-      await storage.deleteUserMaturityProfile(userId);
+      await storage.upsertUserMaturityProfile({
+        userId,
+        maturityStage: 'startup',
+        readinessScore: 0,
+        currentFocus: 'business_structure',
+        businessStructureProgress: 0,
+        businessStrategyProgress: 0,
+        executionProgress: 0,
+        assessmentData: null,
+      });
       await storage.deleteUserAssessments(userId);
       await storage.deleteUserJourneys(userId);
-      
-      console.log(`[RESET] Assessment data reset for user ${userId}`);
       
       res.json({ message: "Assessment data reset successfully" });
     } catch (error) {
@@ -1301,6 +1308,29 @@ router.get("/urgency-slots", async (req, res) => {
     usedSlots,
     maxSlots: MAX_BETA_SLOTS,
   });
+});
+
+router.get('/vendors/:vendorId/categories/:categoryId/services', isAuthenticated, async (req: any, res) => {
+  try {
+    const { categoryId, vendorId } = req.params;
+
+    if (!categoryId) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    if (!vendorId) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const services = await storage.fetchVendorCategoryServices(vendorId, categoryId);
+
+    res.json(services);
+
+  } catch (error:any) 
+  {
+      return res.status(400).json({ message: error.message });
+      console.error('Error fetching vendor category services:', error);
+  }
 });
 
 export default router;

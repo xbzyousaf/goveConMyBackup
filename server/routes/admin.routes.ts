@@ -467,5 +467,23 @@ router.put( "/platform-fees/:id", isAuthenticated, isAdmin, async (req, res) => 
     }
   }
 );
+router.delete("/milestones/:id", isAuthenticated, isAdmin,async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const deleted = await adminStorage.deleteMilestone(id);
+
+      res.json({
+        message: "Milestone deleted successfully",
+        deleted,
+      });
+
+    } catch (err: any) {
+      res.status(400).json({
+        message: err.message || "Failed to delete milestone",
+      });
+    }
+  }
+);
 
 export default router;

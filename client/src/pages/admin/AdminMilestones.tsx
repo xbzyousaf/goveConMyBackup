@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import type { Milestone } from "@shared/schema";
 import { Plus } from "lucide-react";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 export default function AdminMilestones() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
 
   // Fetch milestones
   const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
@@ -18,6 +20,40 @@ export default function AdminMilestones() {
       const res = await fetch("/api/admin/milestones");
       if (!res.ok) throw new Error("Failed to fetch milestones");
       return res.json();
+    },
+  });
+  const deleteMilestoneMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/milestones/${id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to delete milestone");
+      }
+
+      return data;
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/admin/milestones"],
+      });
+
+      toast({
+        title: "Success",
+        description: "Milestone deleted successfully.",
+      });
+    },
+
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete milestone.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -59,7 +95,6 @@ export default function AdminMilestones() {
     <table className="w-full table-auto divide-y divide-gray-200">
       <thead>
         <tr className="bg-gray-50 text-sm">
-          <th className="px-4 py-2 text-left">Key</th>
           <th className="px-4 py-2 text-left">Title</th>
           <th className="px-4 py-2 text-left">Process</th>
           <th className="px-4 py-2 text-left">Stage</th>
@@ -70,13 +105,22 @@ export default function AdminMilestones() {
         </tr>
       </thead>
 
-      <tbody className="bg-white divide-y divide-gray-200">
+      <tbody className="bg-white divide-y divide-gray-200 text-sm">
         {milestones.map((m) => (
           <tr key={m.id}>
-            <td className="px-4 py-2 font-medium">{m.key}</td>
             <td className="px-4 py-2">{m.title}</td>
-            <td className="px-4 py-2">{m.process}</td>
-            <td className="px-4 py-2">{m.stage}</td>
+            <td className="px-4 py-2">
+              {m.process
+                ?.replace("business_", "")
+                .replaceAll("_", " ")
+                .replace(/\b\w/g, (char) => char.toUpperCase())}
+            </td>
+
+            <td className="px-4 py-2">
+              {m.stage
+                ? m.stage.charAt(0).toUpperCase() + m.stage.slice(1)
+                : ""}
+            </td>
             <td className="px-4 py-2">{m.categoryName || m.categoryId}</td>
 
             {/* <td className="px-4 py-2 max-w-[250px]">
@@ -94,6 +138,22 @@ export default function AdminMilestones() {
                   onClick={() => setLocation(`/admin/edit-milestones/${m.id}`)}
                 >
                   Edit
+                </Button>
+
+                <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => {
+                      const confirmed = window.confirm(
+                        "Are you sure you want to delete this milestone?"
+                      );
+
+                      if (confirmed) {
+                        deleteMilestoneMutation.mutate(m.id);
+                      }
+                    }}
+                  >
+                  Delete
                 </Button>
               </div>
             </td>

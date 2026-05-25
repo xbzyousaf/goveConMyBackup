@@ -160,11 +160,17 @@ function Router() {
               <ServiceVendors />
             </ProtectedRoute>
           </Route>
+          <Route path="/categories/all/vendors">
+            <ProtectedRoute allowedRoles={["contractor"]}>
+              <CategoryVendors />
+            </ProtectedRoute>
+          </Route>
           <Route path="/categories/:categoryId/vendors">
             <ProtectedRoute allowedRoles={["contractor"]}>
               <CategoryVendors />
             </ProtectedRoute>
           </Route>
+          
           <Route path="/skip-assessment">
             <ProtectedRoute allowedRoles={["contractor"]}>
               <SkipAssessment />

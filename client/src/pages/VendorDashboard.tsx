@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { Building, MapPin, DollarSign, Clock, Star, Edit, Plus, CheckCircle, AlertCircle, Users, TrendingUp, User, CalendarDays, ArrowRight, MessageCircle, MessageSquare, Check, X, FileText, EyeIcon, Phone } from "lucide-react";
+import { Building, MapPin, DollarSign, Clock, Star, Edit, Plus, CheckCircle, AlertCircle, Users, TrendingUp, User, CalendarDays, ArrowRight, MessageCircle, MessageSquare, Check, X, FileText, EyeIcon, Phone, Award, CalendarFold } from "lucide-react";
 import { useLocation } from "wouter";
 import { calculateMonthlyMetric } from "@/services/servicesStats.service";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,7 @@ export default function VendorDashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("requests");
+  const [activeTab, setActiveTab] = useState("profile");
   const PAGE_SIZE = 5;
 type StatusFilter = "priority" | "all" | ServiceRequestStatus;
 const [page, setPage] = useState(1);
@@ -109,8 +109,7 @@ const { data: categories = [] } = useQuery<any[]>({
   }
 
   // vendor must complete onboarding
-  console.log("User data:", user, user.hasCompletedOnboarding);
-  // if (user.userType === "vendor" && !user.hasCompletedOnboarding) {
+  // if (vendorProfile && vendorProfile.user.userType === "vendor" && !vendorProfile.user.hasCompletedOnboarding) {
   //   setLocation("/vendor/onboarding");
   //   return null;
   // }
@@ -258,8 +257,8 @@ const { data: categories = [] } = useQuery<any[]>({
             {/* RIGHT SIDE → Tabs */}
             <TabsList data-testid="tabs-dashboard" className="ml-auto">
               {/* <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger> */}
-              <TabsTrigger value="requests" data-testid="tab-requests">Service Requests</TabsTrigger>
               <TabsTrigger value="profile" data-testid="tab-profile">Profile</TabsTrigger>
+              <TabsTrigger value="requests" data-testid="tab-requests">Service Requests</TabsTrigger>
               <TabsTrigger value="reviews" data-testid="tab-reviews">Reviews</TabsTrigger>
               <TabsTrigger value="performance" data-testid="tab-performance">Performance</TabsTrigger>
               <TabsTrigger value="payouts">Payouts</TabsTrigger>
@@ -356,7 +355,7 @@ const { data: categories = [] } = useQuery<any[]>({
 
             </TabsContent>
             <TabsContent value="performance" className="space-y-6">
-              <VendorPerformanceTab vendorId={user.id} />
+              <VendorPerformanceTab vendorId={vendorProfile?.user.id} />
             </TabsContent>
             <TabsContent value="payouts" className="space-y-6">
               <StripePayoutTab />
@@ -369,22 +368,32 @@ const { data: categories = [] } = useQuery<any[]>({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <Avatar className="w-16 h-16">
-                        <AvatarImage src={vendorProfile?.avatar || user?.profileImageUrl || ""} />
+                        <AvatarImage src={vendorProfile?.avatar|| ""} />
                         <AvatarFallback className="text-lg">
-                          {vendorProfile?.title?.[0] || user?.firstName?.[0] || "V"}
+                          {vendorProfile?.companyName?.[0] || "V"}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <CardTitle className="flex items-center gap-2" data-testid="text-profile-title">
-                          {vendorProfile?.title}
-                          {vendorProfile?.isApproved && (
-                            <CheckCircle className="w-5 h-5 text-green-500" />
-                          )}
-                        </CardTitle>
+                        
                         {vendorProfile?.companyName && (
-                          <p className="text-muted-foreground" data-testid="text-company-name">
+                          <CardTitle className="font-semibold flex items-center gap-2" data-testid="text-company-name">
                             {vendorProfile.companyName}
-                          </p>
+                             <Badge 
+                                variant={vendorProfile?.isApproved ? "default" : "secondary"}
+                                className="flex items-center gap-2"
+                                data-testid="badge-approval-status"
+                              >
+                                {vendorProfile?.isApproved ? (
+                                  <CheckCircle className="w-3 h-3" />
+                                ) : (
+                                  <AlertCircle className="w-3 h-3" />
+                                )}
+                                {vendorProfile?.isApproved ? "Verified" : "Pending Review"}
+                              </Badge>
+                            {/* {vendorProfile?.isApproved && (
+                              <CheckCircle className="w-5 h-5 text-green-500" />
+                            )} */}
+                          </CardTitle>
                         )}
                       </div>
                     </div>
@@ -402,7 +411,7 @@ const { data: categories = [] } = useQuery<any[]>({
                 <CardContent className="space-y-6">
                   {/* Status */}
                   <div className="flex items-center gap-4">
-                    <Badge 
+                    {/* <Badge 
                       variant={vendorProfile?.isApproved ? "default" : "secondary"}
                       className="flex items-center gap-2"
                       data-testid="badge-approval-status"
@@ -413,7 +422,7 @@ const { data: categories = [] } = useQuery<any[]>({
                         <AlertCircle className="w-3 h-3" />
                       )}
                       {vendorProfile?.isApproved ? "Verified" : "Pending Review"}
-                    </Badge>
+                    </Badge> */}
                     <div className="flex items-center text-sm text-muted-foreground">
                       <Star className="w-4 h-4 mr-1 text-yellow-400 fill-current" />
                       <span data-testid="text-rating">
@@ -426,8 +435,8 @@ const { data: categories = [] } = useQuery<any[]>({
                   {/* Description */}
                   {vendorProfile?.description && (
                     <div>
-                      <h4 className="font-medium mb-2">Professional Description</h4>
-                      <p className="text-muted-foreground" data-testid="text-description">
+                      <h4 className="font-medium mb-2">Company Description</h4>
+                      <p className="text-muted-foreground text-sm" data-testid="text-description">
                         {vendorProfile.description}
                       </p>
                     </div>
@@ -437,30 +446,31 @@ const { data: categories = [] } = useQuery<any[]>({
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {vendorProfile?.location && (
                       <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm" data-testid="text-location">{vendorProfile.location}</span>
+                        <MapPin className="w-4 h-4" />
+                        <span className="text-sm  text-muted-foreground" data-testid="text-location">{vendorProfile.location}</span>
                       </div>
                     )}
                     
                     {vendorProfile?.hourlyRate && (
                       <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm" data-testid="text-hourly-rate">
+                        <DollarSign className="w-4 h-4" />
+                        <span className="text-sm text-muted-foreground" data-testid="text-hourly-rate">
                           {vendorProfile.hourlyRate}/hr
                         </span>
                       </div>
                     )}
-                    
-                    {vendorProfile?.responseTime && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm" data-testid="text-response-time">{vendorProfile.responseTime}</span>
-                      </div>
-                    )}
                     {vendorProfile?.phone && (
                       <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm" data-testid="text-response-time">{vendorProfile.phone}</span>
+                        <Phone className="w-4 h-4" />
+                        <span className="text-sm text-muted-foreground" data-testid="text-response-time">{vendorProfile.phone}</span>
+                      </div>
+                    )}
+                    {vendorProfile?.availability !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <CalendarFold className="w-4 h-4" />
+                        <span className="text-sm text-muted-foreground" data-testid="text-response-time" >
+                          {vendorProfile.availability === 0 ? "Unavailable" : "Available"}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -489,24 +499,68 @@ const { data: categories = [] } = useQuery<any[]>({
                     </div>
                   </div>
                 )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                  {/* Skills */}
-                  {vendorProfile?.skills && vendorProfile.skills.length > 0 && (
-                    <div>
-                      <h4 className="font-medium mb-2">Skills & Expertise</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {vendorProfile.skills.map((skill, index) => (
-                          <Badge key={index} variant="secondary" data-testid={`badge-skill-${index}`}>
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
+                  {vendorProfile?.businessType && (
+                    <div className="">
+                      <h4 className="font-medium mb-2">Market Served</h4>
+
+                      <p className="text-sm text-muted-foreground">
+                        {vendorProfile.businessType === "both"
+                          ? "Gov & Commercial"
+                          : vendorProfile.businessType
+                              ? vendorProfile.businessType.charAt(0).toUpperCase() +
+                                vendorProfile.businessType.slice(1)
+                              : "N/A"}
+                      </p>
                     </div>
                   )}
+
+                  {vendorProfile?.yearsOfExperience && (
+                    <div className="">
+                      <h4 className="font-medium mb-2">Years of Experience</h4>
+
+                      <p className="text-sm text-muted-foreground">
+                        {vendorProfile.yearsOfExperience} Years
+                      </p>
+                    </div>
+                  )}
+
+                </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Skills */}
+                    <div className="rounded-lg border p-3">
+                      {vendorProfile?.skills && vendorProfile.skills.length > 0 && (
+                        <div>
+                          <h4 className="font-medium mb-2">Skills & Expertise</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {vendorProfile.skills.map((skill, index) => (
+                              <Badge key={index} variant="outline" data-testid={`badge-skill-${index}`}>
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {/* agenciesServed  */}
+                    {vendorProfile?.agenciesServed && vendorProfile.agenciesServed.length > 0 && (
+                      <div className="rounded-lg border p-3">
+                        <h4 className="font-medium mb-2">Agencies / Industries Served</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {vendorProfile.agenciesServed.map((agency, index) => (
+                            <Badge key={index} variant="outline" data-testid={`badge-agency-${index}`}>
+                              {agency}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
               {/* Portfolio Card */}
-              <Card data-testid="card-portfolio">
+              {/* <Card data-testid="card-portfolio">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Portfolio</CardTitle>
                   <Button
@@ -533,7 +587,7 @@ const { data: categories = [] } = useQuery<any[]>({
                           <CardContent className="p-4">
                             <h4 className="font-medium">
                               {item.projectName} {/* correct field */}
-                            </h4>
+                            {/* </h4>
                             <p className="text-sm text-muted-foreground">
                               {item.description}
                             </p>
@@ -550,13 +604,51 @@ const { data: categories = [] } = useQuery<any[]>({
                     </p>
                   )}
                 </CardContent>
+              </Card> */} 
+              {/* User information Card */}
+              <Card data-testid="card-user-information">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div className="flex">
+                    <Building className="w-6 h-6 mr-2" />
+                    <CardTitle>
+                      User Information
+                    </CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {vendorProfile?.user ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {vendorProfile.user.firstName && (
+                          <div className="flex gap-2">
+                            <h4 className="font-medium mb-2">Name:</h4>
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                              {vendorProfile?.user.firstName} {vendorProfile?.user.lastName}
+                            </p>
+                          </div>
+                        )}
+                        {vendorProfile.user.email && (
+                          <div className="flex gap-2">
+                            <h4 className="font-medium mb-2">Email:</h4>
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                              {vendorProfile.user.email}
+                            </p>
+                          </div>
+                        )}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">No certificates added yet</p>
+                  )}
+                </CardContent>
               </Card>
               {/* Certificates Card */}
               <Card data-testid="card-certificates">
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>
-                    Certificates
-                  </CardTitle>
+                  <div className="flex">
+                    <Award className="w-6 h-6 mr-2" />
+                    <CardTitle>
+                      Certifications
+                    </CardTitle>
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
@@ -571,20 +663,20 @@ const { data: categories = [] } = useQuery<any[]>({
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {vendorCertificates.map(cert => (
                         <Card key={cert.id} className="overflow-hidden">
-                          {cert.imageUrl && (
+                          {/* {cert.imageUrl && (
                             <img
                               src={cert.imageUrl} 
                               alt={cert.certificateName}
                               className="w-full h-40 object-cover"
                             />
-                          )}
+                          )} */}
                           <CardContent className="p-4">
                             <h4 className="font-medium">{cert.certificateName}</h4>
                             <p className="text-sm text-muted-foreground">{cert.receivedFrom}</p>
                             <p className="text-xs text-muted-foreground mt-1">
                               Year Received: {cert.yearReceived}
                             </p>
-                            {cert.imageUrl && (
+                            {/* {cert.imageUrl && (
                               <a
                                 href={cert.imageUrl}
                                 target="_blank"
@@ -593,7 +685,7 @@ const { data: categories = [] } = useQuery<any[]>({
                               >
                                 View Certificate
                               </a>
-                            )}
+                            )} */}
                           </CardContent>
                         </Card>
                       ))}

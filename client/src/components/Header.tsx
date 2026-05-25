@@ -5,11 +5,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ThemeToggle } from "./ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
-import { useState } from "react";
+import { useState , useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useMessages } from "./ui/MessageContext";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { getFirstLetter } from "../utility/textUtils"
 import Logo from "@/assets/PROOF LOGO.png";
@@ -24,8 +23,17 @@ interface HeaderProps {
 }
 
 export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [, setLocation] = useLocation();
+  const [searchQuery, setSearchQuery] = useState(() => {
+    return new URLSearchParams(window.location.search).get("q") || "";
+  });
+
+  const [location, setLocation] = useLocation();
+  useEffect(() => {
+    const query =
+      new URLSearchParams(window.location.search).get("q") || "";
+
+    setSearchQuery(query);
+  }, [location]);
   const { user } = useAuth();
   const { toast } = useToast();
   const { gateClosed } = useGateStatus();
@@ -36,13 +44,6 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
     });
   const isPaidUser = profile?.subscriptionTier === "pilot";
   const isFreeUser = !isPaidUser;
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      setLocation(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
-    onSearch?.(searchQuery);
-  };
   const { data: conversationsData } = useQuery({
     queryKey: ["/api/conversations"],
     queryFn: async () => {
@@ -163,18 +164,53 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          {user?.userType !== "admin" && (
-          <form onSubmit={handleSearch} className="relative hidden sm:flex">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search vendors, services..."
-              className="pl-10 w-64"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              data-testid="input-search"
-            />
-          </form>
+          {user?.userType === "contractor" && (
+            <div className="relative hidden sm:block">
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+
+                  if (!searchQuery.trim()) return;
+
+                  setLocation(
+                    `/categories/all/vendors?q=${encodeURIComponent(searchQuery)}`
+                  );
+                  // setShowDropdown(false);
+                  
+                }}
+              >
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                <Input
+                  type="search"
+                  placeholder="Search vendors..."
+                  className="pl-10 pr-10 w-72"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const value = e.target.value;
+
+                    setSearchQuery(value);
+
+                    if (!value.trim()) {
+                      setLocation("/dashboard");
+                    }
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setLocation("/dashboard");
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  >
+                    ✕
+                  </button>
+                )}
+              </form>
+            </div>
           )}
 
           <div className="flex items-center gap-2">

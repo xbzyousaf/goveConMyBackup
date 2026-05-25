@@ -169,9 +169,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Vendor management
-  async getVendorProfile(userId: string): Promise<VendorProfile | undefined> {
-    const [profile] = await db.select().from(vendorProfiles).where(eq(vendorProfiles.userId, userId));
-    return profile || undefined;
+  async getVendorProfile(userId: string): Promise<any> {
+    const profile = await db.query.vendorProfiles.findFirst({
+      where: eq(vendorProfiles.userId, userId),
+      with: {
+        user: true,
+      },
+    });
+
+    if (!profile) {
+      return undefined;
+    }
+
+    return {
+      ...profile,
+      businessType: profile.user?.businessType,
+    };
   }
 
   async getContractorById(id: string) {
@@ -196,15 +209,15 @@ export class DatabaseStorage implements IStorage {
 
     return result[0];
   }
-  async getVendorProfileById(
+async getVendorProfileById(
   id: string
 ): Promise<(VendorProfile & { rating: number; reviewCount: number }) | undefined> {
 
   const result = await db
     .select({
-      // ✅ vendor profile fields
       id: vendorProfiles.id,
-      // ✅ user fields (aggregated)
+
+      // user fields
       username: sql<string>`MAX(${users.username})`,
       firstName: sql<string>`MAX(${users.firstName})`,
       lastName: sql<string>`MAX(${users.lastName})`,
@@ -212,11 +225,13 @@ export class DatabaseStorage implements IStorage {
       businessType: sql<string>`MAX(${users.businessType})`,
       profileImageUrl: sql<string>`MAX(${users.profileImageUrl})`,
       isEmailVerified: sql<boolean>`BOOL_OR(${users.isEmailVerified})`,
+
+      // vendor fields
       userId: vendorProfiles.userId,
       title: vendorProfiles.title,
       companyName: vendorProfiles.companyName,
       description: vendorProfiles.description,
-      categories: vendorProfiles.categoryIds,
+      categoryIds: vendorProfiles.categoryIds,
       avatar: vendorProfiles.avatar,
       skills: vendorProfiles.skills,
       location: vendorProfiles.location,
@@ -226,10 +241,12 @@ export class DatabaseStorage implements IStorage {
       certifications: vendorProfiles.certifications,
       isApproved: vendorProfiles.isApproved,
       isFeatured: vendorProfiles.isFeatured,
+      yearsOfExperience: vendorProfiles.yearsOfExperience,
+      agenciesServed: vendorProfiles.agenciesServed,
       createdAt: vendorProfiles.createdAt,
       updatedAt: vendorProfiles.updatedAt,
 
-      // ✅ computed values (simple)
+      // computed
       rating: sql<number>`COALESCE(AVG(${reviews.rating}), 0)`.as("rating"),
       reviewCount: sql<number>`COUNT(${reviews.id})`.as("reviewCount"),
     })
@@ -245,17 +262,35 @@ export class DatabaseStorage implements IStorage {
 
   if (!result.length) return undefined;
 
+  const vendor = result[0];
+
+  // fetch category names
+  const categoryData = vendor.categoryIds?.length
+    ? await db
+        .select({
+          id: categories.id,
+          name: categories.name,
+        })
+        .from(categories)
+        .where(inArray(categories.id, vendor.categoryIds))
+    : [];
+
   return {
-    ...result[0],
-    username: result[0].username,
-    firstName: result[0].firstName,
-    lastName: result[0].lastName,
-    email: result[0].email,
-    businessType: result[0].businessType,
-    profileImageUrl: result[0].profileImageUrl,
-    isEmailVerified: result[0].isEmailVerified,
-    rating: Number(result[0].rating),
-    reviewCount: Number(result[0].reviewCount),
+    ...vendor,
+
+    categories: categoryData,
+
+    username: vendor.username,
+    firstName: vendor.firstName,
+    lastName: vendor.lastName,
+    email: vendor.email,
+    businessType: vendor.businessType,
+    profileImageUrl: vendor.profileImageUrl,
+    isEmailVerified: vendor.isEmailVerified,
+
+    rating: Number(vendor.rating),
+    reviewCount: Number(vendor.reviewCount),
+    
   };
 }
 
@@ -281,16 +316,12 @@ export class DatabaseStorage implements IStorage {
           sql`${vendorProfiles.description} ILIKE ${search}`,
           sql`${vendorProfiles.location} ILIKE ${search}`,
 
-          // ARRAYS (FIXED)
+          // SKILLS SEARCH
           sql`EXISTS (
-            SELECT 1 FROM unnest(${vendorProfiles.skills}) s
-            WHERE s::text ILIKE ${search}
+            SELECT 1
+            FROM unnest(${vendorProfiles.skills}) AS s
+            WHERE s ILIKE ${search}
           )`,
-
-          sql`EXISTS (
-            SELECT 1 FROM unnest(${vendorProfiles.categories}) c
-            WHERE c::text ILIKE ${search}
-          )`
         )
       );
     }
@@ -303,18 +334,17 @@ export class DatabaseStorage implements IStorage {
     whereConditions.push(eq(vendorProfiles.isApproved, true));
     // ✅ NEW: multi-category match (IMPORTANT)
     if (filters?.categories && filters.categories.length > 0) {
-      const categorySqlArray = sql.raw(
-        `ARRAY[${filters.categories.map(c => `'${c}'`).join(",")}]`
-      );
-      whereConditions.push(
+      const categoryConditions = filters.categories.map(
+      (category) =>
         sql`EXISTS (
-          SELECT 1 
+          SELECT 1
           FROM unnest(${vendorProfiles.categoryIds}) AS c
-          WHERE c::text = ANY(${categorySqlArray})
+          WHERE c::text = ${category}
         )`
-        
-      );
-    }
+    );
+
+    whereConditions.push(or(...categoryConditions));
+  }
     if (filters?.businessType && filters.businessType !== "both") {
       whereConditions.push(
         or(
@@ -2078,12 +2108,16 @@ async getCategoryVendors(categoryId: string) {
       categoryIds: vendorProfiles.categoryIds,
       subscriptionTier: vendorProfiles.subscriptionTier,
       phone: vendorProfiles.phone,
+      skills: vendorProfiles.skills,
+      yearsOfExperience: vendorProfiles.yearsOfExperience,
+      agenciesServed: vendorProfiles.agenciesServed,
 
       // User
       email: users.email,
       username: users.username,
       firstName: users.firstName,
       lastName: users.lastName,
+      businessType: users.businessType,
 
       // Real Categories Relation
       categories: sql<any>`
@@ -2146,6 +2180,10 @@ async getCategoryVendors(categoryId: string) {
       vendorProfiles.reviewCount,
       vendorProfiles.categoryIds,
       vendorProfiles.subscriptionTier,
+      vendorProfiles.skills,
+      vendorProfiles.agenciesServed,
+      vendorProfiles.yearsOfExperience,
+      users.businessType,
       users.email,
       users.username,
       users.firstName,
@@ -2212,6 +2250,29 @@ async getUserCount() {
     .from(users);
 
   return Number(result[0]?.count || 0);
+}
+async fetchVendorCategoryServices(vendorId: string, categoryId: string) {
+  return await db.query.services.findMany({
+    where: (services, { eq, and }) =>
+      and(
+        eq(services.vendorId, vendorId),
+        eq(services.categoryId, categoryId)
+      ),
+  });
+}
+async getVendorServices(vendorId: string) {
+
+  return await db.query.services.findMany({
+    where: eq(
+      services.vendorId,
+      vendorId
+    ),
+
+    with: {
+      categoryData: true,
+    },
+  });
+
 }
 
 // end

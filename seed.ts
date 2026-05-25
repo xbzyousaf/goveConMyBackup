@@ -13,7 +13,7 @@ type MilestoneInsert = InferInsertModel<typeof milestones>;
 
 const PROCESS_CONFIG = {
   business_structure: {
-    label: "Business Structure",
+    label: "Structure",
     description: "Establish your foundation, compliance, and certifications",
     color: "bg-blue-500",
     stages: {
@@ -167,7 +167,7 @@ const PROCESS_CONFIG = {
     },
   },
   business_strategy: {
-    label: "Business Strategy",
+    label: "Strategy",
     description: "Define your market position and growth strategy",
     color: "bg-purple-500",
     stages: {
@@ -277,7 +277,7 @@ const PROCESS_CONFIG = {
     },
   },
   execution: {
-    label: "Execution",
+    label: "Scale",
     description: "Win contracts and deliver excellence",
     color: "bg-green-500",
     stages: {

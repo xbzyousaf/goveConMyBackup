@@ -463,5 +463,13 @@ async getActivePlatformFee() {
     where: eq(platformFee.isActive, true),
   });
 },
+async deleteMilestone(id: string) {
+  const [deleted] = await db
+    .delete(milestones)
+    .where(eq(milestones.id, id))
+    .returning();
+
+  return deleted;
+}
 // end===============================
 };
