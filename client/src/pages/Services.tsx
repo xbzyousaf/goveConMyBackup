@@ -236,12 +236,7 @@ export default function Services() {
         {/* Search and Filters */}
         <Card className="mb-8">
           <CardContent className="p-6">
-              
-          {filteredServices.length === 0 && (
-            <p className="text-center text-muted-foreground">
-              No services found
-            </p>
-          )}
+
             <div className="space-y-4">
               {/* Search Bar */}
               <div className="relative">
@@ -281,6 +276,12 @@ export default function Services() {
             {filteredServices.length === 1 ? "service" : "services"}
           </p>
         </div>
+                      
+          {filteredServices.length === 0 && (
+            <p className="text-center text-muted-foreground">
+              No services found
+            </p>
+          )}
 
         {/* Service Cards */}
         <div className="grid gap-6 md:grid-cols-2">
