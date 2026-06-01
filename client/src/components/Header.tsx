@@ -73,7 +73,6 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
     });
   };
 
-
   const unreadMessages = conversationsData?.totalUnread ?? 0;
   const previousUnreadRef = useRef<number>(0);
   useEffect(() => {
@@ -189,12 +188,14 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                   value={searchQuery}
                   onChange={(e) => {
                     const value = e.target.value;
-
                     setSearchQuery(value);
-
-                    if (!value.trim()) {
-                      setLocation("/dashboard");
+                    if (
+                      location.startsWith("/categories/all")
+                    ) {
+                      setLocation('/');
                     }
+
+                    onSearch?.(value);
                   }}
                 />
                 {searchQuery && (
@@ -202,7 +203,12 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                     type="button"
                     onClick={() => {
                       setSearchQuery("");
-                      setLocation("/dashboard");
+                      if (
+                        location.startsWith("/categories/") &&
+                        location.includes("/vendors")
+                      ) {
+                        setLocation('/');
+                      }
                     }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                   >

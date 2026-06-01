@@ -25,14 +25,19 @@ export default function CategoryVendors() {
       searchQuery,
     ],
     queryFn: async () => {
-      const res = await fetch(
-      categoryId === "all"
-        ? "/api/vendors"
-        : `/api/categories/${categoryId}/vendors`
-    );
-      if (!res.ok) throw new Error("Failed to fetch vendors");
-      return res.json();
-    },
+  const url =
+    categoryId === "all"
+      ? `/api/vendors?search=${encodeURIComponent(searchQuery)}`
+      : `/api/categories/${categoryId}/vendors?search=${encodeURIComponent(searchQuery)}`;
+
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch vendors");
+  }
+
+  return res.json();
+},
     enabled: !!categoryId,
   });
   console.log("Fetched vendors:", categoryId, vendors);
@@ -42,26 +47,7 @@ export default function CategoryVendors() {
   if (isLoading) {
     return <div className="p-10">Loading vendors...</div>;
   }
-const filteredVendors = vendors.filter((vendor: any) => {
 
-  const fullName =
-    `${vendor.firstName || ""} ${vendor.lastName || ""}`;
-
-  const companyName =
-    vendor.companyName || "";
-
-  const skills =
-    vendor.skills?.join(" ") || "";
-
-  const search =
-    searchQuery.toLowerCase();
-
-  return (
-    fullName.toLowerCase().includes(search) ||
-    companyName.toLowerCase().includes(search) ||
-    skills.toLowerCase().includes(search)
-  );
-});
   return (
   <div className="min-h-screen bg-background">
     <Header />
@@ -84,7 +70,7 @@ const filteredVendors = vendors.filter((vendor: any) => {
       </h1>
 
       <div className="space-y-6">
-        {filteredVendors.map((vendor: any) => {
+        {vendors.map((vendor: any) => {
           const vendorUserId =
             vendor.vendorId || vendor.userId || vendor.id;
           console.log("Vendor Object:", vendor);
