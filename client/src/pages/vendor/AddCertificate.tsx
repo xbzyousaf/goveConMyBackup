@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Header } from "@/components/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft } from "lucide-react";
 
 export default function CreateCertificate() {
   const [, setLocation] = useLocation();
@@ -23,7 +24,7 @@ export default function CreateCertificate() {
     form.certificateName.trim() &&
     form.receivedFrom.trim() &&
     form.yearReceived !== "";
-    // form.image !== null;
+  // form.image !== null;
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -78,7 +79,13 @@ export default function CreateCertificate() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container mx-auto max-w-2xl px-4 py-10 space-y-6">
+      <main className="container mx-auto max-w-2xl px-4 py-6 space-y-6">
+        <Link href="/vendor-dashboard">
+                    <Button variant="outline">
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Back
+                    </Button>
+                  </Link>
         <Card>
           <CardContent className="p-6 space-y-4">
             <h2 className="text-2xl font-bold">Add Certificate</h2>
@@ -87,14 +94,18 @@ export default function CreateCertificate() {
               placeholder="Certificate Name *"
               value={form.certificateName}
               className={!form.certificateName ? "border-red-500" : ""}
-              onChange={e => setForm({ ...form, certificateName: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, certificateName: e.target.value })
+              }
             />
 
             <Input
               placeholder="Received From *"
               value={form.receivedFrom}
               className={!form.receivedFrom ? "border-red-500" : ""}
-              onChange={e => setForm({ ...form, receivedFrom: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, receivedFrom: e.target.value })
+              }
             />
 
             <Input
@@ -102,36 +113,40 @@ export default function CreateCertificate() {
               placeholder="Year Received *"
               value={form.yearReceived}
               className={!form.yearReceived ? "border-red-500" : ""}
-              onChange={e => setForm({ ...form, yearReceived: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, yearReceived: e.target.value })
+              }
             />
 
-            {/* <Input
-              type="file"
-              accept="image/*"
-              className={!form.image ? "border-red-500" : ""}
-              onChange={e => setForm({ ...form, image: e.target.files?.[0] || null })}
-            /> */}
+            <div className="flex flex-row items-center justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setLocation("/dashboard")}
+              >
+                Cancel
+              </Button>
+              <Button
+                className=""
+                disabled={!isValid || mutation.isPending}
+                onClick={() => {
+                  if (!isValid) {
+                    toast({
+                      title: "Missing required fields",
+                      description:
+                        "Certificate name, received from, and year received, are required",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  mutation.mutate();
+                }}
+              >
+                {mutation.isPending ? "Saving..." : "Add Certificate"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
-
-        <Button
-          className="w-full"
-          disabled={!isValid || mutation.isPending}
-          onClick={() => {
-            if (!isValid) {
-              toast({
-                title: "Missing required fields",
-                description:
-                  "Certificate name, received from, and year received, are required",
-                variant: "destructive",
-              });
-              return;
-            }
-            mutation.mutate();
-          }}
-        >
-          {mutation.isPending ? "Saving..." : "Add Certificate"}
-        </Button>
       </main>
     </div>
   );

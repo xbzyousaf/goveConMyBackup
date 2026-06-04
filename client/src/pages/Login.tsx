@@ -156,6 +156,15 @@ export default function Login() {
                     </FormItem>
                   )}
                 />
+                <div className="">
+                  <button
+                    type="button"
+                    className="text-sm text-primary hover:underline underline"
+                    onClick={() => setLocation("/forgot-password")}
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
 
                 <Button 
                   type="submit" 

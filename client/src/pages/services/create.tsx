@@ -145,11 +145,11 @@ export default function CreateService() {
     <div className="min-h-screen bg-background">
       <Header />
     
-      <main className="max-w-6xl mx-auto max-w-4xl px-4 py-10 space-y-6">
-          <Link href="/marketplace">
+      <main className="container mx-auto max-w-2xl px-4 py-4 space-y-6">
+          <Link href="/services">
             <Button variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Services
+              Back
             </Button>
           </Link>
         <Card>
@@ -240,19 +240,28 @@ export default function CreateService() {
               </SelectContent>
 
             </Select> */}
+            <div className="flex justify-end justify-between gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setLocation("/services")}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className=""
+                  disabled={!isValid || mutation.isPending}
+                  onClick={() => mutation.mutate()}
+                >
+                  {mutation.isPending
+                    ? isEdit ? "Updating..." : "Creating..."
+                    : isEdit ? "Update Service" : "Create Service"}
+                </Button>
+            </div>
 
           </CardContent>
         </Card>
 
-        <Button
-          className="w-full"
-          disabled={!isValid || mutation.isPending}
-          onClick={() => mutation.mutate()}
-        >
-          {mutation.isPending
-            ? isEdit ? "Updating..." : "Creating..."
-            : isEdit ? "Update Service" : "Create Service"}
-        </Button>
 
       </main>
 

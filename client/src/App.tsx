@@ -54,6 +54,11 @@ import ServiceVendors from "./pages/admin/ServiceVendors";
 import CategoryVendors from "./pages/admin/CategoryVendors";
 import AdminPlatformFees from "./pages/admin/AdminPlatformFees";
 import PlatformFeeForm from "./pages/admin/PlatformFeeForm";
+import ChangePassword from "./pages/ChangePassword";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import CreateSupportTicket from "./pages/CreateSupportTicket";
+import SupportTicketsPage from "./pages/SupportTicketsPage";
 function LoadingSpinner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -99,6 +104,8 @@ function Router() {
         </PublicRoute>
       </Route>
       <Route path="/verify-email" component={VerifyEmail} />
+      <Route path="/forgot-password" component={ForgotPassword}/>
+      <Route path="/reset-password" component={ResetPassword}/>
 
       {isAuthenticated ? (
         <>
@@ -108,6 +115,8 @@ function Router() {
               <Dashboard />
             </ProtectedRoute>
           </Route>
+          <Route path="/support/create" component={CreateSupportTicket} />
+          <Route path="/support" component={SupportTicketsPage} />
 
           <Route path="/dashboard">
             <ProtectedRoute allowedRoles={["contractor"]}>
@@ -233,6 +242,11 @@ function Router() {
           <Route path="/services">
             <ProtectedRoute allowedRoles={["vendor"]}>
               <Services />
+            </ProtectedRoute>
+          </Route>
+          <Route path="/user/:userId/change-password">
+            <ProtectedRoute allowedRoles={["vendor"]}>
+              <ChangePassword />
             </ProtectedRoute>
           </Route>
           <Route path="/vendor-dashboard">

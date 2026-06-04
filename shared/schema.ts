@@ -1,4 +1,4 @@
-import { sql, relations } from "drizzle-orm";
+import { sql, relations, Many } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, integer, boolean, decimal, pgEnum, jsonb, index, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -30,6 +30,7 @@ export const escrowStatusEnum = pgEnum("escrow_status", ["held", "released", "re
 export const paymentStatus = pgEnum("payment_status", ["payment_pending", "payment_received", "escrow_held", "released", "refunded", "failed"]);
 export const businessTypeEnum = pgEnum("business_type", ["commercial", "government", "both",]);
 export const platformFeeTypeEnum = pgEnum("platform_fee_type", ["percentage", "fixed"]);
+export const supportStatusEnum = pgEnum("support_status", ["active", "resolved"]);
 
 
 export type BusinessType = (typeof businessTypeEnum.enumValues)[number];
@@ -68,6 +69,11 @@ export const vendorProfiles = pgTable("vendor_profiles", {
   title: text("title"),
   description: text("description"),
   location: text("location"),
+  addressLine1: text("address_line_1"),
+  addressLine2: text("address_line_2"),
+  city: text("city"),
+  state: text("state"),
+  postalCode: text("postal_code"),
   hourlyRate: decimal("hourly_rate", { precision: 10, scale: 2 }),
   phone: text("phone"),
   responseTime: text("response_time"),
@@ -635,6 +641,24 @@ export const platformFee = pgTable("platform_fee", {
     updatedAt: timestamp("updated_at").defaultNow(),
   }
 );
+export const supportTickets = pgTable("support_tickets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  subject: text("subject").notNull(),
+  status: text("status").$type<"open" | "in_progress" | "resolved" | "closed">().default("open"),
+  isReadByAdmin: boolean("is_read_by_admin").default(false),
+  isReadByUser: boolean("is_read_by_user").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+export const supportMessages = pgTable("support_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ticketId: uuid("ticket_id").notNull().references(() => supportTickets.id),
+  senderId: uuid("sender_id").notNull().references(() => users.id),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 export const insertPlatformFeeSchema =
   createInsertSchema(platformFee).omit({
     id: true,
@@ -675,6 +699,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   receivedReviews: many(reviews, { relationName: "receivedReviews" }),
   contractorTransactions: many(transactions, { relationName: "contractorTransactions" }),
   vendorTransactions: many(transactions, { relationName: "vendorTransactions" }),
+  supportTickets: many(supportTickets),
+  supportMessages: many(supportMessages),
 }));
 
 export const vendorProfilesRelations = relations(vendorProfiles, ({ one }) => ({
@@ -683,6 +709,31 @@ export const vendorProfilesRelations = relations(vendorProfiles, ({ one }) => ({
     references: [users.id],
   }),
 }));
+export const supportTicketsRelations = relations(
+  supportTickets,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [supportTickets.userId],
+      references: [users.id],
+    }),
+
+    messages: many(supportMessages),
+  })
+);
+export const supportMessagesRelations = relations(
+  supportMessages,
+  ({ one }) => ({
+    ticket: one(supportTickets, {
+      fields: [supportMessages.ticketId],
+      references: [supportTickets.id],
+    }),
+
+    sender: one(users, {
+      fields: [supportMessages.senderId],
+      references: [users.id],
+    }),
+  })
+);
 export const walletsRelations = relations(wallets, ({ one, many }) => ({
   user: one(users, {
     fields: [wallets.userId],

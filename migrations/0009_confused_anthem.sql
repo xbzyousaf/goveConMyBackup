@@ -1,0 +1,1 @@
+ALTER TYPE "public"."supportStatus" RENAME TO "support_status";

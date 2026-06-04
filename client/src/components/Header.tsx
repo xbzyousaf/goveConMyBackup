@@ -1,4 +1,4 @@
-import { Search, Bell, LogOut, MessageSquare } from "lucide-react";
+import { Search, Bell, LogOut, MessageSquare, MessageCircleQuestion } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -358,17 +358,16 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem data-testid="button-support" onClick={() => setLocation("/support")}>
+                  <MessageCircleQuestion className="mr-2 h-4 w-4" />
+                  <span>Contact Support</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleLogout} data-testid="button-logout">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {/* {user?.userType === "vendor" && (
-              <div className="px-3 py-1 rounded-md bg-muted text-sm font-semibold">
-                ${Number(walletData?.balance ?? 0).toFixed(2)}
-              </div>
-            )} */}
           </div>
         </div>
       </div>

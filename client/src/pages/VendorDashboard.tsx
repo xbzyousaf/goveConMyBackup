@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { Building, MapPin, DollarSign, Clock, Star, Edit, Plus, CheckCircle, AlertCircle, Users, TrendingUp, User, CalendarDays, ArrowRight, MessageCircle, MessageSquare, Check, X, FileText, EyeIcon, Phone, Award, CalendarFold } from "lucide-react";
+import { Building, MapPin, DollarSign, Clock, Star, Edit, Plus, CheckCircle, AlertCircle, Users, TrendingUp, User, CalendarDays, ArrowRight, MessageCircle, MessageSquare, Check, X, FileText, EyeIcon, Phone, Award, CalendarFold, LockKeyhole } from "lucide-react";
 import { useLocation } from "wouter";
 import { calculateMonthlyMetric } from "@/services/servicesStats.service";
 import { cn } from "@/lib/utils";
@@ -443,13 +443,7 @@ const { data: categories = [] } = useQuery<any[]>({
                   )}
 
                   {/* Details Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {vendorProfile?.location && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-                        <span className="text-sm  text-muted-foreground" data-testid="text-location">{vendorProfile.location}</span>
-                      </div>
-                    )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     
                     {vendorProfile?.hourlyRate && (
                       <div className="flex items-center gap-2">
@@ -470,6 +464,30 @@ const { data: categories = [] } = useQuery<any[]>({
                         <CalendarFold className="w-4 h-4" />
                         <span className="text-sm text-muted-foreground" data-testid="text-response-time" >
                           {vendorProfile.availability === 0 ? "Unavailable" : "Available"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
+                                        {(
+                      vendorProfile?.addressLine1 ||
+                      vendorProfile?.addressLine2 ||
+                      vendorProfile?.city ||
+                      vendorProfile?.state
+                    ) && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4" />
+
+                        <span className="text-sm text-muted-foreground">
+                          {[
+                            vendorProfile.addressLine1,
+                            vendorProfile.addressLine2,
+                            vendorProfile.city,
+                            vendorProfile.state,
+                            vendorProfile.postalCode,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
                         </span>
                       </div>
                     )}
@@ -613,6 +631,16 @@ const { data: categories = [] } = useQuery<any[]>({
                     <CardTitle>
                       User Information
                     </CardTitle>
+                  </div>
+                  <div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setLocation(`/user/${vendorProfile?.userId}/change-password`)}
+                    >
+                    <LockKeyhole className="w-4 h-4 mr-2" />
+                    Change Password
+                  </Button>
                   </div>
                 </CardHeader>
                 <CardContent>

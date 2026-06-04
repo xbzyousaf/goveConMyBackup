@@ -1,4 +1,4 @@
-import { BusinessType, businessTypeEnum, categories, conversations } from './../shared/schema';
+import { BusinessType, businessTypeEnum, categories, conversations, supportMessages, supportTickets } from './../shared/schema';
 // From javascript_database integration
 import { 
   users, 
@@ -45,7 +45,7 @@ import {
   InsertSubscription,
 } from "@shared/schema";
 import { db } from "./db";
-import { sql, eq, ne, and, desc, asc, inArray, or, ilike } from "drizzle-orm";
+import { sql, eq, ne, and, desc, asc, inArray, or, ilike, count } from "drizzle-orm";
 import { notifications } from "@shared/schema";
 import { PRIORITY_STATUSES } from "constants/serviceRequest";
 import { Gap, GapType } from '@shared/types/gaps';
@@ -157,6 +157,11 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+  async getUserByPasswordResetToken(token: string) {
+    return await db.query.users.findFirst({
+      where: eq(users.passwordResetToken, token),
+    });
   }
 
   async updateUser(id: string, updates: Partial<InsertUser>): Promise<User> {
@@ -1990,14 +1995,14 @@ async getRecommendedServices(gaps: Gap[], businessType?: BusinessType) {
           balance: true,
         },
 
-        with: {
-          user: {
-            columns: {
-              firstName: true,
-              lastName: true,
-            },
-          },
-        },
+        // with: {
+        //   user: {
+        //     columns: {
+        //       firstName: true,
+        //       lastName: true,
+        //     },
+        //   },
+        // },
       },
 
       serviceRequests: {
@@ -2273,6 +2278,226 @@ async getVendorServices(vendorId: string) {
     },
   });
 
+}
+async createSupportTicket(data: {userId: string; subject: string; message: string;}) {
+  const [ticket] = await db
+    .insert(supportTickets)
+    .values({
+      userId: data.userId,
+      subject: data.subject,
+      status: "open",
+      isReadByAdmin: false,
+      isReadByUser: true,
+    })
+    .returning();
+
+  await db.insert(supportMessages).values({
+    ticketId: ticket.id,
+    senderId: data.userId,
+    message: data.message,
+    isRead: false,
+  });
+
+  return ticket;
+}
+async getSupportTicketsByUser(userId: string, page = 1, limit = 10, status?: string) {
+  const offset = (page - 1) * limit;
+
+  const conditions = [
+    eq(supportTickets.userId, userId),
+  ];
+
+  if (status && status !== "all") {
+    conditions.push(
+      eq(supportTickets.status, status as any)
+    );
+  }
+
+  const whereClause = and(...conditions);
+
+  const tickets = await db.query.supportTickets.findMany({
+    where: whereClause,
+
+    with: {
+      user: true,
+    },
+
+    orderBy: desc(supportTickets.createdAt),
+
+    limit,
+    offset,
+  });
+
+  const [{ count: total }] = await db
+    .select({
+      count: count(),
+    })
+    .from(supportTickets)
+    .where(whereClause);
+
+  return {
+    tickets,
+    total,
+  };
+}
+async getAllSupportTickets(
+  page = 1,
+  limit = 10,
+  status?: string
+) {
+  const offset = (page - 1) * limit;
+
+  const whereClause =
+    status && status !== "all"
+      ? eq(supportTickets.status, status as any)
+      : undefined;
+
+  const tickets = await db.query.supportTickets.findMany({
+    where: whereClause,
+
+    with: {
+      user: true,
+    },
+
+    orderBy: desc(supportTickets.createdAt),
+
+    limit,
+    offset,
+  });
+
+  const total = await db
+    .select({ count: count() })
+    .from(supportTickets)
+    .where(whereClause);
+
+  return {
+    tickets,
+    total: total[0].count,
+  };
+}
+async getSupportTicket(ticketId: string) {
+  return await db.query.supportTickets.findFirst({
+    where: eq(supportTickets.id, ticketId),
+
+    with: {
+      user: {
+        columns: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          userType: true,
+        },
+      },
+
+      messages: {
+        with: {
+          sender: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              userType: true,
+            },
+          },
+        },
+
+        orderBy: desc(supportMessages.createdAt),
+      },
+    },
+  });
+}
+async addSupportReply(ticketId: string, senderId: string, message: string) {
+  const ticket = await db.query.supportTickets.findFirst({
+    where: eq(supportTickets.id, ticketId),
+  });
+
+  if (!ticket) {
+    throw new Error("Ticket not found");
+  }
+
+  if (
+    ticket.status === "resolved" ||
+    ticket.status === "closed"
+  ) {
+    throw new Error("Ticket is locked");
+  }
+
+  const [reply] = await db
+    .insert(supportMessages)
+    .values({
+      ticketId,
+      senderId,
+      message,
+      isRead: false,
+    })
+    .returning();
+
+  return reply;
+}
+async updateSupportTicketStatus(ticketId: string, status: string) {
+  const [ticket] = await db
+    .update(supportTickets)
+    .set({
+      status,
+      updatedAt: new Date(),
+    })
+    .where(eq(supportTickets.id, ticketId))
+    .returning();
+
+  return ticket;
+}
+async getSupportTicketStats(userId: string) {
+  try {
+
+    const all = await db
+      .select({ count: count() })
+      .from(supportTickets)
+      .where(
+        userId
+          ? eq(supportTickets.userId, userId)
+          : undefined
+      );
+
+  const open = await db
+    .select({ count: count() })
+    .from(supportTickets)
+    .where(
+      userId
+        ? and(eq(supportTickets.userId, userId), eq(supportTickets.status, "open"))
+        : eq(supportTickets.status, "open")
+    );
+
+  const resolved = await db
+    .select({ count: count() })
+    .from(supportTickets)
+    .where(
+      userId
+        ? and(eq(supportTickets.userId, userId), eq(supportTickets.status, "resolved"))
+        : eq(supportTickets.status, "resolved")
+    );
+
+  const closed = await db
+    .select({ count: count() })
+    .from(supportTickets)
+    .where(
+      userId
+        ? and(eq(supportTickets.userId, userId), eq(supportTickets.status, "closed"))
+        : eq(supportTickets.status, "closed")
+    );
+
+  return {
+    all: all[0].count,
+    open: open[0].count,
+    resolved: resolved[0].count,
+    closed: closed[0].count,
+  };
+
+
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 }
 
 // end

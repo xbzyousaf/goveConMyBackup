@@ -1,3 +1,4 @@
+import { messages } from './../shared/schema';
 import { adminStorage } from './storage/adminStorage';
 import type { Express } from "express";
 import { createServer, type Server } from "http";
@@ -185,6 +186,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Login failed" });
     }
   });
+  app.put("/api/change-password", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+
+      if (!userId) {
+        return res.status(401).json({
+          message: "Not authenticated",
+        });
+      }
+      const {currentPassword, newPassword, confirmNewPassword} = req.body;
+      if (!currentPassword || !newPassword || !confirmNewPassword ) {
+        return res.status(400).json({
+          message: "All fields are required",
+        });
+      }
+
+      if (newPassword !== confirmNewPassword) {
+        return res.status(400).json({
+          message: "New password and confirm password do not match",
+        });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({
+          message: "Password must be at least 8 characters long",
+        });
+      }
+
+      const user = await storage.getUser(userId);
+
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+
+      const isValidPassword =
+        await AuthService.comparePassword(
+          currentPassword,
+          user.password
+        );
+
+      if (!isValidPassword) {
+        return res.status(400).json({
+          message: "Current password is incorrect",
+        });
+      }
+
+      const hashedPassword =
+        await AuthService.hashPassword(
+          newPassword
+        );
+
+      await storage.updateUser(userId, {
+        password: hashedPassword,
+      });
+
+      return res.json({
+        message: "Password updated successfully",
+      });
+
+    } catch (error: any) {
+      console.error( "Change Password Error:", error );
+
+      return res.status(500).json({
+        message: error.message || "Failed to update password",
+      });
+    }
+  }
+);
   
   // Verify email
   app.get('/api/auth/verify-email', async (req, res) => {
@@ -228,7 +298,129 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Email verification failed" });
     }
   });
-  
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.json({
+          message:
+            "If an account exists with that email, a reset link has been sent."
+        });
+      }
+
+      const token = AuthService.generateVerificationToken();
+
+      const expiry = new Date();
+      expiry.setHours(expiry.getHours() + 1);
+
+      await storage.updateUser(user.id, {
+        passwordResetToken: token,
+        passwordResetExpiry: expiry,
+      });
+
+      await EmailService.sendPasswordResetEmail(
+        user.email,
+        token,
+        user.firstName
+      );
+
+      res.json({
+        message:
+          "If an account exists with that email, a reset link has been sent."
+      });
+
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        message: "Failed to process request",
+      });
+    }
+  });
+  app.get("/api/auth/validate-reset-token", async (req, res) => {
+    try {
+      const { token } = req.query;
+
+      if (!token || typeof token !== "string") {
+        return res.status(400).json({
+          message: "Invalid token",
+        });
+      }
+
+      const user =
+        await storage.getUserByPasswordResetToken(token);
+
+      if (!user) {
+        return res.status(404).json({
+          message: "Invalid reset token",
+        });
+      }
+
+      if (
+        AuthService.isTokenExpired(
+          user.passwordResetExpiry
+        )
+      ) {
+        return res.status(400).json({
+          message: "Reset token expired",
+        });
+      }
+
+      return res.json({
+        valid: true,
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to validate token",
+      });
+    }
+  });
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+
+      const { token, password } = req.body;
+
+      const user =
+        await storage.getUserByPasswordResetToken(token);
+
+      if (!user) {
+        return res.status(400).json({
+          message: "Invalid reset token",
+        });
+      }
+
+      if (
+        AuthService.isTokenExpired(
+          user.passwordResetExpiry
+        )
+      ) {
+        return res.status(400).json({
+          message: "Reset token expired",
+        });
+      }
+
+      const hashedPassword =
+        await AuthService.hashPassword(password);
+
+      await storage.updateUser(user.id, {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpiry: null,
+      });
+
+      res.json({
+        message: "Password reset successful",
+      });
+
+    } catch (error) {
+      console.error(error);
+
+      res.status(500).json({
+        message: "Failed to reset password",
+      });
+    }
+  });
+    
   // Logout
   app.post('/api/auth/logout', async (req, res) => {
     req.session.destroy((err) => {
@@ -1159,6 +1351,164 @@ app.get("/api/vendors", async (req: any, res) => {
       });
     }
   });
+  app.post("/api/support", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { subject, message } = req.body;
+
+      const ticket = await storage.createSupportTicket({
+        userId,
+        subject,
+        message,
+      });
+
+      res.status(201).json(ticket);
+
+    } catch (error: any) {
+      res.status(500).json({
+        message: error.message,
+      });
+    }
+  });
+  app.get("/api/support", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const page =
+        Number(req.query.page) || 1;
+
+      const limit =
+        Number(req.query.limit) || 10;
+
+      const status =
+        req.query.status as string;
+
+      const tickets =
+        await storage.getSupportTicketsByUser(
+          userId,
+          page,
+          limit,
+          status
+        );
+
+      res.json(tickets);
+
+    } catch (error: any) {
+      res.status(500).json({
+        message: error.message,
+      });
+    }
+  });
+    app.get("/api/support/stats", isAuthenticated, async (req, res) => {
+    try {
+        const userId = getUserId(req);
+          if (!userId) {
+            return res.status(401).json({ message: "Not authenticated" });
+          }
+          const user = await storage.getUser(userId);
+        const stats =
+          await storage.getSupportTicketStats(
+            user.userType === "admin"
+              ? undefined
+              : userId
+          );
+
+        res.json(stats);
+
+      } catch (error: any) {
+        res.status(500).json({
+          message: error.message,
+        });
+      }
+    }
+  );
+  app.get("/api/support/:id", isAuthenticated, async (req, res) => {
+    try {
+      
+      const ticket = await storage.getSupportTicket(
+        req.params.id
+      );
+
+      if (!ticket) {
+        return res.status(404).json({
+          message: "Ticket not found",
+        });
+      }
+
+      res.json(ticket);
+
+    } catch (error: any) {
+      res.status(500).json({
+        message: error.message,
+      });
+    }
+  });
+  app.post("/api/support/:id/reply", isAuthenticated, async (req: any, res) => {
+    try {
+      const reply = await storage.addSupportReply(
+        req.params.id,
+        getUserId(req),
+        req.body.message
+      );
+
+      res.status(201).json(reply);
+
+    } catch (error: any) {
+      res.status(400).json({
+        message: error.message,
+      });
+    }
+  });
+app.get("/api/admin/support", isAuthenticated, async (req, res) => {
+  try {
+
+    const page =
+      Number(req.query.page) || 1;
+
+    const limit =
+      Number(req.query.limit) || 10;
+
+    const status =
+      req.query.status as string;
+
+    const tickets =
+      await storage.getAllSupportTickets(
+        page,
+        limit,
+        status
+      );
+
+    res.json(tickets);
+
+  } catch (error: any) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
+  app.put("/api/admin/support/:id/status", isAuthenticated, async (req, res) => {
+    try {
+      const ticket =
+        await storage.updateSupportTicketStatus(
+          req.params.id,
+          req.body.status
+        );
+
+      res.json(ticket);
+
+    } catch (error: any) {
+      res.status(500).json({
+        message: error.message,
+      });
+    }
+  });
+
 
   const httpServer = createServer(app);
   return httpServer;
