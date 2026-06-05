@@ -66,6 +66,51 @@ static async sendVerificationEmail(
       : "https://govscalealliance-app-sikmy.ondigitalocean.app";
     return `${baseUrl}/verify-email?token=${token}`;
   }
+  private static getPasswordResetUrl(token: string): string {
+    const baseUrl = process.env.APP_URL
+      ? process.env.APP_URL
+      : "https://govscalealliance-app-sikmy.ondigitalocean.app";
+
+    return `${baseUrl}/reset-password?token=${token}`;
+  }
+  static async sendPasswordResetEmail(
+  to: string,
+  token: string,
+  firstName?: string | null
+): Promise<void> {
+
+  const name = firstName || "there";
+  const resetUrl = this.getPasswordResetUrl(token);
+
+  await this.transporter.sendMail({
+      from: `"${this.COMPANY_NAME}" <${process.env.FROM_EMAIL}>`,
+      to,
+      subject: "Reset Your Password",
+      text: `
+      Hello ${name},
+
+      We received a request to reset your password.
+
+      Click the link below:
+
+      ${resetUrl}
+
+      This link will expire in 1 hour.
+
+      If you did not request this, please ignore this email.
+          `,
+      html: `
+        <h2>Hello ${name}</h2>
+        <p>We received a request to reset your password.</p>
+        <p>
+          <a href="${resetUrl}">
+            Reset Password
+          </a>
+        </p>
+        <p>This link expires in 1 hour.</p>
+      `
+    });
+  }
   // static async sendVerificationEmail(
   //   to: string,
   //   token: string,

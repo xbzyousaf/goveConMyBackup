@@ -1,0 +1,1 @@
+ALTER TABLE "support_messages" ALTER COLUMN "support_status" SET NOT NULL;

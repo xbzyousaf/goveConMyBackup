@@ -12,7 +12,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useToast } from "@/hooks/use-toast";
 import { insertVendorProfileSchema } from "@shared/schema";
 import { z } from "zod";
-import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon, Phone, PhoneForwarded, Layers } from "lucide-react";
+import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon, Phone, PhoneForwarded, Layers, LocateIcon, MapPinned, MapPinHouse, MapPinCheckInside, MapPinCheck } from "lucide-react";
 import { AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { Avatar } from "./ui/avatar";
 
@@ -24,6 +24,11 @@ const formSchema = insertVendorProfileSchema
       "government",
       "both",
     ]),
+    addressLine1: z.string().optional(),
+    addressLine2: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    postalCode: z.string().optional(),
     phone: z.string().optional(),
     categoryIds: z.array(z.string()).min(1, "Select at least one category"),
     skills: z.array(z.string()).min(1, "Add at least one skill"),
@@ -73,6 +78,11 @@ export function VendorProfileForm({defaultValues,profileId, mode = "create", onS
       agenciesServed: [],
       availability: 1,
       location: "",
+      addressLine1: "",
+      addressLine2: "",
+      city: "",
+      state: "",
+      postalCode: "",
     },
   });
   
@@ -101,6 +111,11 @@ useEffect(() => {
       agenciesServed: defaultValues.agenciesServed ?? [],
       availability: defaultValues.availability ?? 1,
       location: defaultValues.location ?? "",
+      addressLine1: defaultValues.addressLine1 ?? "",
+      addressLine2: defaultValues.addressLine2 ?? "",
+      city: defaultValues.city ?? "",
+      state: defaultValues.state ?? "",
+      postalCode: defaultValues.postalCode ?? "",
     });
   }
 }, [defaultValues, form]);
@@ -153,6 +168,11 @@ useEffect(() => {
     formData.append("hourlyRate", data.hourlyRate);
     formData.append("phone", data.phone || "");
     formData.append("location", data.location || "");
+    formData.append("addressLine1", data.addressLine1 || "");
+    formData.append("addressLine2", data.addressLine2 || "");
+    formData.append("city", data.city || "");
+    formData.append("state", data.state || "");
+    formData.append("postalCode", data.postalCode || "");
 
     formData.append("skills", JSON.stringify(data.skills));
     formData.append("categoryIds", JSON.stringify(data.categoryIds)); 
@@ -490,7 +510,7 @@ useEffect(() => {
                   )}
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+              {/* <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
                 <FormField
                   control={form.control}
                   name="location"
@@ -503,6 +523,121 @@ useEffect(() => {
                           data-testid="input-location"
                           {...field} 
                         />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div> */}
+            </div>
+            <div className="space-y-2 mt-6">
+              <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-section-details">
+                <MapPinned className="w-4 h-4" />
+                Address Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="addressLine1"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address Line 1</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="e.g., 123 Main St"
+                            className="pl-10"
+                            data-testid="input-address-line-1"
+                            {...field} 
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="addressLine2"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address Line 2</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <LocateIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="e.g., Apartment 4B"
+                            className="pl-10"
+                            data-testid="input-address-line-2"
+                            {...field} 
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <MapPinHouse className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="e.g., New York"
+                            className="pl-10"
+                            data-testid="input-city"
+                            {...field} 
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <MapPinCheckInside className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="e.g., NY"
+                            className="pl-10"
+                            data-testid="input-state"
+                            {...field} 
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="postalCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Postal Code</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <MapPinCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input 
+                            placeholder="e.g., 10001"
+                            className="pl-10"
+                            data-testid="input-postal-code"
+                            {...field} 
+                          />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
