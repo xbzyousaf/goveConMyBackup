@@ -384,4 +384,114 @@ Powered by Tullis Strategic Solutions LLC
 </html>
     `.trim();
   }
+static async sendSupportTicketCreatedEmail(data: {
+  to: string;
+  ticketId: string;
+  subject: string;
+  userName: string;
+}): Promise<void> {
+  await this.transporter.sendMail({
+    from: `"${this.COMPANY_NAME}" <${process.env.FROM_EMAIL}>`,
+    to: data.to,
+    subject: `New Support Ticket #${data.ticketId}`,
+    html: `
+      <h2>New Support Ticket Received</h2>
+
+      <p>
+        <strong>${data.userName}</strong> has created a new support ticket.
+      </p>
+
+      <p>
+        <strong>Subject:</strong> ${data.subject}
+      </p>
+
+      <p>
+        <strong>Ticket ID:</strong> ${data.ticketId}
+      </p>
+
+      <p>
+        Please login to review and respond.
+      </p>
+    `,
+  });
+
+  console.log(
+    `[EMAIL] Support ticket notification sent to ${data.to}`
+  );
 }
+static async sendSupportReplyEmail(data: {
+  to: string;
+  ticketId: string;
+  subject: string;
+  senderName: string;
+}): Promise<void> {
+  await this.transporter.sendMail({
+    from: `"${this.COMPANY_NAME}" <${process.env.FROM_EMAIL}>`,
+    to: data.to,
+    subject: `New Reply - Ticket #${data.ticketId}`,
+    html: `
+      <h2>New Support Reply</h2>
+
+      <p>
+        <strong>${data.senderName}</strong> has replied to a support ticket.
+      </p>
+
+      <p>
+        <strong>Subject:</strong> ${data.subject}
+      </p>
+
+      <p>
+        <strong>Ticket ID:</strong> ${data.ticketId}
+      </p>
+
+      <p>
+        Please login to view the latest reply.
+      </p>
+    `,
+  });
+
+  console.log(
+    `[EMAIL] Support reply notification sent to ${data.to}`
+  );
+}
+static async sendTicketStatusEmail(data: {
+  to: string;
+  ticketId: string;
+  subject: string;
+  status: string;
+}): Promise<void> {
+  await this.transporter.sendMail({
+    from: `"${this.COMPANY_NAME}" <${process.env.FROM_EMAIL}>`,
+    to: data.to,
+    subject: `Ticket ${data.status.toUpperCase()} - #${data.ticketId}`,
+    html: `
+      <h2>Support Ticket Updated</h2>
+
+      <p>
+        Your support ticket status has changed.
+      </p>
+
+      <p>
+        <strong>Subject:</strong> ${data.subject}
+      </p>
+
+      <p>
+        <strong>Ticket ID:</strong> ${data.ticketId}
+      </p>
+
+      <p>
+        <strong>Status:</strong> ${data.status}
+      </p>
+
+      <p>
+        Please login for more details.
+      </p>
+    `,
+  });
+
+  console.log(
+    `[EMAIL] Ticket status notification sent to ${data.to}`
+  );
+}
+}
+

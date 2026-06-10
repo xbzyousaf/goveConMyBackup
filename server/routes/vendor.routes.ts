@@ -265,11 +265,15 @@ router.get("/vendor-profile", isAuthenticated, async (req: any, res) => {
     res.status(500).json({ message: "Failed to fetch vendor profile" });
   }
 });
-router.post("/vendor-profile", isAuthenticated, isVendor, uploadAvatar, async (req: any, res) => 
+router.post("/vendor-profile", isAuthenticated, uploadAvatar, async (req: any, res) => 
 {
     try {
       const userId = getUserId(req);
       if (!userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
@@ -291,6 +295,10 @@ router.post("/vendor-profile", isAuthenticated, isVendor, uploadAvatar, async (r
       await storage.updateUser(userId, {
         businessType: req.body.businessType,
       });
+      if (user.userType === "contractor") {
+        req.body.isApproved = true;
+        delete req.body.hourlyRate;
+      }
       const profile = await vendorStorage.createVendorProfile(req.body, userId);
 
       res.status(200).json(profile);
@@ -307,12 +315,16 @@ router.post("/vendor-profile", isAuthenticated, isVendor, uploadAvatar, async (r
     }
   },
 );
-    router.put("/vendor-profile/:id", isAuthenticated, isVendor, uploadAvatar, async (req: any, res) => 
+    router.put("/vendor-profile/:id", isAuthenticated, uploadAvatar, async (req: any, res) => 
     {
         try {
         const userId = getUserId(req);
         if (!userId) {
             return res.status(401).json({ message: "Not authenticated" });
+        }
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(401).json({ message: "Not authenticated" });
         }
         const profileId = req.params.id;
 
@@ -333,6 +345,10 @@ router.post("/vendor-profile", isAuthenticated, isVendor, uploadAvatar, async (r
           businessType: req.body.businessType,
         });
         delete req.body.businessType;
+        if (user.userType === "contractor") {
+          req.body.isApproved = true;
+          delete req.body.hourlyRate;
+        }
         const profile = await vendorStorage.updateVendorProfile(
             profileId,
             req.body,

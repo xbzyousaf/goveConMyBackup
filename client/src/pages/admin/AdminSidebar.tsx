@@ -7,13 +7,16 @@ import {
   Briefcase,
   Import,
   CheckCircle,
-  DollarSign
+  DollarSign,
+  MessageCircleQuestion
 } from "lucide-react";
+
 
 const nav = [
   { label: "Dashboard", href: "/admin-dashboard", icon: LayoutDashboard },
   { label: "Vendors", href: "/admin/vendors", icon: Users },
-  { label: "Transactions", href: "/admin/transactions", icon: Receipt },
+  { label: "Support Requests", href: "/support", icon: MessageCircleQuestion },
+  // { label: "Transactions", href: "/admin/transactions", icon: Receipt },
   { label: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
   { label: "Services", href: "/admin/services", icon: Briefcase },
   { label: "Growth Checklists", href: "/admin/guideness", icon: CheckCircle },

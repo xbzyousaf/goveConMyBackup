@@ -1357,6 +1357,7 @@ app.get("/api/vendors", async (req: any, res) => {
       if (!userId) {
         return res.status(401).json({ message: "Not authenticated" });
       }
+      const loginUser = await storage.getUser(userId);
 
       const { subject, message } = req.body;
 
@@ -1365,6 +1366,25 @@ app.get("/api/vendors", async (req: any, res) => {
         subject,
         message,
       });
+      const adminUser = await storage.getAdminUser();
+      if(adminUser?.id) {
+        await storage.createNotification({
+          userId: adminUser?.id,
+          triggeredBy: userId, 
+          title: "New Support Ticket Received",
+          message: loginUser? `${loginUser.firstName}  created a support ticket` : '',
+          type: "support_ticket_created" ,
+          relatedSupportTicketId: ticket.id,
+        });
+        if (adminUser?.email) {
+          await EmailService.sendSupportTicketCreatedEmail({
+            to: adminUser.email,
+            ticketId: ticket.id,
+            subject: ticket.subject,
+            userName: `${loginUser?.firstName} ${loginUser?.lastName}`,
+          });
+        }
+      }
 
       res.status(201).json(ticket);
 
@@ -1374,37 +1394,38 @@ app.get("/api/vendors", async (req: any, res) => {
       });
     }
   });
-  app.get("/api/support", isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-      const page =
-        Number(req.query.page) || 1;
+app.get("/api/support", isAuthenticated, async (req: any, res) => {
+  try {
+    const userId = getUserId(req);
 
-      const limit =
-        Number(req.query.limit) || 10;
-
-      const status =
-        req.query.status as string;
-
-      const tickets =
-        await storage.getSupportTicketsByUser(
-          userId,
-          page,
-          limit,
-          status
-        );
-
-      res.json(tickets);
-
-    } catch (error: any) {
-      res.status(500).json({
-        message: error.message,
+    if (!userId) {
+      return res.status(401).json({
+        message: "Not authenticated",
       });
     }
-  });
+
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const status = req.query.status as string;
+    const search = req.query.search as string;
+
+    const tickets =
+      await storage.getSupportTicketsByUser(
+        userId,
+        page,
+        limit,
+        status,
+        search
+      );
+
+    res.json(tickets);
+
+  } catch (error: any) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
     app.get("/api/support/stats", isAuthenticated, async (req, res) => {
     try {
         const userId = getUserId(req);
@@ -1412,11 +1433,15 @@ app.get("/api/vendors", async (req: any, res) => {
             return res.status(401).json({ message: "Not authenticated" });
           }
           const user = await storage.getUser(userId);
+          const userType = req.query.userType as string;
+          const search = req.query.search as string;
         const stats =
           await storage.getSupportTicketStats(
             user.userType === "admin"
               ? undefined
-              : userId
+              : userId,
+              userType,
+              search
           );
 
         res.json(stats);
@@ -1451,11 +1476,49 @@ app.get("/api/vendors", async (req: any, res) => {
   });
   app.post("/api/support/:id/reply", isAuthenticated, async (req: any, res) => {
     try {
+      const id = req.params.id;
+      if (!id) {
+            return res.status(401).json({ message: "Please create ticket first" });
+          }
+      const userId = getUserId(req);
+          if (!userId) {
+            return res.status(401).json({ message: "Not authenticated" });
+          }
       const reply = await storage.addSupportReply(
-        req.params.id,
-        getUserId(req),
+        id,
+        userId,
         req.body.message
       );
+      const ticket = await storage.getSupportTicket(reply.ticketId);
+      const adminUser = await storage.getAdminUser();
+      const sender = await storage.getUser(reply.senderId);
+        await storage.createNotification({
+          userId: adminUser?.id === reply.senderId ? ticket?.userId || "" : adminUser?.id || "",
+          triggeredBy: reply.senderId,
+          title: "Support Reply Received",
+          message: "You received a new reply on your support ticket",
+          type: "support_reply",
+          relatedSupportTicketId: reply.ticketId,
+        });
+        if (sender?.userType === "admin") {
+          if (ticket?.user?.email) {
+            await EmailService.sendSupportReplyEmail({
+              to: ticket.user.email,
+              ticketId: ticket.id,
+              subject: ticket.subject,
+              senderName: "Support Team",
+            });
+          }
+        }else {
+          if (adminUser?.email) {
+            await EmailService.sendSupportReplyEmail({
+              to: adminUser.email,
+              ticketId: ticket.id,
+              subject: ticket.subject,
+              senderName: `${sender?.firstName} ${sender?.lastName}`,
+            });
+          }
+        }
 
       res.status(201).json(reply);
 
@@ -1467,21 +1530,25 @@ app.get("/api/vendors", async (req: any, res) => {
   });
 app.get("/api/admin/support", isAuthenticated, async (req, res) => {
   try {
-
     const page =
       Number(req.query.page) || 1;
 
     const limit =
       Number(req.query.limit) || 10;
 
-    const status =
-      req.query.status as string;
+    const status = req.query.status as string;
+
+    const search = req.query.search as string;
+
+    const userType = req.query.userType as string;
 
     const tickets =
       await storage.getAllSupportTickets(
         page,
         limit,
-        status
+        status,
+        search,
+        userType
       );
 
     res.json(tickets);
@@ -1494,11 +1561,32 @@ app.get("/api/admin/support", isAuthenticated, async (req, res) => {
 });
   app.put("/api/admin/support/:id/status", isAuthenticated, async (req, res) => {
     try {
+      const status = req.body.status;
       const ticket =
         await storage.updateSupportTicketStatus(
           req.params.id,
-          req.body.status
+          status
         );
+        const adminUser = await storage.getAdminUser();
+        const ticketOwner = await storage.getUser(ticket.userId);
+        await storage.createNotification({
+          userId: ticket.userId,
+          triggeredBy: adminUser?.id || "",
+          title: `Ticket ${status}`,
+          message: `Your support ticket has been marked as ${status}`,
+          type: status === "resolved"
+              ? "support_resolved"
+              : "support_closed",
+          relatedSupportTicketId: ticket.id,
+        });
+        if (ticketOwner?.email) {
+          await EmailService.sendTicketStatusEmail({
+            to: ticketOwner.email,
+            ticketId: ticket.id,
+            status,
+            subject: ticket.subject,
+          });
+        }
 
       res.json(ticket);
 
@@ -1508,6 +1596,27 @@ app.get("/api/admin/support", isAuthenticated, async (req, res) => {
       });
     }
   });
+  app.patch( "/api/support/:id/read", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+
+      const user = await storage.getUser(userId);
+
+      await storage.markSupportTicketRead(
+        req.params.id,
+        user.userType
+      );
+
+      res.json({
+        success: true,
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        message: error.message,
+      });
+    }
+  }
+);
 
 
   const httpServer = createServer(app);

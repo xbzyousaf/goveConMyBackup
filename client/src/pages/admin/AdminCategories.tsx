@@ -66,7 +66,6 @@ export default function AdminCategories() {
             <thead>
               <tr className="bg-gray-50 text-sm">
                 <th className="px-4 py-2 text-left">Name</th>
-                <th className="px-4 py-2 text-left">Key</th>
                 <th className="px-4 py-2 text-left">Description</th>
                 <th className="px-4 py-2 text-left">Actions</th>
               </tr>
@@ -76,7 +75,6 @@ export default function AdminCategories() {
               {categories.map((cat: any) => (
                 <tr key={cat.id}>
                   <td className="px-4 py-2">{cat.name}</td>
-                  <td className="px-4 py-2">{cat.key}</td>
                   <td className="px-4 py-2 max-w-[300px] truncate">
                     {cat.description}
                   </td>

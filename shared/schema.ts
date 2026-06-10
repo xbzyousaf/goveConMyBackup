@@ -530,6 +530,10 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "escrow_released",
   "dispute_opened",
   "dispute_resolved",
+  "support_ticket_created",
+  "support_reply",
+  "support_resolved",
+  "support_closed",
 ]);
 
 export const notifications = pgTable("notifications", {
@@ -549,6 +553,11 @@ export const notifications = pgTable("notifications", {
 
   relatedRequestId: uuid("related_request_id")
   .references(() => serviceRequests.id, { onDelete: "cascade" }),
+
+  relatedSupportTicketId: uuid("related_support_ticket_id")
+  .references(() => supportTickets.id, {
+    onDelete: "cascade",
+  }),
 
   relatedMessageId: uuid("related_message_id")
     .references(() => messages.id, { onDelete: "cascade" }),
@@ -627,7 +636,6 @@ export const vendorImports = pgTable("vendor_imports", {
 export const categories = pgTable("categories", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
-  key: text("key").unique(),
   description: text("description"),
   keyDeliverables: text("key_deliverables").array(),
   createdAt: timestamp("created_at").defaultNow(),
