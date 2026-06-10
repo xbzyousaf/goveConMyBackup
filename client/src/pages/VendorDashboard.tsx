@@ -1,24 +1,23 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, } from "@tanstack/react-query";
 import { Header } from "@/components/Header";
 import { VendorProfileForm } from "@/components/VendorProfileForm";
-import { Card, CardContent, CardDescription, CardHeader, CardFooter, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
-import { Building, MapPin, DollarSign, Clock, Star, Edit, Plus, CheckCircle, AlertCircle, Users, TrendingUp, User, CalendarDays, ArrowRight, MessageCircle, MessageSquare, Check, X, FileText, EyeIcon, Phone, Award, CalendarFold, LockKeyhole } from "lucide-react";
+import { Building, Star, Plus, CheckCircle, Users, TrendingUp, } from "lucide-react";
 import { useLocation } from "wouter";
 import { calculateMonthlyMetric } from "@/services/servicesStats.service";
 import { cn } from "@/lib/utils";
 import { isCurrentMonth } from "@/helpers/dateHelper";
 import { useToast } from "@/hooks/use-toast";
 import VendorPerformanceTab from "@/components/VendorPerformanceTab";
-import { PRIORITY_STATUSES, REQUEST_STATUSES_LABELS, ServiceRequestStatus } from "../../../constants/serviceRequest";
+import { REQUEST_STATUSES_LABELS, ServiceRequestStatus } from "../../../constants/serviceRequest";
 import { ServiceRequestCardCompact } from "@/components/service-requests/ServiceRequestCardCompact";
 import { getFirstLetter } from "@/utility/textUtils";
 import StripePayoutTab from "./vendor/WalletPage";
+import ProfileTab from "../components/ProfileTab";
 
 export default function VendorDashboard() {
   
@@ -362,367 +361,17 @@ const { data: categories = [] } = useQuery<any[]>({
             </TabsContent>
 
             {/* Profile Tab */}
-            <TabsContent value="profile" className="space-y-6">
-              <Card data-testid="card-vendor-profile">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <Avatar className="w-16 h-16">
-                        <AvatarImage src={vendorProfile?.avatar|| ""} />
-                        <AvatarFallback className="text-lg">
-                          {vendorProfile?.companyName?.[0] || "V"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        
-                        {vendorProfile?.companyName && (
-                          <CardTitle className="font-semibold flex items-center gap-2" data-testid="text-company-name">
-                            {vendorProfile.companyName}
-                             <Badge 
-                                variant={vendorProfile?.isApproved ? "default" : "secondary"}
-                                className="flex items-center gap-2"
-                                data-testid="badge-approval-status"
-                              >
-                                {vendorProfile?.isApproved ? (
-                                  <CheckCircle className="w-3 h-3" />
-                                ) : (
-                                  <AlertCircle className="w-3 h-3" />
-                                )}
-                                {vendorProfile?.isApproved ? "Verified" : "Pending Review"}
-                              </Badge>
-                            {/* {vendorProfile?.isApproved && (
-                              <CheckCircle className="w-5 h-5 text-green-500" />
-                            )} */}
-                          </CardTitle>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                        variant="outline"
-                        data-testid="button-edit-profile"
-                        onClick={() => setLocation("/vendor/profile/edit")}
-                      >
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit Profile
-                    </Button>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="space-y-6">
-                  {/* Status */}
-                  <div className="flex items-center gap-4">
-                    {/* <Badge 
-                      variant={vendorProfile?.isApproved ? "default" : "secondary"}
-                      className="flex items-center gap-2"
-                      data-testid="badge-approval-status"
-                    >
-                      {vendorProfile?.isApproved ? (
-                        <CheckCircle className="w-3 h-3" />
-                      ) : (
-                        <AlertCircle className="w-3 h-3" />
-                      )}
-                      {vendorProfile?.isApproved ? "Verified" : "Pending Review"}
-                    </Badge> */}
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Star className="w-4 h-4 mr-1 text-yellow-400 fill-current" />
-                      <span data-testid="text-rating">
-                        {vendorProfile?.rating || "No ratings yet"}
-                        {vendorProfile?.reviewCount > 0 && ` (${vendorProfile.reviewCount} reviews)`}
-                      </span>
-                    </div>
-                  </div>
+            <TabsContent value="profile">
 
-                  {/* Description */}
-                  {vendorProfile?.description && (
-                    <div>
-                      <h4 className="font-medium mb-2">Company Description</h4>
-                      <p className="text-muted-foreground text-sm" data-testid="text-description">
-                        {vendorProfile.description}
-                      </p>
-                    </div>
-                  )}
+              <ProfileTab
+                profile={vendorProfile}
+                categories={categories}
+                certificates={vendorCertificates}
+                showCertificates={true}
+                editUrl="/vendor/profile/edit"
+                onNavigate={setLocation}
+              />
 
-                  {/* Details Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    
-                    {vendorProfile?.hourlyRate && (
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4" />
-                        <span className="text-sm text-muted-foreground" data-testid="text-hourly-rate">
-                          {vendorProfile.hourlyRate}/hr
-                        </span>
-                      </div>
-                    )}
-                    {vendorProfile?.phone && (
-                      <div className="flex items-center gap-2">
-                        <Phone className="w-4 h-4" />
-                        <span className="text-sm text-muted-foreground" data-testid="text-response-time">{vendorProfile.phone}</span>
-                      </div>
-                    )}
-                    {vendorProfile?.availability !== undefined && (
-                      <div className="flex items-center gap-2">
-                        <CalendarFold className="w-4 h-4" />
-                        <span className="text-sm text-muted-foreground" data-testid="text-response-time" >
-                          {vendorProfile.availability === 0 ? "Unavailable" : "Available"}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
-                                        {(
-                      vendorProfile?.addressLine1 ||
-                      vendorProfile?.addressLine2 ||
-                      vendorProfile?.city ||
-                      vendorProfile?.state
-                    ) && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-
-                        <span className="text-sm text-muted-foreground">
-                          {[
-                            vendorProfile.addressLine1,
-                            vendorProfile.addressLine2,
-                            vendorProfile.city,
-                            vendorProfile.state,
-                            vendorProfile.postalCode,
-                          ]
-                            .filter(Boolean)
-                            .join(", ")}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Categories */}
-                  {vendorProfile?.categoryIds?.length > 0 && (
-                  <div>
-                    <h4 className="font-medium mb-2">Service Categories</h4>
-
-                    <div className="flex flex-wrap gap-2">
-                      {vendorProfile.categoryIds.map((categoryId: string, index: number) => {
-                        const category = categories.find(
-                          (cat: any) => cat.id === categoryId
-                        );
-
-                        return (
-                          <Badge
-                            key={index}
-                            variant="outline"
-                            data-testid={`badge-category-${index}`}
-                          >
-                            {category?.name || "Unknown"}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                  {vendorProfile?.businessType && (
-                    <div className="">
-                      <h4 className="font-medium mb-2">Market Served</h4>
-
-                      <p className="text-sm text-muted-foreground">
-                        {vendorProfile.businessType === "both"
-                          ? "Gov & Commercial"
-                          : vendorProfile.businessType
-                              ? vendorProfile.businessType.charAt(0).toUpperCase() +
-                                vendorProfile.businessType.slice(1)
-                              : "N/A"}
-                      </p>
-                    </div>
-                  )}
-
-                  {vendorProfile?.yearsOfExperience && (
-                    <div className="">
-                      <h4 className="font-medium mb-2">Years of Experience</h4>
-
-                      <p className="text-sm text-muted-foreground">
-                        {vendorProfile.yearsOfExperience} Years
-                      </p>
-                    </div>
-                  )}
-
-                </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Skills */}
-                    <div className="rounded-lg border p-3">
-                      {vendorProfile?.skills && vendorProfile.skills.length > 0 && (
-                        <div>
-                          <h4 className="font-medium mb-2">Skills & Expertise</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {vendorProfile.skills.map((skill, index) => (
-                              <Badge key={index} variant="outline" data-testid={`badge-skill-${index}`}>
-                                {skill}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {/* agenciesServed  */}
-                    {vendorProfile?.agenciesServed && vendorProfile.agenciesServed.length > 0 && (
-                      <div className="rounded-lg border p-3">
-                        <h4 className="font-medium mb-2">Agencies / Industries Served</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {vendorProfile.agenciesServed.map((agency, index) => (
-                            <Badge key={index} variant="outline" data-testid={`badge-agency-${index}`}>
-                              {agency}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-              {/* Portfolio Card */}
-              {/* <Card data-testid="card-portfolio">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Portfolio</CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setLocation(`/vendor/${vendorProfile?.id}/add-portfolio`)}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Portfolio
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {vendorPortfolios?.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {vendorPortfolios.map((item, index) => (
-                        <Card key={index} className="overflow-hidden">
-                          {item.attachmentUrl && (
-                            <img
-                              src={item.attachmentUrl} // correct field
-                              alt={item.projectName}   // correct field
-                              className="w-full h-40 object-cover"
-                            />
-                          )}
-                          <CardContent className="p-4">
-                            <h4 className="font-medium">
-                              {item.projectName} {/* correct field */}
-                            {/* </h4>
-                            <p className="text-sm text-muted-foreground">
-                              {item.description}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Industry: {item.industry} | Duration: {item.duration} | Cost: ${item.cost}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">
-                      No portfolio added yet
-                    </p>
-                  )}
-                </CardContent>
-              </Card> */} 
-              {/* User information Card */}
-              <Card data-testid="card-user-information">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div className="flex">
-                    <Building className="w-6 h-6 mr-2" />
-                    <CardTitle>
-                      User Information
-                    </CardTitle>
-                  </div>
-                  <div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setLocation(`/user/${vendorProfile?.userId}/change-password`)}
-                    >
-                    <LockKeyhole className="w-4 h-4 mr-2" />
-                    Change Password
-                  </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {vendorProfile?.user ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {vendorProfile.user.firstName && (
-                          <div className="flex gap-2">
-                            <h4 className="font-medium mb-2">Name:</h4>
-                            <p className="text-sm text-muted-foreground mt-0.5">
-                              {vendorProfile?.user.firstName} {vendorProfile?.user.lastName}
-                            </p>
-                          </div>
-                        )}
-                        {vendorProfile.user.email && (
-                          <div className="flex gap-2">
-                            <h4 className="font-medium mb-2">Email:</h4>
-                            <p className="text-sm text-muted-foreground mt-0.5">
-                              {vendorProfile.user.email}
-                            </p>
-                          </div>
-                        )}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">No certificates added yet</p>
-                  )}
-                </CardContent>
-              </Card>
-              {/* Certificates Card */}
-              <Card data-testid="card-certificates">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div className="flex">
-                    <Award className="w-6 h-6 mr-2" />
-                    <CardTitle>
-                      Certifications
-                    </CardTitle>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setLocation(`/vendor/${vendorProfile?.id}/add-certificate`)}
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Certificate
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {vendorCertificates?.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {vendorCertificates.map(cert => (
-                        <Card key={cert.id} className="overflow-hidden">
-                          {/* {cert.imageUrl && (
-                            <img
-                              src={cert.imageUrl} 
-                              alt={cert.certificateName}
-                              className="w-full h-40 object-cover"
-                            />
-                          )} */}
-                          <CardContent className="p-4">
-                            <h4 className="font-medium">{cert.certificateName}</h4>
-                            <p className="text-sm text-muted-foreground">{cert.receivedFrom}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Year Received: {cert.yearReceived}
-                            </p>
-                            {/* {cert.imageUrl && (
-                              <a
-                                href={cert.imageUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-primary underline mt-2 inline-block"
-                              >
-                                View Certificate
-                              </a>
-                            )} */}
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">No certificates added yet</p>
-                  )}
-                </CardContent>
-              </Card>
             </TabsContent>
             {/* Requests Tab */}
               <Card data-testid="card-service-requests">

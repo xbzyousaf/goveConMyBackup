@@ -397,7 +397,6 @@ const PROCESS_CONFIG = {
 };
 const CATEGORY_SEED = [
   {
-    key: "legal",
     name: "Legal & Compliance",
     description:
       'Establish a "bulletproof" corporate foundation. This service guides you through legal entity formation, operating agreements, and the mandatory federal registrations (SAM, CAGE, UEI) required to receive government payments.',
@@ -409,7 +408,6 @@ const CATEGORY_SEED = [
     ],
   },
   {
-    key: "finance",
     name: "Finance & Accounting",
     description:
       'Transition from basic bookkeeping to "audit-ready" PROOF accounting. These specialists help you implement DCAA-compliant systems and cost-allocation strategies necessary for winning lucrative Cost-Plus and T&M contracts.',
@@ -421,7 +419,6 @@ const CATEGORY_SEED = [
     ],
   },
   {
-    key: "insurance",
     name: "Insurance",
     description:
       "Protect your business from the unique risks of federal contracting. Most government solicitations require proof of specific coverages like Professional Liability (E&O) or Cyber Insurance before an award can be finalized.",
@@ -433,7 +430,6 @@ const CATEGORY_SEED = [
     ],
   },
   {
-    key: "marketing",
     name: "Marketing & Branding",
     description:
       'Your "digital storefront" for Contracting Officers. These experts help you craft a powerful Capability Statement and a professional online presence that clearly articulates your Past Performance and "Value Add" to the government.',
@@ -445,7 +441,6 @@ const CATEGORY_SEED = [
     ],
   },
   {
-    key: "cybersecurity",
     name: "IT and Security (CMMC/NIST)",
     description:
       "Secure your data to secure your contracts. With mandatory NIST 800-171 and CMMC requirements, these providers ensure your technology infrastructure meets the strict security standards required to handle government information.",
@@ -457,7 +452,6 @@ const CATEGORY_SEED = [
     ],
   },
   {
-    key: "hr",
     name: "HR & Talent",
     description:
       "Scale your team with compliance and speed. From Service Contract Act (SCA) wage determinations to finding specialized cleared personnel, these services ensure your workforce management meets federal labor laws.",
@@ -469,7 +463,6 @@ const CATEGORY_SEED = [
     ],
   },
   {
-    key: "business_tools",
     name: "Business Tools",
     description:
       "Automate your growth with specialized PROOF software. These tools streamline capture management, GSA Schedule maintenance, and pipeline tracking so you can spend less time on admin and more time winning.",
@@ -527,7 +520,7 @@ for (const cat of CATEGORY_SEED) {
   const existing = await db
     .select()
     .from(categories)
-    .where(eq(categories.key, cat.key));
+    .where(eq(categories.name, cat.name));
 
   if (existing.length) {
     console.log(`⚠️ Skipping category: ${cat.name}`);
@@ -535,7 +528,6 @@ for (const cat of CATEGORY_SEED) {
   }
 
   await db.insert(categories).values({
-    key: cat.key,
     name: cat.name,
     description: cat.description,
     keyDeliverables: cat.keyDeliverables,

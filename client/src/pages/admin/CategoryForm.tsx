@@ -14,7 +14,6 @@ import { ArrowLeft } from "lucide-react";
 
 type FormData = {
   name: string;
-  key: string;
   description: string;
   keyDeliverables: string;
 };
@@ -35,7 +34,6 @@ console.log(categoryId, isEdit);
   const form = useForm<FormData>({
     defaultValues: {
       name: "",
-      key: "",
       description: "",
       keyDeliverables: "",
     },
@@ -56,7 +54,6 @@ console.log(categoryId, isEdit);
     if (data) {
       form.reset({
         name: data.name,
-        key: data.key,
         description: data.description,
         keyDeliverables: data.keyDeliverables ? data.keyDeliverables.join(", ") : "",
       });
@@ -163,7 +160,7 @@ console.log(categoryId, isEdit);
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
                 {/* ROW 1: NAME + KEY */}
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                   <div className="flex flex-col">
                     <label className="text-sm font-medium mb-1">
                       Category Name
@@ -174,15 +171,6 @@ console.log(categoryId, isEdit);
                     />
                   </div>
 
-                  <div className="flex flex-col">
-                    <label className="text-sm font-medium mb-1">
-                      Category Key
-                    </label>
-                    <Input
-                      placeholder="Enter unique key"
-                      {...form.register("key", { required: true })}
-                    />
-                  </div>
                 </div>
 
                 {/* ROW 2: DESCRIPTION */}

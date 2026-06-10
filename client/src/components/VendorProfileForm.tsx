@@ -15,6 +15,7 @@ import { z } from "zod";
 import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon, Phone, PhoneForwarded, Layers, LocateIcon, MapPinned, MapPinHouse, MapPinCheckInside, MapPinCheck } from "lucide-react";
 import { AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { Avatar } from "./ui/avatar";
+import { useLocation } from "wouter";
 
 const formSchema = insertVendorProfileSchema
   .omit({ userId: true, responseTime: true })
@@ -52,6 +53,7 @@ export function VendorProfileForm({defaultValues,profileId, mode = "create", onS
   const [agencyInput, setAgencyInput] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
    const { data: categories = [], isLoading, error } = useQuery({
     queryKey: ["/api/admin/categories"],
     queryFn: async () => {
@@ -59,6 +61,10 @@ export function VendorProfileForm({defaultValues,profileId, mode = "create", onS
       const json = await res.json();
       return Array.isArray(json) ? json : json.data || [];
     },
+  });
+
+  const { data: user, isLoading: isUserLoading,} = useQuery<any>({
+    queryKey: ['/api/auth/current-user'],
   });
 
   const serviceCategories = categories;
@@ -148,6 +154,7 @@ useEffect(() => {
       form.reset();
       setSelectedFile(null);        // clear file after submit
       setImagePreview("");           // reset preview
+      setLocation("/"); // redirect to dashboard after success
       onSuccess?.();
     },
     onError: (error: any) => {
@@ -236,7 +243,7 @@ useEffect(() => {
       <CardHeader className="mt-2">
         <CardTitle className="flex items-center gap-2" data-testid="text-form-title">
           <BadgeIcon className="w-5 h-5" />
-          {mode === "edit" ? "Edit" : "Create"} Vendor Profile
+          {mode === "edit" ? "Edit" : "Create"} Profile
         </CardTitle>
         <CardDescription data-testid="text-form-description">
           Set up your professional profile to connect with government contractors seeking your services.
@@ -463,7 +470,7 @@ useEffect(() => {
             <div className="space-y-2 mt-6">
               <h3 className="text-lg font-semibold flex items-center gap-2" data-testid="text-section-details">
                 <PhoneForwarded className="w-4 h-4" />
-                Contact & Pricing
+                Contact {user?.userType !== "contractor" ? "& Pricing" : ""}
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -488,6 +495,7 @@ useEffect(() => {
                     </FormItem>
                   )}
                 />
+                { user?.userType !== "contractor" && (
                 <FormField
                   control={form.control}
                   name="hourlyRate"
@@ -509,6 +517,7 @@ useEffect(() => {
                     </FormItem>
                   )}
                 />
+                )}
               </div>
               {/* <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
                 <FormField

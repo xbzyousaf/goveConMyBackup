@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "../components/Header";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 
 export default function ChangePassword() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [form, setForm] = useState({
     currentPassword: "",
@@ -124,35 +127,92 @@ export default function ChangePassword() {
 
           <CardContent >
             <form onSubmit={handleSubmit} className="space-y-4">
-              <Input
-                type="password"
-                placeholder="Current Password *"
-                value={form.currentPassword}
-                className={!form.currentPassword ? "border-red-500" : ""}
-                onChange={(e) =>
-                  setForm({ ...form, currentPassword: e.target.value })
-                }
-              />
+              <div className="relative">
+                <Input
+                  type={showCurrentPassword ? "text" : "password"}
+                  placeholder="Current Password *"
+                  value={form.currentPassword}
+                  className={`pr-10 ${
+                    !form.currentPassword ? "border-red-500" : ""
+                  }`}
+                  onChange={(e) =>
+                    setForm({ ...form, currentPassword: e.target.value })
+                  }
+                />
 
-              <Input
-                type="password"
-                placeholder="New Password *"
-                value={form.newPassword}
-                className={!form.newPassword ? "border-red-500" : ""}
-                onChange={(e) =>
-                  setForm({ ...form, newPassword: e.target.value })
-                }
-              />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  onClick={() =>
+                    setShowCurrentPassword(!showCurrentPassword)
+                  }
+                >
+                  {showCurrentPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
 
-              <Input
-                type="password"
-                placeholder="Confirm New Password *"
-                value={form.confirmNewPassword}
-                className={!form.confirmNewPassword ? "border-red-500" : ""}
-                onChange={(e) =>
-                  setForm({ ...form, confirmNewPassword: e.target.value })
-                }
-              />
+              <div className="relative">
+                <Input
+                  type={showNewPassword ? "text" : "password"}
+                  placeholder="New Password *"
+                  value={form.newPassword}
+                  className={`pr-10 ${
+                    !form.newPassword ? "border-red-500" : ""
+                  }`}
+                  onChange={(e) =>
+                    setForm({ ...form, newPassword: e.target.value })
+                  }
+                />
+
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  onClick={() =>
+                    setShowNewPassword(!showNewPassword)
+                  }
+                >
+                  {showNewPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+
+              <div className="relative">
+                <Input
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Confirm New Password *"
+                  value={form.confirmNewPassword}
+                  className={`pr-10 ${
+                    !form.confirmNewPassword ? "border-red-500" : ""
+                  }`}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      confirmNewPassword: e.target.value,
+                    })
+                  }
+                />
+
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  onClick={() =>
+                    setShowConfirmPassword(!showConfirmPassword)
+                  }
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
 
               <div className="flex justify-end justify-between gap-2">
                 <Button

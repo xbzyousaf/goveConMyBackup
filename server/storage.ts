@@ -120,6 +120,10 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
+  async getAdminUser(): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.userType, "admin"));
+    return user || undefined;
+  }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.username, username));
@@ -2300,10 +2304,10 @@ async createSupportTicket(data: {userId: string; subject: string; message: strin
 
   return ticket;
 }
-async getSupportTicketsByUser(userId: string, page = 1, limit = 10, status?: string) {
+async getSupportTicketsByUser(userId: string, page = 1, limit = 10, status?: string, search?: string) {
   const offset = (page - 1) * limit;
 
-  const conditions = [
+  const conditions: any[] = [
     eq(supportTickets.userId, userId),
   ];
 
@@ -2313,66 +2317,136 @@ async getSupportTicketsByUser(userId: string, page = 1, limit = 10, status?: str
     );
   }
 
+  if (search?.trim()) {
+    conditions.push(
+      or(
+        ilike(
+          supportTickets.subject,
+          `%${search}%`
+        ),
+        ilike(
+          users.firstName,
+          `%${search}%`
+        ),
+        ilike(
+          users.lastName,
+          `%${search}%`
+        ),
+      )
+    );
+  }
+
   const whereClause = and(...conditions);
 
-  const tickets = await db.query.supportTickets.findMany({
-    where: whereClause,
+  const tickets = await db
+    .select()
+    .from(supportTickets)
+    .leftJoin(
+      users,
+      eq(users.id, supportTickets.userId)
+    )
+    .where(whereClause)
+    .orderBy(desc(supportTickets.createdAt))
+    .limit(limit)
+    .offset(offset);
 
-    with: {
-      user: true,
-    },
-
-    orderBy: desc(supportTickets.createdAt),
-
-    limit,
-    offset,
-  });
-
-  const [{ count: total }] = await db
+  const totalResult = await db
     .select({
       count: count(),
     })
     .from(supportTickets)
+    .leftJoin(
+      users,
+      eq(users.id, supportTickets.userId)
+    )
     .where(whereClause);
 
   return {
-    tickets,
-    total,
+    tickets: tickets.map((item) => ({
+      ...item.support_tickets,
+      user: item.users,
+    })),
+    total: totalResult[0].count,
   };
 }
 async getAllSupportTickets(
   page = 1,
   limit = 10,
-  status?: string
+  status?: string,
+  search?: string,
+  userType?: string
 ) {
   const offset = (page - 1) * limit;
 
+  const conditions: any[] = [];
+
+  if (status && status !== "all") {
+    conditions.push(
+      eq(supportTickets.status, status as any)
+    );
+  }
+  if (
+  userType &&
+  userType !== "all"
+  ) {
+    conditions.push(
+      eq(users.userType, userType)
+    );
+  }
+
+  if (search?.trim()) {
+    conditions.push(
+      or(
+        ilike(
+          supportTickets.subject,
+          `%${search}%`
+        ),
+        ilike(
+          users.firstName,
+          `%${search}%`
+        ),
+        ilike(
+          users.lastName,
+          `%${search}%`
+        )
+      )
+    );
+  }
+
   const whereClause =
-    status && status !== "all"
-      ? eq(supportTickets.status, status as any)
+    conditions.length
+      ? and(...conditions)
       : undefined;
 
-  const tickets = await db.query.supportTickets.findMany({
-    where: whereClause,
-
-    with: {
-      user: true,
-    },
-
-    orderBy: desc(supportTickets.createdAt),
-
-    limit,
-    offset,
-  });
-
-  const total = await db
-    .select({ count: count() })
+  const tickets = await db
+    .select()
     .from(supportTickets)
+    .leftJoin(
+      users,
+      eq(users.id, supportTickets.userId)
+    )
+    .where(whereClause)
+    .orderBy(desc(supportTickets.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  const totalResult = await db
+    .select({
+      count: count(),
+    })
+    .from(supportTickets)
+    .leftJoin(
+      users,
+      eq(users.id, supportTickets.userId)
+    )
     .where(whereClause);
 
   return {
-    tickets,
-    total: total[0].count,
+    tickets: tickets.map((item) => ({
+      ...item.support_tickets,
+      user: item.users,
+    })),
+    total: totalResult[0].count,
   };
 }
 async getSupportTicket(ticketId: string) {
@@ -2432,6 +2506,23 @@ async addSupportReply(ticketId: string, senderId: string, message: string) {
       isRead: false,
     })
     .returning();
+    const sender = await this.getUser(senderId);
+      await db
+        .update(supportTickets)
+        .set({
+          isReadByAdmin:
+            sender?.userType === "admin"
+              ? true
+              : false,
+
+          isReadByUser:
+            sender?.userType === "admin"
+              ? false
+              : true,
+
+          updatedAt: new Date(),
+        })
+        .where(eq(supportTickets.id, ticketId));
 
   return reply;
 }
@@ -2447,44 +2538,100 @@ async updateSupportTicketStatus(ticketId: string, status: string) {
 
   return ticket;
 }
-async getSupportTicketStats(userId: string) {
+async getSupportTicketStats(userId?: string, userType?:string, search?:string) {
   try {
+     const conditions: any[] = [];
+        if (search?.trim()) {
+          conditions.push(
+            or(
+              ilike(
+                supportTickets.subject,
+                `%${search}%`
+              ),
+              ilike(
+                users.firstName,
+                `%${search}%`
+              ),
+              ilike(
+                users.lastName,
+                `%${search}%`
+              )
+            )
+          );
+        }
+
+      if (userId) {
+        conditions.push(
+          eq(supportTickets.userId, userId)
+        );
+      }
+
+      if (userType && userType !== "all") {
+        conditions.push(
+          eq(users.userType, userType)
+        );
+      }
 
     const all = await db
       .select({ count: count() })
       .from(supportTickets)
+      .leftJoin(
+        users,
+        eq(users.id, supportTickets.userId)
+      )
       .where(
-        userId
-          ? eq(supportTickets.userId, userId)
+        conditions.length
+          ? and(...conditions)
           : undefined
-      );
+      )
 
   const open = await db
     .select({ count: count() })
     .from(supportTickets)
+    .leftJoin(
+      users,
+      eq(users.id, supportTickets.userId)
+    )
     .where(
-      userId
-        ? and(eq(supportTickets.userId, userId), eq(supportTickets.status, "open"))
+      conditions.length
+        ? and(
+            eq(supportTickets.status, "open"),
+            ...conditions
+          )
         : eq(supportTickets.status, "open")
-    );
+    )
 
   const resolved = await db
     .select({ count: count() })
     .from(supportTickets)
+    .leftJoin(
+      users,
+      eq(users.id, supportTickets.userId)
+    )
     .where(
-      userId
-        ? and(eq(supportTickets.userId, userId), eq(supportTickets.status, "resolved"))
-        : eq(supportTickets.status, "resolved")
-    );
+        conditions.length
+          ? and(
+              eq(supportTickets.status, "resolved"),
+              ...conditions
+            )
+          : eq(supportTickets.status, "resolved")
+      );
 
   const closed = await db
     .select({ count: count() })
     .from(supportTickets)
+    .leftJoin(
+      users,
+      eq(users.id, supportTickets.userId)
+    )
     .where(
-      userId
-        ? and(eq(supportTickets.userId, userId), eq(supportTickets.status, "closed"))
+      conditions.length
+        ? and(
+            eq(supportTickets.status, "closed"),
+            ...conditions
+          )
         : eq(supportTickets.status, "closed")
-    );
+    )
 
   return {
     all: all[0].count,
@@ -2498,6 +2645,20 @@ async getSupportTicketStats(userId: string) {
     console.error(error);
     throw error;
   }
+}
+async markSupportTicketRead(ticketId: string, userType: string ) {
+  await db
+    .update(supportTickets)
+    .set(
+      userType === "admin"
+        ? {
+            isReadByAdmin: true,
+          }
+        : {
+            isReadByUser: true,
+          }
+    )
+    .where(eq(supportTickets.id, ticketId));
 }
 
 // end

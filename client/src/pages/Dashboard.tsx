@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -9,7 +9,7 @@ import { Link, useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Header } from "@/components/Header";
-import { Briefcase, Lightbulb, Rocket, BookOpen, Users, Award, ArrowRight, CheckCircle2, AlertTriangle, RotateCcw, Star, ChevronDown, Loader2} from "lucide-react";
+import { Briefcase, Lightbulb, Rocket, BookOpen, Users, Award, ArrowRight, CheckCircle2, AlertTriangle, RotateCcw, Star, ChevronDown, Loader2,} from "lucide-react";
 import { Service, ServiceRequest } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +22,7 @@ import { BlurGate } from "../components/gates/BlurGate";
 import { UserMaturityProfile } from "@shared/types/maturity-profile"; 
 import { STAGE_INFO, PROCESS_INFO } from "../../../constants/maturity"
 import { useGateStatus } from "../hooks/useGateStatus";
+import ProfileTab from "../components/ProfileTab";
 
 export default function Dashboard() {
   const [, setLocation] = useLocation();
@@ -133,18 +134,19 @@ useEffect(() => {
     const [activeTab, setActiveTab] = useState("recent");
     const totalPages = Math.ceil(data?.total / PAGE_SIZE);
   
-  const {
-  data: user,
-  isLoading: isUserLoading,
-} = useQuery<any>({
-  queryKey: ['/api/auth/current-user'],
-});
+  const { data: user, isLoading: isUserLoading,} = useQuery<any>({
+    queryKey: ['/api/auth/current-user'],
+  });
 
     // AUTH + ONBOARDING GUARD
   if (!user) {
     setLocation("/login");
     return null;
   }
+   const { data: vendorProfile, isLoading: profileLoading } = useQuery({
+      queryKey: ["/api/vendor-profile"],
+      retry: false,
+    });
 useEffect(() => {
   if (!user || user.userType !== "contractor") return;
 
@@ -161,6 +163,15 @@ useEffect(() => {
   }
 
 }, [user, profile]);
+const { data: categories = [] } = useQuery<any[]>({
+  queryKey: ["/api/admin/categories"],
+  queryFn: async () => {
+    const res = await fetch("/api/admin/categories");
+    const json = await res.json();
+
+    return Array.isArray(json) ? json : json.data || [];
+  },
+});
 
   // contractors must complete onboarding
   if (user.userType === "contractor" && !user.hasCompletedOnboarding) {
@@ -792,6 +803,12 @@ useEffect(() => {
                 >
                   Services Requests
                 </TabsTrigger>
+                <TabsTrigger
+                  value="profile"
+                  className="px-3 py-1 rounded-sm data-[state=active]:bg-white data-[state=active]:text-black"
+                >
+                  Profile
+                </TabsTrigger>
 
                 <TabsTrigger
                   value="reviews"
@@ -812,7 +829,7 @@ useEffect(() => {
             
               {/* ✅ Recent all Services FULL ROW */}
               <TabsContent value="recent" className="">
-<BlurGate isLocked={isFreeUser} onUnlock={() => setLocation("/billing")}>
+                <BlurGate isLocked={isFreeUser} onUnlock={() => setLocation("/billing")}>
 
                 <Card data-testid="card-recent-requests"
                   className="col-span-full border-2 border-gold">
@@ -867,6 +884,19 @@ useEffect(() => {
                   </CardContent>
                 </Card>
                 </BlurGate>
+
+              </TabsContent>
+              {/* Profile Tab */}
+            <TabsContent value="profile">
+                  
+                  <ProfileTab
+                    profile={vendorProfile}
+                    categories={categories}
+                    showCertificates={false}
+                    editUrl="/contractor/profile/edit"
+                    onNavigate={setLocation}
+                    createProfileUrl="/contractor/profile/create"
+                  />
 
               </TabsContent>
 

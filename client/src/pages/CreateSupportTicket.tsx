@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 
 import { Header } from "@/components/Header";
@@ -15,6 +15,8 @@ export default function CreateSupportTicket() {
 
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  
+    const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -38,13 +40,13 @@ export default function CreateSupportTicket() {
       return data;
     },
 
-    onSuccess: () => {
-      toast({
-        title: "Support ticket created",
-      });
+      onSuccess: async (ticket) => {
+        await queryClient.invalidateQueries({
+          queryKey: ["/api/support"],
+        });
 
-      setLocation("/support");
-    },
+        setLocation("/support");
+      },
 
     onError: (error: any) => {
       toast({
@@ -96,7 +98,7 @@ export default function CreateSupportTicket() {
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
-                onClick={() => setLocation(`/support/${ticket.id}`)}
+                onClick={() => setLocation(`/support`)}
               >
                 Cancel
               </Button>

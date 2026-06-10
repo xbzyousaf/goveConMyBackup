@@ -1,4 +1,4 @@
-import { Search, Bell, LogOut, MessageSquare, MessageCircleQuestion } from "lucide-react";
+import { Search, Bell, LogOut, MessageSquare, User2Icon, MessageCircleQuestion } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,7 +16,7 @@ import { UrgencyBanner } from "../components/UrgencyBanner";
 import { BlurGate } from "./gates/BlurGate";
 import { UserMaturityProfile } from "@shared/types/maturity-profile";
 import { useGateStatus } from "../hooks/useGateStatus";
-
+import { useQueryClient } from "@tanstack/react-query";
 interface HeaderProps {
   onSearch?: (query: string) => void;
   notificationCount?: number;
@@ -26,7 +26,7 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState(() => {
     return new URLSearchParams(window.location.search).get("q") || "";
   });
-
+  const queryClient = useQueryClient();
   const [location, setLocation] = useLocation();
   useEffect(() => {
     const query =
@@ -52,6 +52,7 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
       return res.json();
     },
     enabled: !!user,
+    // refetchInterval: 3000,
   });
   const { data: notifications = [] } = useQuery({
     queryKey: ["/api/notifications"],
@@ -61,15 +62,20 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
       return res.json();
     },
     enabled: !!user,
+    // refetchInterval: 3000, 
   });
 
   const unreadNotifications = notifications.filter(
     (n: any) => !n.isRead
   ).length;
 
-  const markAsRead = async (id: number) => {
+  const markAsRead = async (id: string) => {
     await fetch(`/api/notifications/${id}/read`, {
       method: "PATCH",
+    });
+
+    queryClient.invalidateQueries({
+      queryKey: ["/api/notifications"],
     });
   };
 
@@ -126,29 +132,26 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
             </div>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
-            {user?.userType === "vendor" && (
-              <>
-                <Link href="/vendor-dashboard">
+                  <Link href={
+                      user?.userType === "vendor"
+                        ? "/vendor-dashboard"
+                        : user?.userType === "admin"
+                          ? "/admin-dashboard"
+                          : "/dashboard"
+                    }>
                   <Button variant="ghost" className="text-sm">
                     Dashboard
                   </Button>
                 </Link>
-
+            {user?.userType === "vendor" && (
                 <Link href="/services">
                   <Button variant="ghost" className="text-sm">
                     Services
                   </Button>
                 </Link>
-              </>
             )}
 
             {user?.userType === "contractor" && (
-              <>
-                <Link href="/dashboard">
-                  <Button variant="ghost" className="text-sm">
-                    Dashboard
-                  </Button>
-                </Link>
                 <BlurGate isLocked={isFreeUser } showButtonOnClick={true} onUnlock={() => setLocation("/billing")} >
                 <Link href="/marketplace">
                   <Button variant="ghost" className="text-sm">
@@ -156,7 +159,6 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                   </Button>
                 </Link>
               </BlurGate>
-              </>
             )}
           </nav>
 
@@ -358,10 +360,16 @@ export function Header({ onSearch, notificationCount = 0 }: HeaderProps) {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem data-testid="button-support" onClick={() => setLocation("/support")}>
-                  <MessageCircleQuestion className="mr-2 h-4 w-4" />
-                  <span>Contact Support</span>
-                </DropdownMenuItem>
+                    <DropdownMenuItem data-testid="button-profile" onClick={() => setLocation("/profile")}>
+                      <User2Icon className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </DropdownMenuItem>
+                    {user?.userType !== 'admin' && (
+                      <DropdownMenuItem data-testid="button-support" onClick={() => setLocation("/support")}>
+                        <MessageCircleQuestion className="mr-2 h-4 w-4" />
+                        <span>Support Requests</span>
+                      </DropdownMenuItem>
+                    )}
                 <DropdownMenuItem onClick={handleLogout} data-testid="button-logout">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>

@@ -1,6 +1,5 @@
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-
 import { Header } from "@/components/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,26 +11,36 @@ import { UserAvatar } from "./common/UserAvatar";
 import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { FormControl, FormItem, FormLabel } from "../components/ui/form";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, } from "@/components/ui/dropdown-menu";
+import { Filter } from "lucide-react";
 
 export default function SupportTicketsPage() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [userType, setUserType] = useState("all");
   const [replyMessage, setReplyMessage] = useState("");
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("all");
-  const LIMIT = 5;
+  const LIMIT = 6;
+  const INTERVAL_LIMIT = 15000;
   const [showReplyBox, setShowReplyBox] = useState(false);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const { data, isLoading } = useQuery({
-    queryKey: ["/api/support", page, status],
+    queryKey: ["/api/support", page, status, debouncedSearch, userType],
     queryFn: async () => {
       const endpoint =
         user?.userType === "admin"
-          ? `/api/admin/support?page=${page}&limit=${LIMIT}&status=${status}`
-          : `/api/support?page=${page}&limit=${LIMIT}&status=${status}`;
-
+          ? `/api/admin/support?page=${page}&limit=${LIMIT}&status=${status}&search=${encodeURIComponent(
+              debouncedSearch
+            )}&userType=${userType}`
+          : `/api/support?page=${page}&limit=${LIMIT}&status=${status}&search=${encodeURIComponent(
+              debouncedSearch
+            )}&userType=${userType}`;
       const response = await fetch(endpoint);
 
       if (!response.ok) {
@@ -40,11 +49,13 @@ export default function SupportTicketsPage() {
 
       return response.json();
     },
+     refetchInterval: INTERVAL_LIMIT,
   });
   const tickets = data?.tickets || [];
   const total = data?.total || 0;
+  console.log('tickets',tickets)
 
-  const { data: selectedTicket } = useQuery({
+  const { data: selectedTicket, isLoading: isTicketLoading} = useQuery({
     queryKey: ["/api/support", selectedTicketId],
     queryFn: async () => {
       const response = await fetch(`/api/support/${selectedTicketId}`);
@@ -56,7 +67,9 @@ export default function SupportTicketsPage() {
       return response.json();
     },
     enabled: !!selectedTicketId,
+    refetchInterval: INTERVAL_LIMIT,
   });
+
   const replyMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch(`/api/support/${selectedTicketId}/reply`, {
@@ -99,6 +112,13 @@ export default function SupportTicketsPage() {
       });
     },
   });
+  useEffect(() => {
+  const timer = setTimeout(() => {
+    setDebouncedSearch(search);
+  }, 500);
+
+  return () => clearTimeout(timer);
+}, [search]);
   const statusMutation = useMutation({
     mutationFn: async (status: string) => {
       const response = await fetch(
@@ -108,26 +128,29 @@ export default function SupportTicketsPage() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            status,
-          }),
-        },
+          body: JSON.stringify({ status }),
+        }
       );
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Failed to update status");
+        throw new Error(
+          data.message || "Failed to update status"
+        );
       }
 
-      return response.json();
+      return data;
     },
 
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       await queryClient.refetchQueries({
-        queryKey: ["/api/support/stats"],
+        queryKey: ["/api/support/stats", userType],
       });
 
       await queryClient.refetchQueries({
         queryKey: ["/api/support"],
+        exact: false,
       });
 
       await queryClient.refetchQueries({
@@ -135,23 +158,31 @@ export default function SupportTicketsPage() {
       });
 
       toast({
-        title: "Status updated",
+        title: `Ticket ${data.status}`,
+        description: `Ticket has been marked as ${data.status}.`,
+      });
+    },
+
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
       });
     },
   });
-  useEffect(() => {
-    if (
-      tickets.length > 0 &&
-      !tickets.find((t: any) => t.id === selectedTicketId)
-    ) {
-      setSelectedTicketId(tickets[0].id);
-    }
-  }, [tickets]);
-  const { data: stats } = useQuery({
-    queryKey: ["/api/support/stats"],
+ useEffect(() => {
+  setShowReplyBox(false);
+  setReplyMessage("");
+}, [selectedTicketId]);
 
+  const { data: stats } = useQuery({
+    queryKey: [ "/api/support/stats", userType, debouncedSearch
+  ],
     queryFn: async () => {
-      const response = await fetch("/api/support/stats");
+      const response = await fetch(
+        `/api/support/stats?userType=${userType}&search=${encodeURIComponent(debouncedSearch)}`
+      );
 
       if (!response.ok) {
         throw new Error("Failed to load stats");
@@ -159,6 +190,7 @@ export default function SupportTicketsPage() {
 
       return response.json();
     },
+    refetchInterval: INTERVAL_LIMIT,
   });
   return (
     <div className="min-h-screen bg-background">
@@ -185,6 +217,62 @@ export default function SupportTicketsPage() {
           {/* Left Side - Ticket List */}
           <div className="col-span-4">
             <Card>
+              <div className="p-2 border-b">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Search by name or subject..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                    className="flex-1 h-8 px-3 text-xs border rounded-md"
+                  />
+                  {user?.userType === "admin" && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                      >
+                        <Filter className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setUserType("all");
+                          setPage(1);
+                        }}
+                      >
+                        All Users
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setUserType("vendor");
+                          setPage(1);
+                        }}
+                      >
+                        Vendors
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setUserType("contractor");
+                          setPage(1);
+                        }}
+                      >
+                        Contractors
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  )}
+                </div>
+              </div>
               <div className="flex items-center justify-between border-b overflow-x-auto">
                 <button
                   onClick={() => {
@@ -245,7 +333,7 @@ export default function SupportTicketsPage() {
               <CardContent className="p-2">
                 {!isLoading && tickets.length === 0 && (
                   <Card>
-                    <CardContent className="py-4 text-center">
+                    <CardContent className="py-4 text-center text-xs">
                       No support tickets found.
                     </CardContent>
                   </Card>
@@ -253,32 +341,61 @@ export default function SupportTicketsPage() {
                 <div className="space-y-1">
                   {tickets.map((ticket: any) => (
                     <Card
-                      key={ticket.id}
-                      onClick={() => setSelectedTicketId(ticket.id)}
-                      className={`cursor-pointer border ${
-                        selectedTicketId === ticket.id ? "border-primary" : ""
-                      }`}
+                    key={ticket.id}
+                    onClick={async () => {
+                        setSelectedTicketId(ticket.id);
+
+                        try {
+                          await fetch(`/api/support/${ticket.id}/read`, {
+                            method: "PATCH",
+                          });
+
+                          await queryClient.refetchQueries({
+                            queryKey: ["/api/support"],
+                          });
+                        } catch (error) {
+                          console.error(error);
+                        }
+                      }}
+                    className={`cursor-pointer border
+                        ${selectedTicketId === ticket.id ? "border-primary" : ""}
+                        ${
+                          (
+                            user?.userType === "admin"
+                              ? !ticket.isReadByAdmin
+                              : !ticket.isReadByUser
+                          )
+                            ? "bg-muted/40"
+                            : ""
+                        }
+                      `}
                     >
-                      <CardContent className="p-2">
+                      <CardContent className="p-1.5">
                         <div className="flex gap-2">
                           <UserAvatar user={ticket.user} />
-
                           <div className="flex-1">
                             <div className="flex justify-between items-center">
                               <div className="font-bold text-sm">
                                 {ticket.user.firstName} {ticket.user.lastName}
                               </div>
+                              <div className="flex items-center gap-2">
+                                {(
+                                user?.userType === "admin"
+                                  ? !ticket.isReadByAdmin
+                                  : !ticket.isReadByUser
+                              ) && (
+                                <span className="h-3 w-3 rounded-full bg-red-500"></span>
+                              )}
 
-                              <div className="text-xs text-muted-foreground mr-2">
-                                {new Date(
-                                  ticket.createdAt,
-                                ).toLocaleDateString()}
+                                <div className="text-xs text-muted-foreground">
+                                  {new Date(ticket.createdAt).toLocaleDateString()}
+                                </div>
                               </div>
                             </div>
 
                             <div className="flex justify-between text-xs text-muted-foreground">
                               <span>
-                                Ticket ID: #{truncateText(ticket.id, 8)}
+                                {truncateText(ticket.subject, 45)}
                               </span>
                             </div>
                           </div>
@@ -299,7 +416,7 @@ export default function SupportTicketsPage() {
                 Previous
               </Button>
 
-              <div className="text-sm flex items-center">Page {page}</div>
+              <div className="text-xs flex items-center">Page {page}</div>
 
               <Button
                 size="sm"
@@ -315,6 +432,13 @@ export default function SupportTicketsPage() {
           {/* Center - Messages */}
           <div className="col-span-8">
             {/* TOP CARD */}
+            {!selectedTicketId ? (
+            <Card>
+              <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                Select a ticket to view messages
+              </CardContent>
+            </Card>
+              ) : (
             <Card className="">
               <CardContent className="flex justify-between items-center py-1">
                 <div>
@@ -331,7 +455,8 @@ export default function SupportTicketsPage() {
               <div className="grid grid-cols-12 gap-2 p-2">
                 <div className="col-span-8">
                   <Card>
-                    {selectedTicket?.status !== "resolved" &&
+                    {selectedTicketId &&
+                      selectedTicket?.status !== "resolved" &&
                       selectedTicket?.status !== "closed" && (
                         <CardContent className="py-1 mt-1">
                           <div className="">
@@ -348,7 +473,7 @@ export default function SupportTicketsPage() {
                             ) : (
                               <>
                                 <Textarea
-                                  rows={4}
+                                  rows={1}
                                   placeholder="Type your reply..."
                                   value={replyMessage}
                                   onChange={(e) =>
@@ -357,7 +482,7 @@ export default function SupportTicketsPage() {
                                 />
 
                                 <div className="flex justify-end gap-2 mt-2">
-                                  <Button
+                                  <Button size="sm"
                                     variant="outline"
                                     onClick={() => {
                                       setShowReplyBox(false);
@@ -367,7 +492,7 @@ export default function SupportTicketsPage() {
                                     Cancel
                                   </Button>
 
-                                  <Button
+                                  <Button size="sm"
                                     disabled={
                                       !replyMessage.trim() ||
                                       replyMutation.isPending
@@ -398,7 +523,7 @@ export default function SupportTicketsPage() {
                                     {msg.sender?.lastName}
                                   </div>
 
-                                  <div className="text-xs text-muted-foreground">
+                                  <div className="text-xs text-muted-foreground ">
                                     {new Date(msg.createdAt).toLocaleString()}
                                   </div>
                                 </div>
@@ -418,13 +543,23 @@ export default function SupportTicketsPage() {
                     <CardContent className="p-4">
                       <h3 className="font-semibold mb-4">Ticket Details</h3>
 
-                      <div className="space-y-4">
+                      <div className="space-y-4 text-xs">
                         <div>
-                          <div className="text-sm text-muted-foreground mb-2">
+                          <div className="text-muted-foreground mb-2">
                             Status
                           </div>
 
-                          <Badge>{selectedTicket?.status}</Badge>
+                          <Badge
+                            variant={
+                              selectedTicket?.status === "open"
+                                ? "default"
+                                : selectedTicket?.status === "resolved"
+                                ? "secondary"
+                                : "destructive"
+                            }
+                          >
+                            {selectedTicket?.status}
+                          </Badge>
 
                           {user?.userType === "admin" && (
                             <div className="flex flex-col gap-2 mt-3">
@@ -459,10 +594,10 @@ export default function SupportTicketsPage() {
                         </div>
 
                         <div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className="text-muted-foreground">
                             Created
                           </div>
-                          <div className="font-medium text-sm">
+                          <div className="font-medium">
                             {selectedTicket?.createdAt &&
                               new Date(
                                 selectedTicket.createdAt,
@@ -471,10 +606,10 @@ export default function SupportTicketsPage() {
                         </div>
 
                         <div>
-                          <div className="text-sm text-muted-foreground">
+                          <div className=" text-muted-foreground">
                             Updated
                           </div>
-                          <div className="font-medium text-sm">
+                          <div className="font-medium">
                             {selectedTicket?.updatedAt &&
                               new Date(
                                 selectedTicket.updatedAt,
@@ -487,6 +622,7 @@ export default function SupportTicketsPage() {
                 </div>
               </div>
             </Card>
+          )}
           </div>
         </div>
       </main>
