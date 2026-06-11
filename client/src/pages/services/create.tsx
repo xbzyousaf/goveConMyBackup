@@ -147,7 +147,7 @@ export default function CreateService() {
     
       <main className="container mx-auto max-w-2xl px-4 py-4 space-y-6">
           <Link href="/services">
-            <Button variant="outline">
+            <Button size="sm" variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>

@@ -40,7 +40,7 @@ import AdminDisputes from "./pages/admin/AdminDisputes";
 import VendorPayments from "./pages/vendor/payments";
 import Transactions from "./pages/admin/Transactions";
 import AdminServices from "./pages/admin/AdminServices";
-import CreateMilestone from "./pages/admin/Content";
+import CreateMilestone from "./pages/admin/Checklist";
 import Checkout from "./pages/checkout";
 import AdminMilestones from "./pages/admin/AdminMilestones";
 import BillingPage from "./pages/Billing";
@@ -232,8 +232,7 @@ function Router() {
                 <Route path="/admin/services" component={AdminServices} />
                 <Route path="/admin/disputes" component={AdminDisputes} />
                 <Route path="/admin/transactions" component={Transactions} />
-                <Route path="/admin/guideness" component={AdminMilestones} />
-                {/* <Route path="/admin/edit-milestones/:id" component={CreateMilestone} /> */}
+                <Route path="/admin/checklist" component={AdminMilestones} />
                 <Route path="/admin/create-milestones" component={CreateMilestone} />
                 <Route path="/admin/vendor-imports" component={AdminVendorImports} />
                 <Route path="/admin/request-logs" component={AdminRequestLogs} />

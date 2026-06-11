@@ -40,11 +40,12 @@ export default function Profile() {
       <Header />
 
       <main className="max-w-6xl mx-auto p-6 space-y-4">
-            <Link href="/">
-                <Button variant="outline" size="sm" className="" data-testid="button-back-dashboard">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
-                </Button>
-            </Link>
+            <Button size="sm"  variant="outline"
+                onClick={() => window.history.back()}
+                >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Button>
         <ProfileTab
           profile={vendorProfile}
           categories={categories}

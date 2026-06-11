@@ -57,7 +57,7 @@ export default function VendorDetail() {
             The vendor you're looking for doesn't exist or has been removed.
           </p>
           <Link href="/vendors">
-            <Button variant="outline">
+            <Button variant="outline" size="sm">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Vendors
             </Button>
@@ -81,7 +81,7 @@ export default function VendorDetail() {
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Back Button */}
         <Button
-          variant="outline"
+          variant="outline" size="sm"
           onClick={() => window.history.back()}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />

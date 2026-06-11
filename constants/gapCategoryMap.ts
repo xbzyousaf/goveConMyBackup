@@ -11,3 +11,12 @@ export const GAP_CATEGORY_MAP: Record<GapType, ServiceCategory> = {
   insurance: "insurance",
   certifications: "business_tools", // intentional mapping
 };
+export const CATEGORY_NAME_MAP: Record<ServiceCategory, string> = {
+  legal: "Legal & Compliance",
+  hr: "HR & Talent",
+  finance: "Finance & Accounting",
+  cybersecurity: "IT & Cybersecurity",
+  marketing: "Marketing & Branding",
+  business_tools: "Business Tools",
+  insurance: "Insurance",
+};

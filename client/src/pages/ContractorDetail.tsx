@@ -44,7 +44,7 @@ export default function ContractorDetail() {
           <h2 className="text-2xl font-bold mb-4">Contractor Not Found</h2>
           <Link href="/">
             <Button>
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft  size="sm" className="w-4 h-4 mr-2" />
               Back
             </Button>
           </Link>
@@ -62,7 +62,7 @@ export default function ContractorDetail() {
       <main className="container mx-auto px-4 py-8">
         {/* Back */}
         <Link href="/">
-          <Button variant="ghost" className="mb-6">
+          <Button variant="ghost" size="sm" className="mb-6">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>

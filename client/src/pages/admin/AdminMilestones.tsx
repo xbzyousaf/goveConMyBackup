@@ -7,11 +7,13 @@ import type { Milestone } from "@shared/schema";
 import { Plus } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export default function AdminMilestones() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch milestones
   const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
@@ -56,7 +58,16 @@ export default function AdminMilestones() {
       });
     },
   });
+  const filteredMilestones = milestones.filter((m) => {
+    const search = searchTerm.toLowerCase().trim();
 
+    return (
+      m.title?.toLowerCase().includes(search) ||
+      m.categoryName?.toLowerCase().includes(search) ||
+      m.process?.toLowerCase().includes(search) ||
+      m.stage?.toLowerCase().includes(search)
+    );
+  });
   // Toggle "required" status (example)
   const toggleRequired = useMutation({
     mutationFn: async ({ id, required }: { id: string; required: boolean }) => {
@@ -72,26 +83,37 @@ export default function AdminMilestones() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/milestones"] }),
   });
 
-  if (isLoading) return <p className="p-6">Loading milestones...</p>;
+  if (isLoading) return <p className="p-6">Loading Checklist...</p>;
 
   return (
     <div>
       <Header />
 
       <AdminLayout>
-        <div className="flex justify-between items-center mb-4 w-full table-auto">
-          <h2 className="text-2xl font-bold">Manage Milestones</h2>
-          <Button
-            size="sm"
-            onClick={() => window.location.assign("/admin/create-milestones")}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add New
-          </Button>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Manage Checklist</h2>
+
+          <div className="flex items-center gap-6">
+            <input
+              type="text"
+              placeholder="Search with title, category, stage or process ..."
+              className="w-72 h-9 px-3 border rounded-md text-xs"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+
+            <Button
+              size="sm"
+              onClick={() => window.location.assign("/admin/create-milestones")}
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add New
+            </Button>
+          </div>
         </div>
 
-       <Card>
-  <div className="w-full overflow-x-auto">
+       <Card className=" overflow-x-auto">
+  <div className="w-full">
     <table className="w-full table-auto divide-y divide-gray-200">
       <thead>
         <tr className="bg-gray-50 text-sm">
@@ -99,14 +121,19 @@ export default function AdminMilestones() {
           <th className="px-4 py-2 text-left">Process</th>
           <th className="px-4 py-2 text-left">Stage</th>
           <th className="px-4 py-2 text-left">Category</th>
-          {/* <th className="px-4 py-2 text-left">Description</th> */}
-          {/* <th className="px-4 py-2 text-left">Required</th> */}
           <th className="px-4 py-2 text-left">Actions</th>
         </tr>
       </thead>
 
       <tbody className="bg-white divide-y divide-gray-200 text-sm">
-        {milestones.map((m) => (
+        {filteredMilestones.length === 0 && (
+          <tr>
+            <td colSpan={5} className="text-center py-6 text-muted-foreground">
+              No milestones found.
+            </td>
+          </tr>
+        )}
+        {filteredMilestones.map((m) => (
           <tr key={m.id}>
             <td className="px-4 py-2">{m.title}</td>
             <td className="px-4 py-2">

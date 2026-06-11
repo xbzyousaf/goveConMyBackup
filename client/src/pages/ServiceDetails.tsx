@@ -40,7 +40,7 @@ export default function ServiceDetails() {
               variant="outline"
               onClick={() => window.history.back()}
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft size="sm" className="w-4 h-4 mr-2" />
               Back
             </Button>
 

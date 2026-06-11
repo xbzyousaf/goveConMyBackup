@@ -57,7 +57,7 @@ export function ServiceCardCompact({ service, detailsUrl }: Props) {
       <div className="flex flex-col items-end gap-3">
         <div className="absolute right-4 -top-3 z-10">
           <Badge className="border border-[hsl(var(--accent))] text-[hsl(var(--accent))] bg-background px-3 py-1 shadow-sm">
-            Recommended for {service.category} gap
+            Recommended for {service.recommendedFor} gap
           </Badge>
         </div>
 

@@ -86,6 +86,7 @@ const intent = new URLSearchParams(window.location.search).get("intent");
           variant="ghost"
           onClick={() => setLocation("/")}
           className="mb-4"
+           size="sm"
           data-testid="button-back-home"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />

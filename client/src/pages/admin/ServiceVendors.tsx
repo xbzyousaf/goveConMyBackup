@@ -3,13 +3,23 @@ import { useRoute, Link } from "wouter";
 import { Header } from "@/components/Header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Mail, MapPin, Phone, Star } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { truncateText } from "@/utility/textUtils";
 
 export default function ServiceVendors() {
   const [match, params] = useRoute("/services/:serviceId/vendors");
   const serviceId = params?.serviceId;
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/categories");
+      return res.json();
+    },
+  });
+  const categoryLookup = Object.fromEntries(
+    categories.map((c: any) => [c.id, c.name])
+  );
 
   const { data: vendors = [], isLoading } = useQuery({
     queryKey: ["service-vendors", serviceId],
@@ -28,14 +38,15 @@ export default function ServiceVendors() {
   <div className="min-h-screen bg-background">
     <Header />
 
-    <main className="max-w-6xl mx-auto px-4 py-10 space-y-6">
+    <main className="max-w-6xl mx-auto px-4 py-4 space-y-6">
 
       {/* Back Button */}
       <Button
           variant="outline"
+          size="sm"
           onClick={() => window.history.back()}
         >
-        <ArrowLeft className="w-4 h-4 mr-2" />
+        <ArrowLeft size="sm" className="w-4 h-4" />
         Back
       </Button>
 
@@ -81,12 +92,12 @@ export default function ServiceVendors() {
 
                 {/* Categories */}
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {vendor.categories?.map((cat: any, i: number) => (
+                  {vendor.categories?.map((categoryId: string) => (
                     <span
-                      key={i}
-                      className={`px-2 py-1 text-xs rounded bg-gray-200`}
+                      key={categoryId}
+                      className="px-2 py-1 text-xs rounded bg-gray-200"
                     >
-                      {cat.name}
+                      {categoryLookup[categoryId] || categoryId}
                     </span>
                   ))}
                 </div>
@@ -97,7 +108,7 @@ export default function ServiceVendors() {
                 <p className="font-semibold">
                   SHORT BIO: 
                 </p>
-                <p>
+                <p className="text-sm">
                   {truncateText(vendor.description, 190)}
                 </p>                
 

@@ -370,9 +370,6 @@ router.post("/vendor-profile", isAuthenticated, uploadAvatar, async (req: any, r
     {
         try {
         const { vendorId, applicationData } = req.body;
-
-        console.log("[AI VETTING] Starting vendor application review...");
-
         // Prepare comprehensive application summary for AI review
         const applicationSummary = `
         Vendor Application Review Request:
@@ -446,14 +443,11 @@ router.post("/vendor-profile", isAuthenticated, uploadAvatar, async (req: any, r
         const vettingResult = JSON.parse(
             completion.choices[0].message.content || "{}",
         );
-        console.log("[AI VETTING] Result:", vettingResult);
 
         // Update vendor profile approval status
         if (vettingResult.approved && vettingResult.confidence === "high") {
             await vendorStorage.updateVendorProfile(vendorId, { isApproved: true });
-            console.log("[AI VETTING] Vendor approved automatically");
         } else if (vettingResult.recommendManualReview) {
-            console.log("[AI VETTING] Flagged for manual review");
             vettingResult.feedback =
             vettingResult.feedback +
             " Your application has been flagged for manual review by our team.";

@@ -189,7 +189,7 @@ const resetStageMutation = useMutation({
           <h2 className="text-2xl font-bold mb-2">Process Not Found</h2>
           <Link href="/">
             <Button variant="outline" data-testid="button-back-dashboard">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back
+              <ArrowLeft size="sm" className="mr-2 h-4 w-4" /> Back
             </Button>
           </Link>
         </div>
