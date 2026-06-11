@@ -114,12 +114,12 @@ export default function ChangePassword() {
       <Header />
 
       <main className="container mx-auto max-w-2xl px-4 py-6 space-y-6">
-          <Link href="/vendor-dashboard">
-            <Button variant="outline">
-              <ArrowLeft className="w-4 h-4 mr-2" />
+          <Button size="sm"  variant="outline"
+                onClick={() => window.history.back()}
+                >
+              <ArrowLeft className="w-4 h-4" />
               Back
             </Button>
-          </Link>
         <Card className="">
           <CardHeader>
             <CardTitle>Change Password</CardTitle>
@@ -217,6 +217,7 @@ export default function ChangePassword() {
               <div className="flex justify-end justify-between gap-2">
                 <Button
                   type="button"
+                   size="sm"
                   variant="outline"
                   onClick={() => setLocation("/dashboard")}
                 >
@@ -225,6 +226,7 @@ export default function ChangePassword() {
 
                 <Button
                   type="submit"
+                   size="sm"
                   disabled={!isValid || changePasswordMutation.isPending}
                 >
                   {changePasswordMutation.isPending

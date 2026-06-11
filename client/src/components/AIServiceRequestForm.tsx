@@ -141,6 +141,7 @@ const { data: categories = [] } = useQuery({
       <div className="max-w-6xl mx-auto space-y-6">
        <Button
           variant="outline"
+           size="sm"
           onClick={() => window.history.back()}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />

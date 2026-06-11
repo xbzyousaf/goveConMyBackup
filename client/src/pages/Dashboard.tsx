@@ -662,7 +662,7 @@ const { data: categories = [] } = useQuery<any[]>({
                     )}
                   </div>
                   <div className="mt-1">
-                    {isRetaking ? "Loading..." : "Retake Assessment"}
+                    {isRetaking ? "Loading..." : "Assessment"}
                   </div>
                 </CardTitle>
               </CardHeader>

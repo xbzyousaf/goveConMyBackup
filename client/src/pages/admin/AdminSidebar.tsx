@@ -19,7 +19,7 @@ const nav = [
   // { label: "Transactions", href: "/admin/transactions", icon: Receipt },
   { label: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
   { label: "Services", href: "/admin/services", icon: Briefcase },
-  { label: "Growth Checklists", href: "/admin/guideness", icon: CheckCircle },
+  { label: "Checklists", href: "/admin/checklist", icon: CheckCircle },
   { label: "Request Logs", href: "/admin/request-logs", icon: FileText },
   { label: "Vendor Imports", href: "/admin/vendor-imports", icon: Import },
   { label: "Categories", href: "/admin/categories", icon: LayoutDashboard },

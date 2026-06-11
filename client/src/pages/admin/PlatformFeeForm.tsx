@@ -119,7 +119,7 @@ const onSubmit = (values: FormData) => {
         <div className="p-6">
           {/* BACK BUTTON */}
           <Link href="/admin/platform-fees">
-            <Button variant="outline">
+            <Button  size="sm" variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>

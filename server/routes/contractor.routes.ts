@@ -419,7 +419,6 @@ router.post("/subscription/cancel", isAuthenticated, isContractor, async (req, r
       return res.status(401).json({ message: "Unauthorized" });
     }
     const sub = await storage.getSubscriptionByUserId(userId);
-    console.log('new', sub, userId)
     if (!sub) {
       return res.status(404).json({ message: "No active subscription" });
     }
@@ -595,7 +594,9 @@ router.get("/recommended-services", isAuthenticated,isContractor, async (req, re
     return res.status(404).json({ message: "User not found" });
   }
   const userBusinessType = user?.businessType;
-
+  if (!userBusinessType) {
+    return res.status(404).json({ message: "User Business Type not found" });
+  }
   const profile = await storage.getUserMaturityProfile(userId);
 
   const gaps: Gap[] = profile?.assessmentData?.gaps || [];
@@ -604,7 +605,7 @@ router.get("/recommended-services", isAuthenticated,isContractor, async (req, re
     return res.json([]);
   }
 
-  const services = await storage.getRecommendedServices( gaps, userBusinessType);
+  const services = await storage.getRecommendedServices(gaps, userBusinessType);
 
   return res.json(services);
 });
@@ -631,8 +632,6 @@ try {
     }
     
     const { messages } = validation.data;
-    console.log('[ASSESSMENT CHAT] Processing message for user:', userId);
-    console.log('[ASSESSMENT CHAT] Conversation length:', messages.length);
 
     // System prompt for assessment AI
     const systemPrompt = `You are an expert AI guide helping government contractors assess their business maturity level. Your goal is to determine their stage (Startup, Growth, or Scale) through a conversational assessment.
@@ -716,7 +715,6 @@ try {
     });
 
     const response = completion.choices[0].message.content || "";
-    console.log('[ASSESSMENT CHAT] Response received, checking for completion...');
     const updatedConversation = [
     ...messages,
     { role: "assistant", content: response },
@@ -746,6 +744,7 @@ try {
         }
         
         const assessmentResult = JSON.parse(jsonMatch[0]);
+        const cleanConversation = [...messages];
         const gapSchema = z.object({
         type: z.enum([
             ...SERVICE_CATEGORIES,
@@ -846,7 +845,7 @@ try {
         readinessScore: assessmentResult.readinessScore,
         assessmentData: {
             status: 'completed',
-            conversationHistory: updatedConversation,
+            conversationHistory: cleanConversation,
             completedAt: new Date(),
             aiAnalysis: assessmentResult.aiAnalysis,
             recommendations: assessmentResult.recommendations,
@@ -855,8 +854,6 @@ try {
         currentFocus: currentFocus,
         subscriptionTier: existingProfile?.subscriptionTier || null,
         });
-
-        console.log('[ASSESSMENT CHAT] Assessment complete:', assessmentResult.maturityStage, assessmentResult.readinessScore);
 
         return res.json({
         isComplete: true,
@@ -923,7 +920,6 @@ try {
       // Fix legacy journeys with invalid stages
       const validStages = ['startup', 'growth', 'scale'];
       if (!validStages.includes(journey.currentStage)) {
-        console.log(`[JOURNEYS] Fixing invalid stage "${journey.currentStage}" to "${userStage}" in milestone toggle`);
         journey = await storage.updateUserJourney(journey.id, {
           currentStage: userStage,
         });
@@ -999,7 +995,6 @@ router.get('/journeys/:processId', isAuthenticated, async (req: any, res) => {
         // Fix legacy journeys with invalid stages (e.g., "foundation")
         const validStages = ['startup', 'growth', 'scale'];
         if (!validStages.includes(journey.currentStage)) {
-          console.log(`[JOURNEYS] Fixing invalid stage "${journey.currentStage}" to "${userStage}"`);
           journey = await storage.updateUserJourney(journey.id, {
             currentStage: userStage,
           });
@@ -1144,7 +1139,6 @@ router.get('/categories/:categoryId/vendors', isAuthenticated, async (req: any, 
 // /api/test/setup-contractor
 router.post('/setup-contractor', async (req: any, res) => {
   try {
-    console.log('🔥 ROUTE HIT');
 
     const result = await storage.setupContractorUser();
 

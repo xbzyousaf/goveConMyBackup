@@ -16,6 +16,13 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft } from "lucide-react";
+const generateKey = (title: string, categoryId: string) => {
+  return `${title
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "")}_${categoryId}`;
+};
 
 export default function CreateMilestone() {
   const [match, params] = useRoute("/admin/edit-milestones/:id");
@@ -27,13 +34,12 @@ export default function CreateMilestone() {
   const { toast } = useToast();
 
   const [form, setForm] = useState({
-    key: "",
     process: "",
     stage: "",
     title: "",
     description: "",
     required: "false",
-     resources: "", // <-- add this
+    //  resources: "",
      categoryId: "",
   });
 
@@ -59,15 +65,14 @@ export default function CreateMilestone() {
       description: milestone.description || "",
       required: milestone.required ? "true" : "false",
       categoryId:milestone.categoryId,
-      resources: (milestone.resources || [])
-        .map((r: any) => `${r.title}|${r.url}`)
-        .join("\n"),
+      // resources: (milestone.resources || [])
+      //   .map((r: any) => `${r.title}|${r.url}`)
+      //   .join("\n"),
     });
   }
 }, [milestone]);
 
   const isValid =
-    form.key.trim() &&
     form.process &&
     form.stage &&
     form.title.trim() &&
@@ -86,20 +91,20 @@ export default function CreateMilestone() {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          key: form.key,
+          key: generateKey(form.title, form.categoryId),
           process: form.process,
           stage: form.stage,
           title: form.title,
           description: form.description,
           required: form.required === "true",
           categoryId: form.categoryId,
-          resources: form.resources
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      const [title, url] = line.split("|");
-      return { title: title?.trim() || "", url: url?.trim() || "", type: "external" };
-    }),
+    //       resources: form.resources
+    // .split("\n")
+    // .filter(Boolean)
+    // .map((line) => {
+    //   const [title, url] = line.split("|");
+    //   return { title: title?.trim() || "", url: url?.trim() || "", type: "external" };
+    // }),
         })
       });
 
@@ -116,12 +121,22 @@ export default function CreateMilestone() {
 
       toast({
         title: isEdit
+          ? "Updated successfully"
+          : "Created successfully",
+        description: isEdit
           ? "Milestone updated successfully"
           : "Milestone created successfully"
       });
 
-      setLocation("/admin/guideness");
-    }
+      setLocation("/admin/checklist");
+    },
+    onError: (error: Error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message,
+      });
+    },
   });
 
   const { data: categories = [] } = useQuery({
@@ -142,21 +157,19 @@ export default function CreateMilestone() {
       <Header />
           <AdminLayout>
 
-      <main className="max-w-4xl mx-auto space-y-6">
-        <Link href="/admin/guideness">
-          <Button variant="outline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-        </Link>
+      <main className="max-w-5xl mx-auto space-y-4">
 
         <Card>
           <CardContent className="p-6 space-y-4">
             <h1 className="text-xl font-semibold">
-              {isEdit ? "Edit Milestone" : "Create Milestone"}
+              {isEdit ? "Edit Checklist" : "Create Checklist"}
             </h1>
 
-            {/* KEY */}
+            {/* KEY
+            <div className="">
+              <label className="text-sm font-medium">
+                Milestone Title
+              </label>
             <Input
               placeholder="Unique key (e.g., ein, sam_gov)"
               value={form.key}
@@ -164,8 +177,13 @@ export default function CreateMilestone() {
                 setForm({ ...form, key: e.target.value })
               }
             />
-
+            </div> */}
+            <div className="grid grid-cols-2 gap-4">
             {/* PROCESS */}
+            <div className="">
+              <label className="text-sm font-medium">
+                Process
+              </label>
             <Select
               value={form.process}
               onValueChange={(v) =>
@@ -187,8 +205,13 @@ export default function CreateMilestone() {
                 </SelectItem>
               </SelectContent>
             </Select>
+            </div>
 
             {/* STAGE */}
+            <div className="">
+              <label className="text-sm font-medium">
+                Stage
+              </label>
             <Select
               value={form.stage}
               onValueChange={(v) =>
@@ -204,48 +227,36 @@ export default function CreateMilestone() {
                 <SelectItem value="scale">Scale</SelectItem>
               </SelectContent>
             </Select>
+            </div>
+            </div>
 
-            {/* TITLE */}
-            <Input
-              placeholder="Milestone title"
-              value={form.title}
-              onChange={(e) =>
-                setForm({ ...form, title: e.target.value })
-              }
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="">
+              <label className="text-sm font-medium">
+                Category
+              </label>
             <Select
-  value={form.categoryId}
-  onValueChange={(v) => setForm({ ...form, categoryId: v })}
->
-  <SelectTrigger>
-    <SelectValue placeholder="Select Category" />
-  </SelectTrigger>
+              value={form.categoryId}
+              onValueChange={(v) => setForm({ ...form, categoryId: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select Category" />
+              </SelectTrigger>
 
-  <SelectContent>
-    {categories.map((cat: any) => (
-      <SelectItem key={cat.id} value={cat.id}>
-        {cat.name}
-      </SelectItem>
-    ))}
-  </SelectContent>
-</Select>
-
-            {/* DESCRIPTION */}
-            <Textarea
-              placeholder="Milestone description"
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-            />
-            {/* RESOURCES */}
-<Textarea
-  placeholder="Resources (one per line, format: title|url)"
-  value={form.resources}
-  onChange={(e) => setForm({ ...form, resources: e.target.value })}
-/>
-
+              <SelectContent>
+                {categories.map((cat: any) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            </div>
             {/* REQUIRED */}
+            <div className="">
+              <label className="text-sm font-medium">
+                Required/Optional
+              </label>
             <Select
               value={form.required}
               onValueChange={(v) =>
@@ -260,18 +271,70 @@ export default function CreateMilestone() {
                 <SelectItem value="false">Optional</SelectItem>
               </SelectContent>
             </Select>
+            </div>
+            
+            </div>
+            {/* TITLE */}
+            <div className="">
+              <label className="text-sm font-medium">
+                Milestone Title
+              </label>
+            <Input
+              placeholder="Milestone title"
+              value={form.title}
+              onChange={(e) =>
+                setForm({ ...form, title: e.target.value })
+              }
+            />
+            </div>
+
+            {/* DESCRIPTION */}
+            <div className="">
+              <label className="text-sm font-medium">
+                Description
+              </label>
+            <Textarea
+              placeholder="Milestone description"
+              className="min-h-[20px]"
+              value={form.description}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
+            />
+            </div>
+
+            {/* RESOURCES */}
+            {/* <div className="">
+              <label className="text-sm font-medium">
+                Resources
+              </label>
+            <Textarea
+              placeholder="Resources (one per line, format: title|url)"
+              className="min-h-[20px]"
+              value={form.resources}
+              onChange={(e) => setForm({ ...form, resources: e.target.value })}
+            />
+            </div> */}
+
           </CardContent>
         </Card>
-
+        <div className="flex justify-between items-center">
+        <Link href="/admin/checklist">
+          <Button size="sm" variant="outline" className="bg-white">
+            Cancle
+          </Button>
+        </Link>
+        
         <Button
-          className="w-full"
+          size="sm"
           disabled={!isValid || mutation.isPending}
           onClick={() => mutation.mutate()}
         >
           {mutation.isPending
             ? isEdit ? "Updating..." : "Creating..."
-            : isEdit ? "Update Milestone" : "Create Milestone"}
+            : isEdit ? "Update Checklist" : "Create Checklist"}
         </Button>
+        </div>
       </main>
       </AdminLayout>
     </div>

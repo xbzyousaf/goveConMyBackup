@@ -12,7 +12,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { useToast } from "@/hooks/use-toast";
 import { insertVendorProfileSchema } from "@shared/schema";
 import { z } from "zod";
-import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon, Phone, PhoneForwarded, Layers, LocateIcon, MapPinned, MapPinHouse, MapPinCheckInside, MapPinCheck } from "lucide-react";
+import { X, Plus, Building, MapPin, DollarSign, Clock, Star, Badge as BadgeIcon, Phone, PhoneForwarded, Layers, LocateIcon, MapPinned, MapPinHouse, MapPinCheckInside, MapPinCheck, ArrowLeft } from "lucide-react";
 import { AvatarFallback, AvatarImage } from "@radix-ui/react-avatar";
 import { Avatar } from "./ui/avatar";
 import { useLocation } from "wouter";
@@ -239,7 +239,17 @@ useEffect(() => {
   const currentAgencies = form.watch("agenciesServed") || [];
 
   return (
-    <Card className="max-w-4xl mx-auto card-vendor-profile" data-testid="card-vendor-profile-form">
+    <div className="min-h-screen bg-background">
+      <div className="ml-8">
+        <Button size="sm"  variant="outline" className="ml-12 mt-4 mb-2"
+          onClick={() => window.history.back()}
+          >
+        <ArrowLeft className="w-4 h-4" />
+        Back
+      </Button>
+    </div>
+      <div className="max-w-6xl mx-auto pt-2 pl-6 pr-6">
+    <Card className="space-y-4" data-testid="card-vendor-profile-form">
       <CardHeader className="mt-2">
         <CardTitle className="flex items-center gap-2" data-testid="text-form-title">
           <BadgeIcon className="w-5 h-5" />
@@ -792,5 +802,7 @@ useEffect(() => {
         </Form>
       </CardContent>
     </Card>
+    </div>
+    </div>
   );
 }

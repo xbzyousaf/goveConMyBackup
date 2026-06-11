@@ -40,7 +40,6 @@ export default function CategoryVendors() {
 },
     enabled: !!categoryId,
   });
-  console.log("Fetched vendors:", categoryId, vendors);
   const [expandedVendor, setExpandedVendor] = useState<string | null>(null);
   
 
@@ -55,7 +54,7 @@ export default function CategoryVendors() {
     <main className="max-w-6xl mx-auto px-4 py-4 space-y-4">
 
       {/* Back Button */}
-      <Button variant="outline" onClick={() => window.history.back()} >
+      <Button size="sm" variant="outline" onClick={() => window.history.back()} >
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back
       </Button>

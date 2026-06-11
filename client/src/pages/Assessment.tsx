@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Send, Sparkles, TrendingUp, CheckCircle2, ArrowRight } from "lucide-react";
+import { Loader2, Send, Sparkles, TrendingUp, CheckCircle2, ArrowRight, ArrowLeft } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { RotateCcw } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle, AlertDialogTrigger, AlertDialogFooter, AlertDialogHeader } from "../components/ui/alert-dialog";
 
 interface Message {
   role: "assistant" | "user";
@@ -32,6 +34,7 @@ export default function Assessment() {
   const [isComplete, setIsComplete] = useState(false);
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isResetting, setIsResetting] = useState(false);
   const [assessmentStatus, setAssessmentStatus] = useState<
     'not_started' | 'in_progress' | 'completed' | 'skipped' | null
   >(null);
@@ -40,6 +43,39 @@ export default function Assessment() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+  const handleResetAssessment = async () => {
+  setIsResetting(true);
+
+  try {
+    await apiRequest("DELETE", "/api/reset-assessment", {});
+
+    setAssessmentStatus("not_started");
+    setIsComplete(false);
+    setResult(null);
+    setInput("");
+
+    setMessages([
+      {
+        role: "assistant",
+        content:
+          "Welcome to PROOF! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
+      },
+    ]);
+
+    toast({
+      title: "Assessment Reset",
+      description: "Your assessment data has been cleared. Starting fresh!",
+    });
+  } catch (error: any) {
+    toast({
+      title: "Reset Failed",
+      description: error.message,
+      variant: "destructive",
+    });
+  } finally {
+    setIsResetting(false);
+  }
+};
   useEffect(() => {
   const loadDraft = async () => {
     try {
@@ -73,7 +109,14 @@ export default function Assessment() {
 
       // CASE 2: resume (in_progress or skipped)
       if (Array.isArray(history) && history.length > 0) {
-        setMessages(history);
+        const filteredHistory = history.filter(
+          (msg: any) =>
+            !(
+              msg.role === "assistant" &&
+              msg.content?.includes('"isComplete": true')
+            )
+        );
+        setMessages(filteredHistory);
         return;
       }
 
@@ -81,7 +124,7 @@ export default function Assessment() {
       setMessages([
         {
           role: "assistant",
-          content: "Welcome back! Let's continue your assessment.",
+          content: "Welcome to PROOF! I'm your AI guide, and I'm here to help you understand where you are in your government contracting journey.\n\nLet's start with the basics: What's your company name, and have you worked with government contracts before?",
         },
       ]);
     } catch (err) {
@@ -269,6 +312,14 @@ export default function Assessment() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <Button
+          variant="outline"
+           size="sm"
+          onClick={() => window.history.back()}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
         <div className="mb-6 text-center">
           <Badge variant="secondary" className="mb-3" data-testid="badge-assessment-header">
             <Sparkles className="w-3 h-3 mr-1" />
@@ -342,9 +393,12 @@ export default function Assessment() {
                 </Button>
               </div>
             </form>
+          <div className="flex justify-between ">
+            <div>
             {assessmentStatus === 'completed' ? (
             <Button
-                className="ml-2 mb-2"
+                className="ml-4 mb-2"
+                size="sm"
                 variant="default"
                 onClick={() => setLocation("/dashboard")}
               >
@@ -352,8 +406,9 @@ export default function Assessment() {
               </Button>
             ) : (
             <Button
-              className="ml-2 mb-2"
-              variant="ghost"
+              className="mb-2 ml-4"
+              size="sm"
+              variant="outline"
               onClick={async () => {
                 await apiRequest("POST", "/api/skip-assessment");
 
@@ -368,6 +423,57 @@ export default function Assessment() {
               Skip Assessment
             </Button>
             )}
+            </div>
+            <div className="mr-4">
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isResetting}
+                  >
+                    {isResetting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Resetting...
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Retake Assessment
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Reset Your Assessment?
+                    </AlertDialogTitle>
+
+                    <AlertDialogDescription>
+                      This will clear your current maturity profile.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>
+                      Cancel
+                    </AlertDialogCancel>
+
+                    <AlertDialogAction
+                      onClick={handleResetAssessment}
+                      disabled={isResetting}
+                    >
+                      {isResetting ? "Resetting..." : "Reset Assessment"}
+                    </AlertDialogAction>
+
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+              </div>
+            </div>
 
           </CardContent>
         </Card>

@@ -98,7 +98,7 @@ if (!profile) {
               size="sm"
               onClick={() => onNavigate(editUrl)}
             >
-              <Edit className="w-4 h-4 mr-2" />
+              <Edit className="w-4 h-4" />
               Edit Profile
             </Button>
           </div>
@@ -298,7 +298,7 @@ if (!profile) {
               )
             }
           >
-            <LockKeyhole className="w-4 h-4 mr-2" />
+            <LockKeyhole className="w-4 h-4" />
             Change Password
           </Button>
 

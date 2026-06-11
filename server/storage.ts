@@ -50,7 +50,7 @@ import { notifications } from "@shared/schema";
 import { PRIORITY_STATUSES } from "constants/serviceRequest";
 import { Gap, GapType } from '@shared/types/gaps';
 import { ServiceCategory } from '@shared/types/service';
-import { GAP_CATEGORY_MAP } from './../constants/gapCategoryMap';
+import { CATEGORY_NAME_MAP, GAP_CATEGORY_MAP } from './../constants/gapCategoryMap';
 import bcrypt from 'bcryptjs';
 export interface IStorage {
   // User management
@@ -1192,7 +1192,7 @@ async countServiceRequestsByVendor(vendorId: string, status?: string, search?: s
         serviceId: services.id,
         title: services.name,
         description: services.description,
-        category: services.category,
+        category: services.categoryId,
         vendorId: services.vendorId,
         vendorProfile: {
           companyName: vendorProfiles.companyName,
@@ -1201,7 +1201,6 @@ async countServiceRequestsByVendor(vendorId: string, status?: string, search?: s
         },
         categoryData: {
           id: categories.id,
-          key: categories.key,
           name: categories.name,
         },
       })
@@ -1933,13 +1932,31 @@ async getRecommendedServices(gaps: Gap[], businessType?: BusinessType) {
   const results: any[] = [];
   const usedCategories = new Set<ServiceCategory>();
 
+  const SCategories = await db
+    .select()
+    .from(categories);
+  const categoryLookup = new Map(
+    SCategories.map((c) => [c.name, c.id])
+  );
+
   for (const gap of gaps) {
     const category = categoryMap[gap.type];
-    if (usedCategories.has(category)) continue;
+    if (usedCategories.has(category)) {
+      continue;
+    }
 
     usedCategories.add(category);
 
-    const conditions = [eq(services.category, category)];
+    const categoryName = CATEGORY_NAME_MAP[category];
+    const categoryId = categoryLookup.get(categoryName);
+
+    if (!categoryId) {
+      continue;
+    }
+
+    const conditions = [
+      eq(services.categoryId, categoryId),
+    ];
 
     if (businessType && businessType !== "both") {
       conditions.push(
@@ -2035,7 +2052,7 @@ async getServiceVendors(categoryId: string) {
       rating: vendorProfiles.rating,
       phone: vendorProfiles.phone,
       reviewCount: vendorProfiles.reviewCount,
-      categories: vendorProfiles.categories,
+      categories: vendorProfiles.categoryIds,
       subscriptionTier: vendorProfiles.subscriptionTier,
 
       // User
@@ -2088,7 +2105,7 @@ async getServiceVendors(categoryId: string) {
       vendorProfiles.location,
       vendorProfiles.description,
       vendorProfiles.hourlyRate,
-      vendorProfiles.categories,
+      vendorProfiles.categoryIds,
       vendorProfiles.reviewCount,
       vendorProfiles.rating,
       vendorProfiles.phone,
@@ -2133,8 +2150,7 @@ async getCategoryVendors(categoryId: string) {
         json_agg(
           distinct jsonb_build_object(
             'id', ${categories.id},
-            'name', ${categories.name},
-            'key', ${categories.key}
+            'name', ${categories.name}
           )
         )
       `,
@@ -2225,7 +2241,6 @@ async setupContractorUser() {
       user,
     };
   }
-  console.log('User already exists, resetting maturity profile...', user.id);
 
   // 3. if exists → DELETE maturity profile
   await db.delete(userMaturityProfiles)
