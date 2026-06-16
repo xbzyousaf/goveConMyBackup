@@ -8,53 +8,95 @@ import { Input } from "@/components/ui/input";
 type Transaction = {
   id: string;
   amount: string;
-  type: string;
-  createdAt: string;
+  platformFee: string;
+  vendorEarning: string;
+  status: string;
+  heldAt: string | null;
+  releasedAt: string | null;
+  refundedAt: string | null;
 
-  wallet: {
-    id: string;
-    balance: number;
-    user: {
-      firstName: string;
-      lastName: string;
-    };
-  };
-
-  serviceRequests: {
+  serviceRequest: {
     title: string;
     description: string;
   };
+
+  vendor: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+
+  contractor: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+};
+type TransactionResponse = {
+  data: Transaction[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 };
 
 export default function Transactions() {
-  const [userFilter, setUserFilter] = useState("");
-  const [serviceFilter, setServiceFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
-  const { data: transactions = [], isLoading } = useQuery<Transaction[]>({
-    queryKey: ["/api/admin/admin-transactions"],
+  const { data, isLoading } =
+  useQuery<TransactionResponse>({
+    queryKey: [
+      "/api/admin/admin-transactions",
+      page,
+    ],
     queryFn: async () => {
-      const res = await fetch("/api/admin/admin-transactions");
-      if (!res.ok) throw new Error("Failed to fetch transactions");
+      const res = await fetch(
+        `/api/admin/admin-transactions?page=${page}&limit=${limit}`
+      );
+
+      if (!res.ok) {
+        throw new Error(
+          "Failed to fetch transactions"
+        );
+      }
+
       return res.json();
     },
   });
 
+  const transactions = data?.data ?? [];
+
   const filteredTransactions = useMemo(() => {
+    const searchTerm = search.toLowerCase().trim();
+    if (!searchTerm) return transactions;
+
     return transactions.filter((tx) => {
-      const fullName =
-        `${tx.wallet.user.firstName} ${tx.wallet.user.lastName}`.toLowerCase();
+      const vendorName =
+        `${tx.vendor?.firstName || ""} ${tx.vendor?.lastName || ""}`.toLowerCase();
+
+      const contractorName =
+        `${tx.contractor?.firstName || ""} ${tx.contractor?.lastName || ""}`.toLowerCase();
 
       const serviceTitle =
-        tx.serviceRequests?.title?.toLowerCase() || "";
+        tx.serviceRequest?.title?.toLowerCase() || "";
 
-      const matchesUser = fullName.includes(userFilter.toLowerCase());
-      const matchesService = serviceTitle.includes(
-        serviceFilter.toLowerCase()
+      const serviceDescription =
+        tx.serviceRequest?.description?.toLowerCase() || "";
+
+      const status =
+        tx.status?.toLowerCase() || "";
+
+      return (
+        vendorName.includes(searchTerm) ||
+        contractorName.includes(searchTerm) ||
+        serviceTitle.includes(searchTerm) ||
+        serviceDescription.includes(searchTerm) ||
+        status.includes(searchTerm)
       );
-
-      return matchesUser && matchesService;
     });
-  }, [transactions, userFilter, serviceFilter]);
+  }, [transactions, search]);
 
   if (isLoading) return <p>Loading Transactions...</p>;
 
@@ -62,20 +104,15 @@ export default function Transactions() {
     <div>
       <Header />
       <AdminLayout>
-        <h2 className="text-2xl font-bold mb-4">Transactions</h2>
 
         {/* Filters */}
-        <div className="flex gap-4 mb-4">
+        <div className="flex justify-between gap-4">
+          <h2 className="text-2xl font-bold mb-2">Transactions</h2>
           <Input
-            placeholder="Filter by Username..."
-            value={userFilter}
-            onChange={(e) => setUserFilter(e.target.value)}
-          />
-
-          <Input
-            placeholder="Filter by Service Title..."
-            value={serviceFilter}
-            onChange={(e) => setServiceFilter(e.target.value)}
+            className="max-w-60"
+            placeholder="Search vendor, contractor, service, status..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
 
@@ -83,65 +120,91 @@ export default function Transactions() {
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead>
               <tr className="bg-gray-50">
-                <th className="px-4 py-2 text-left font-medium text-gray-500">
-                  User
-                </th>
-                <th className="px-4 py-2 text-left font-medium text-gray-500">
-                  Service Requests
-                </th>
-                <th className="px-4 py-2 text-left font-medium text-gray-500">
-                  Type
-                </th>
-                <th className="px-4 py-2 text-left font-medium text-gray-500">
-                  Amount
-                </th>
-                <th className="px-4 py-2 text-left font-medium text-gray-500">
-                  Date
-                </th>
+                <th className="px-4 py-2 text-left">Vendor</th>
+                <th className="px-4 py-2 text-left">Contractor</th>
+                <th className="px-4 py-2 text-left">Status</th>
+                <th className="px-4 py-2 text-left">Amount</th>
+                <th className="px-4 py-2 text-left">Platform Fee</th>
+                <th className="px-4 py-2 text-left">Vendor Earning</th>
+                <th className="px-4 py-2 text-left">Date</th>
               </tr>
             </thead>
 
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredTransactions.map((tx) => (
                 <tr key={tx.id}>
-                  {/* User */}
                   <td className="px-4 py-2">
-                    {tx.wallet.user.firstName}{" "}
-                    {tx.wallet.user.lastName}
+                    {tx.vendor.firstName} {tx.vendor.lastName}
                   </td>
 
-                  {/* Service Title */}
-                  <td className="px-4 py-2 font-medium">
-                    {tx.serviceRequests?.title || "-"}
+                  <td className="px-4 py-2">
+                    {tx.contractor.firstName} {tx.contractor.lastName}
                   </td>
 
-                  {/* Type */}
-                  <td className="px-4 py-2 capitalize">
+                  <td className="px-4 py-2">
                     <span
-                      className={`font-medium ${
-                        tx.type === "escrow_funding"
-                          ? "text-blue-600"
-                          : "text-green-600"
+                      className={`font-medium capitalize ${
+                        tx.status === "released"
+                          ? "text-green-600"
+                          : tx.status === "held"
+                          ? "text-yellow-600"
+                          : "text-red-600"
                       }`}
                     >
-                      {tx.type.replace("_", " ")}
+                      {tx.status}
                     </span>
                   </td>
 
-                  {/* Amount */}
                   <td className="px-4 py-2 font-semibold">
-                    ${Number(tx.amount).toLocaleString()}
+                    ${Number(tx.amount).toFixed(2)}
                   </td>
 
-                  {/* Date */}
                   <td className="px-4 py-2">
-                    {new Date(tx.createdAt).toLocaleString()}
+                    ${Number(tx.platformFee).toFixed(2)}
+                  </td>
+
+                  <td className="px-4 py-2">
+                    ${Number(tx.vendorEarning).toFixed(2)}
+                  </td>
+
+                  <td className="px-4 py-2">
+                    {new Date(
+                      tx.releasedAt || tx.heldAt || ""
+                    ).toLocaleString()}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </Card>
+        <div className="flex items-center justify-between p-3">
+            <p className="text-xs text-gray-500">
+              Page {data?.page || 1} of{" "}
+              {data?.totalPages || 1}
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                 size="sm"
+                className="px-2 py-1 border rounded"
+                disabled={page === 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                Previous
+              </button>
+
+              <button
+                size="sm"
+                className="px-3 py-1 border rounded"
+                disabled={
+                  page >= (data?.totalPages || 1)
+                }
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </div>
       </AdminLayout>
     </div>
   );

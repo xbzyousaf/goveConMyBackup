@@ -1,9 +1,9 @@
 import { storage } from "../storage";
 import { vendorStorage }    from "../storage/vendorStorage";
 import { adminStorage }    from "../storage/adminStorage";
-import { ServiceCategory } from "../../shared/types/service";
 
 const CHUNK_SIZE = process.env.CHUNK_SIZE ? parseInt(process.env.CHUNK_SIZE) : 50;
+
 function resolveCompanyName(companyName?: string, email?: string): string {
   if (!companyName) return deriveFromEmail(email);
 
@@ -54,7 +54,7 @@ function capitalizeWords(str: string): string {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 }
-export async function processVendorImport(importId: string, rows: any[]) {
+export async function processVendorImport(importId: string, rows: any[], categoryMap: Record<string, string>) {
   let processed = 0;
   let success = 0;
   let failed = 0;
@@ -141,14 +141,21 @@ export async function processVendorImport(importId: string, rows: any[]) {
           throw new Error("Failed to create user");
         }
         const existingProfile = await storage.getVendorProfile(user.id);
+          const categoryId = getCategoryId(
+            row.category,
+            categoryMap
+          );
 
+          if (!categoryId) {
+            throw new Error(`Category not found: ${row.category}`);
+          }
         if (!existingProfile) {
           
           await vendorStorage.createVendorProfile(
             {
               companyName: resolveCompanyName(row.companyName, row.email),
               title: row.service || row.category,
-              categories: [mapCategory(row.category)],
+              categoryIds: [categoryId],
               skills: [row.service],
               description: `${row.category} - ${row.service}`,
               isApproved: true,
@@ -161,7 +168,7 @@ export async function processVendorImport(importId: string, rows: any[]) {
           vendorId: user.id,
           name: row.service || "General Service",
           description: `${row.category} - ${row.service}`,
-          category: mapCategory(row.category),
+          categoryId: categoryId,
 
           pricingModel: "hourly",
           priceMin: "20",
@@ -199,19 +206,28 @@ export async function processVendorImport(importId: string, rows: any[]) {
   });
 }
 
-function mapCategory(category: string): ServiceCategory {
-  const normalized = category?.trim().toLowerCase();
-
-  const map: Record<string, ServiceCategory> = {
-    "hr and talent": "hr",
-    "legal and compliance": "legal",
-    "finance and accounting": "finance",
-    "it": "cybersecurity",
-    "marketing": "marketing",
+function getCategoryId(
+  categoryName: string,
+  categoryMap: Record<string, string>
+): string | null {
+  const aliases: Record<string, string> = {
+    "hr and talent": "hr & talent",
+    "legal and compliance": "legal & compliance",
+    "finance and accounting": "finance & accounting",
+    "it": "it and security (cmmc/nist)",
+    "marketing": "marketing & branding",
     "insurance": "insurance",
-    "business tools": "business_tools",
-    "proposal": "business_tools",
+    "business tools": "business tools",
+    "proposal": "business tools",
   };
 
-  return map[normalized] ?? "business_tools";
+  const normalized = categoryName?.trim().toLowerCase();
+
+  const mappedName = aliases[normalized];
+
+  if (!mappedName) {
+    return null;
+  }
+
+  return categoryMap[mappedName] ?? null;
 }

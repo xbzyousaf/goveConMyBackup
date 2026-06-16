@@ -742,13 +742,20 @@ export const supportMessagesRelations = relations(
     }),
   })
 );
-export const walletsRelations = relations(wallets, ({ one, many }) => ({
-  user: one(users, {
-    fields: [wallets.userId],
+export const escrowsRelations = relations(escrows, ({ one, many }) => ({
+  vendor: one(users, {
+    fields: [escrows.vendorId],
     references: [users.id],
   }),
+  contractor: one(users, {
+    fields: [escrows.contractorId],
+    references: [users.id],
+  }),
+  serviceRequest: one(serviceRequests, {
+    fields: [escrows.serviceRequestId],
+    references: [serviceRequests.id],
+  }),
 
-  transactions: many(walletTransactions),
 }));
 export const walletTransactionsRelations = relations(
   walletTransactions,

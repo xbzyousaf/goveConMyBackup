@@ -7,7 +7,7 @@ import type { RequestHandler } from "express";
 import { vendorImportQueue } from "../queues/vendorImportQueue";
 import { adminStorage } from "../storage/adminStorage";
 import multer from "multer";
-import * as XLSX from "xlsx";
+import { parse } from "csv-parse/sync";
 import { processVendorImport } from "../services/vendorImportService";
 
 const upload = multer({
@@ -203,21 +203,26 @@ router.get('/disputed-requests', isAuthenticated, isAdmin, async (req: any, res)
         });
       }
   });
-router.get("/admin-transactions", isAuthenticated, isAdmin, async (req, res) => {
-  try {
-    const userId = (req.session as any)?.userId;
+router.get( "/admin-transactions", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const page = Number(req.query.page || 1);
+      const limit = Number(req.query.limit || 10);
 
-    const transactions =
-      await storage.getWalletTransactions();
+      const transactions = await storage.getWalletTransactions(
+        page,
+        limit
+      );
 
-    res.json(transactions);
-  } catch (error) {
-    console.error(error);
-    res.status(400).json({
-      message: error instanceof Error ? error.message : "Error",
-    });
+      res.json(transactions);
+    } catch (error) {
+      console.error(error);
+      res.status(400).json({
+        message:
+          error instanceof Error ? error.message : "Error",
+      });
+    }
   }
-});
+);
 // ✅ Save and Get vendor imports
 router.post("/vendor/import", (req, res, next) => {upload.single("file")(req, res, function (err: any) 
 {
@@ -237,10 +242,32 @@ router.post("/vendor/import", (req, res, next) => {upload.single("file")(req, re
       if (!req.file) {
         return res.status(400).json({ message: "File required" });
       }
+      const categories = await storage.getAllCategories();
 
-      const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet);
+        const categoryMap: Record<string, string> = {};
+
+        categories.forEach((category) => {
+          categoryMap[category.name.toLowerCase()] = category.id;
+        });
+
+      // const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+      // const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      // const rows = XLSX.utils.sheet_to_json(sheet);
+      const ext = req.file.originalname
+        .split(".")
+        .pop()
+        ?.toLowerCase();
+
+      let rows: any[] = [];
+      if (ext === "csv") {
+        const csvContent = req.file.buffer.toString("utf8");
+
+        rows = parse(csvContent, {
+          columns: true,
+          skip_empty_lines: true,
+          trim: true,
+        });
+      }
 
       const importRecord = await adminStorage.createVendorImport({
         fileName: req.file.originalname,
@@ -250,7 +277,7 @@ router.post("/vendor/import", (req, res, next) => {upload.single("file")(req, re
       // ✅ async background (non-blocking)
       setImmediate(async () => {
         try {
-          await processVendorImport(importRecord.id, rows);
+          await processVendorImport(importRecord.id, rows, categoryMap);
         } catch (err) {
           console.error("Import failed:", err);
 

@@ -3,13 +3,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef  } from "react";
 import { IconLeft } from "react-day-picker";
 import { Link } from "wouter";
 import { getFirstLetter } from "@/utility/textUtils";
 import { useMessages } from "../components/ui/MessageContext";
+import ChatUserPicker from "./ChatUserPicker";
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -26,6 +27,7 @@ export default function ServiceMessages({
 }: Props) {
     const queryClient = useQueryClient();
     const { user } = useAuth();
+    const [showNewChat, setShowNewChat] = useState(false);
     const {
         selectedConversationId,
         setSelectedConversationId,
@@ -36,6 +38,42 @@ export default function ServiceMessages({
     messagesEndRef.current?.scrollIntoView({
         behavior: "smooth",
     });
+    };
+    const usersQuery = useQuery({
+        queryKey: ["/api/chat-users"],
+        queryFn: async () => {
+            const res = await fetch("/api/chat-users");
+
+            if (!res.ok) {
+            throw new Error("Failed");
+            }
+
+            return res.json();
+        },
+        enabled: showNewChat,
+    });
+    const startNewChat = async (  userId: string ) => {
+    const res = await fetch(
+        "/api/conversations/start",
+        {
+        method: "POST",
+        headers: {
+            "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+            userId,
+        }),
+        }
+    );
+
+    const data = await res.json();
+console.log(data, "llll")
+    setShowNewChat(false);
+
+    setSelectedConversationId(
+        data.data.id
+    );
     };
 
     useEffect(() => {
@@ -235,7 +273,35 @@ useEffect(() => {
             </div>
             </>
         ) : (
-            <p className="font-semibold text-lg">Messages</p>
+            <div className="flex justify-between items-center w-full">
+                <div className="flex items-center gap-2">
+                    {showNewChat && (
+                    <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => setShowNewChat(false)}
+                    >
+                        <IconLeft />
+                    </Button>
+                    )}
+
+                    <p className="font-semibold text-lg">
+                    {showNewChat ? "Start New Chat" : "Messages"}
+                    </p>
+                </div>
+
+                {!showNewChat && (
+                    <Button
+                    size="sm"
+                    className="mr-2"
+                    variant="outline"
+                    onClick={() => setShowNewChat(true)}
+                    >
+                    <Plus></Plus>
+                    New Chat
+                    </Button>
+                )}
+                </div>
         )}
 
         <button onClick={onClose}>
@@ -246,9 +312,28 @@ useEffect(() => {
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
-
+                {showNewChat && (
+                    <ChatUserPicker
+                        onSelect={startNewChat}
+                    />
+                    )}
+            {/* {showNewChat && (
+            <div>
+                {usersQuery.data?.map((u:any) => (
+                <div
+                    key={u.id}
+                    className="p-3 border-b cursor-pointer hover:bg-muted"
+                    onClick={() =>
+                    startNewChat(u.id)
+                    }
+                >
+                    {u.firstName} {u.lastName}
+                </div>
+                ))}
+            </div>
+            )} */}
             {/* Header Click → Show Conversation List */}
-            {!selectedConversationId  &&
+            {!showNewChat && !selectedConversationId  &&
                 conversations.map((conv: any) => {
                     const otherName = conv.otherUser?.name ?? "User";
 

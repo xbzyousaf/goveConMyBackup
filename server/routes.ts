@@ -1086,46 +1086,85 @@ app.get("/api/vendors", async (req: any, res) => {
       });
     }
   });
-   app.post("/api/conversations/start", isAuthenticated, async (req, res) => {
+  app.post( "/api/conversations/start", isAuthenticated, async (req, res) => {
     try {
-        const userId = getUserId(req);
-        if (!userId) {
-          return res.status(401).json({ message: "Not authenticated" });
-        }
-        const { vendorId } = req.body;
+      const userId = getUserId(req);
 
-        if (!vendorId) { return res.status(400).json({  message: "vendorId is required"});}
-        const existingConversation =
+      if (!userId) {
+        return res.status(401).json({
+          message: "Not authenticated",
+        });
+      }
+
+      const {
+        userId: targetUserId,
+      } = req.body;
+
+      if (!targetUserId) {
+        return res.status(400).json({
+          message: "userId is required",
+        });
+      }
+
+      const currentUser =
+        await storage.getUser(userId);
+
+      const targetUser =
+        await storage.getUser(targetUserId);
+
+      if (!currentUser || !targetUser) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+
+      let contractorId: string;
+      let vendorId: string;
+
+      if (currentUser.userType === "vendor") {
+        vendorId = currentUser.id;
+        contractorId = targetUser.id;
+      } else {
+        contractorId = currentUser.id;
+        vendorId = targetUser.id;
+      }
+
+      const existingConversation =
         await storage.getConversationBetweenUsers(
-          userId,
+          contractorId,
           vendorId
         );
 
-        // already exists
-        if (existingConversation) {
-          return res.json({
-            success: true,
-            data: existingConversation,
-          });
-        }
-        // create new
-        const conversation =
-          await storage.createConversation({
-            contractorId: userId,
-            vendorId,
-          });
-
+      if (existingConversation) {
         return res.json({
           success: true,
-          data: conversation,
+          data: existingConversation,
+        });
+      }
+
+      const conversation =
+        await storage.createConversation({
+          contractorId,
+          vendorId,
         });
 
-      } catch (error:any) {
-        console.error(error);
-        return res.status(500).json({ message: error.message || "Failed to mark as read" });
-      }
+      return res.json({
+        success: true,
+        data: conversation,
+      });
+
+    } catch (error: any) {
+
+      console.error(error);
+
+      return res.status(500).json({
+        message:
+          error.message ||
+          "Failed to start conversation",
+      });
     }
-  );
+  }
+);
   app.get("/api/conversations", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);
@@ -1615,6 +1654,27 @@ app.get("/api/admin/support", isAuthenticated, async (req, res) => {
         message: error.message,
       });
     }
+  }
+);
+app.get( "/api/chat-users", isAuthenticated, async (req, res) => {
+      const userId = getUserId(req);
+      if (!userId) {
+            return res.status(401).json({ message: "Not authenticated" });
+          }
+      const currentUser = await storage.getUser(userId);
+      if (!currentUser) {
+            return res.status(401).json({ message: "Not authenticated" });
+          }
+
+    let users;
+
+    if ( currentUser.userType === "vendor" ) {
+      users = await storage.getUsersByType( "contractor" );
+    } else {
+      users = await storage.getUsersByType( "vendor" );
+    }
+
+    res.json(users);
   }
 );
 

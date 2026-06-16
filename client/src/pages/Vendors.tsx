@@ -222,26 +222,26 @@ useEffect(() => {
             <div className="space-y-4">
               {/* Search Bar */}
               <div className="relative">
-  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
 
-  <Input
-    placeholder="Search by name, skills, or expertise..."
-    className="pl-10 pr-10"
-    value={searchQuery}
-    onChange={(e) => setSearchQuery(e.target.value)}
-    data-testid="input-search-vendors"
-  />
+                <Input
+                  placeholder="Search by name, skills, or expertise..."
+                  className="pl-10 pr-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  data-testid="input-search-vendors"
+                />
 
-  {searchQuery && (
-    <button
-      onClick={() => setSearchQuery("")}
-      className="absolute right-3 top-1/2 transform -translate-y-1/2"
-      data-testid="button-clear-search"
-    >
-      <X className="w-4 h-4 text-muted-foreground hover:text-black" />
-    </button>
-  )}
-</div>
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                    data-testid="button-clear-search"
+                  >
+                    <X className="w-4 h-4 text-muted-foreground hover:text-black" />
+                  </button>
+                )}
+              </div>
 
               {/* Filter Row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -359,10 +359,8 @@ useEffect(() => {
             </div>
 
             {filteredVendors.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
                 {filteredVendors.map((vendor) => (
-                  <Link key={vendor.userId} href={`/vendor/${vendor.userId}`}>
-                    <div className="cursor-pointer">
                       <VendorCard
                         name={`${vendor.firstName || ""} ${vendor.lastName || ""}`.trim() ||
                                 vendor.username ||
@@ -383,9 +381,9 @@ useEffect(() => {
                         availability={vendor.availability || 0}
                         skills={vendor.skills || []}
                         avatar={vendor.avatar || undefined}
+                        userId={vendor.userId || undefined}
+                        description={vendor.description || 'N/A'}
                       />
-                    </div>
-                  </Link>
                 ))}
               </div>
             ) : (
