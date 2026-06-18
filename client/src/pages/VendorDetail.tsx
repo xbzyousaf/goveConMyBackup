@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Clock, Star, CheckCircle, ArrowLeft, ArrowRight,MessageSquare, Award, Shield, TrendingUp, Calendar, FileText, Building, GlobeLock, CalendarFold, } from "lucide-react";
+import { DollarSign, Clock, Star, CheckCircle, ArrowLeft, ArrowRight,MessageSquare, Award, Shield, TrendingUp, CalendarClock, FileText, Building, GlobeLock, CalendarFold, } from "lucide-react";
 import type { VendorProfile, Review } from "@shared/schema";
 import { useLocation } from "wouter";
 import type { Service } from "@shared/schema";
@@ -78,13 +78,13 @@ export default function VendorDetail() {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-6xl mx-auto px-4 py-4">
         {/* Back Button */}
         <Button
           variant="outline" size="sm"
           onClick={() => window.history.back()}
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="w-4 h-4" />
           Back
         </Button>
 
@@ -98,7 +98,7 @@ export default function VendorDetail() {
                   <Avatar className="w-24 h-24">
                     <AvatarImage src={vendor?.avatar ?? ""} />
                     <AvatarFallback className="text-2xl">
-                      {getFirstLetter(vendor?.username, "C")}
+                      {getFirstLetter(vendor.firstName || vendor.lastName || "V")}
                     </AvatarFallback>
                   </Avatar>
                   
@@ -533,7 +533,7 @@ export default function VendorDetail() {
                  {vendor.yearsOfExperience && (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <GlobeLock className="w-4 h-4" />
+                        <CalendarClock className="w-4 h-4" />
                         <span>Years of Experience</span>
                       </div>
                       <span className="text-muted-foreground text-sm" data-testid="text-years-of-experience">{vendor.yearsOfExperience ?? "N/A"} years</span>

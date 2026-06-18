@@ -16,7 +16,7 @@ const nav = [
   { label: "Dashboard", href: "/admin-dashboard", icon: LayoutDashboard },
   { label: "Vendors", href: "/admin/vendors", icon: Users },
   { label: "Support Requests", href: "/support", icon: MessageCircleQuestion },
-  // { label: "Transactions", href: "/admin/transactions", icon: Receipt },
+  { label: "Transactions", href: "/admin/transactions", icon: Receipt },
   { label: "Disputes", href: "/admin/disputes", icon: AlertTriangle },
   { label: "Services", href: "/admin/services", icon: Briefcase },
   { label: "Checklists", href: "/admin/checklist", icon: CheckCircle },

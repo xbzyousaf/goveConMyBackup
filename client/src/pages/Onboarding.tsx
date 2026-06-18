@@ -10,10 +10,15 @@ import { Progress } from "@/components/ui/progress";
 import { useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
 import assessmentImg from "@/assets/onboarding/assessment.png";
+import assessmentChatImg from "@/assets/onboarding/assessmentChat.png";
 import stageImg from "@/assets/onboarding/stage.png";
-import GrowthFrameworkImg from "@/assets/onboarding/GrowthFramework.png";
 import QuickActionsImg from "@/assets/onboarding/QuickActions.png";
-import headerImg from "@/assets/onboarding/header.png";
+import recomendedServicesImage from "@/assets/onboarding/recomendedServices.png";
+import servicesRequestsImage from "@/assets/onboarding/servicesRequests.png";
+import headerAndGrowthframeworkImage from "@/assets/onboarding/headerAndGrowthframework.png";
+import contractorProfileImage from "@/assets/onboarding/contractorProfile.png";
+import supportRequestsImage from "@/assets/onboarding/supportRequests.png";
+import subscriptionsImage from "@/assets/onboarding/subscriptions.png";
 
 
 export default function Onboarding() {
@@ -28,28 +33,60 @@ export default function Onboarding() {
       image: assessmentImg,
     },
     {
-      title: "Explore the Header",
+      title: "Take Assessment",
       description:
-        "Top header has, marketplace, services, vendors, search, profile settings, and logout.",
-      image: headerImg,
+        "Your responses are analyzed by AI to provide personalized recommendations. This typically takes 5-10 minutes. You can retake and skip assessment anytime",
+      image: assessmentChatImg,
     },
     {
-      title: "Your Personalized Dashboard",
+      title: "Explore the Header & Your Growth Framework",
       description:
-        "View your maturity stage, readiness score, and Retake Assessment button and this can be used to profile.",
+        "Top header has, marketplace, support requests, profile settings, and logout." +
+         "Follow structured guidance across strategy, structure, and scale.",
+      image: headerAndGrowthframeworkImage,
+    },
+    {
+      title: "Quick actions",
+      description:
+        "View vendors, see assessment chat, and upgrade subscription paln from here",
+      image: QuickActionsImg,
+    },
+    {
+      title: "Your Matirity Stage",
+      description:
+        "View your maturity stage, readiness score, and Retake Assessment button and this can be used to update profile.",
       image: stageImg,
     },
     {
-      title: "Your Growth Framework",
+      title: "Billing & Subscription",
       description:
-        "Follow structured guidance across strategy, structure, and execution.",
-      image: GrowthFrameworkImg,
+        "View and subscribe Pilot or Beta plan to remove blur logic and access more features",
+      image: subscriptionsImage,
+    },
+    
+    {
+      title: "Your Recomended Services",
+      description:
+        "View your recomended services based on assessment gaps.",
+      image: recomendedServicesImage,
     },
     {
-      title: "Find Vendors & Take Action",
+      title: "Your Service Requests",
       description:
-        "Connect with vetted vendors when you need expert support.",
-      image: QuickActionsImg,
+        "View & manage your service request assigned by vendors.",
+      image: servicesRequestsImage,
+    },
+    {
+      title: "View & Edit Your Profile",
+      description:
+        "View and update your profile to keep your information current.",
+      image: contractorProfileImage,
+    },
+    {
+      title: "Support Requests & Tickets",
+      description:
+        "View and manage your Support Requests, replies & Tickets assigned by you",
+      image: supportRequestsImage,
     },
   ];
 
@@ -71,12 +108,35 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-6">
       <Card className="max-w-2xl w-full">
-        <CardHeader className="space-y-2">
+        <CardHeader className="pb-2">
           <Progress value={((step + 1) / steps.length) * 100} />
           <CardTitle className="text-2xl">{current.title}</CardTitle>
         </CardHeader>
+        {/* NAVIGATION */}
+          {step >= 0 && (
+            <div className="flex justify-between ml-6 mr-6 mb-2">
+              <Button
+                variant="outline"
+                disabled={step === 0}
+                size="sm"
+                onClick={() => setStep(step - 1)}
+              >
+                Back
+              </Button>
 
-        <CardContent className="space-y-6">
+              {step === steps.length - 1 ? (
+                <Button onClick={completeOnboarding} size="sm">
+                  Go to Dashboard
+                </Button>
+              ) : (
+                <Button onClick={() => setStep(step + 1)} size="sm">
+                  Next
+                </Button>
+              )}
+            </div>
+          )}
+
+        <CardContent className="space-y-2">
           <img
             src={current.image}
             alt={current.title}
@@ -87,28 +147,7 @@ export default function Onboarding() {
             {current.description}
           </p>
 
-          {/* NAVIGATION */}
-          {step >= 0 && (
-            <div className="flex justify-between">
-              <Button
-                variant="outline"
-                disabled={step === 0}
-                onClick={() => setStep(step - 1)}
-              >
-                Back
-              </Button>
-
-              {step === steps.length - 1 ? (
-                <Button onClick={completeOnboarding}>
-                  Go to Dashboard
-                </Button>
-              ) : (
-                <Button onClick={() => setStep(step + 1)}>
-                  Next
-                </Button>
-              )}
-            </div>
-          )}
+          
         </CardContent>
       </Card>
     </div>

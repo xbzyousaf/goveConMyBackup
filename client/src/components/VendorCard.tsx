@@ -2,8 +2,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Star, CheckCircle, Award, TrendingUp, Shield, Building, CalendarFold, Cog } from "lucide-react";
-import { getFirstLetter, truncateText } from "@/utility/textUtils";
+import { Star, CheckCircle, TrendingUp, Building, Cog, MessageCircle, User, CalendarClock } from "lucide-react";
+import { truncateText } from "@/utility/textUtils";
+import { useMessages } from "./ui/MessageContext";
+import { useLocation } from "wouter";
 
 interface VendorCardProps {
   name: string;
@@ -23,6 +25,8 @@ interface VendorCardProps {
   certifications?: string[];
   availability?: number;
   avatar?: string;
+  userId?: string;
+  description?: string;
   skills: string[];
   onContact?: () => void;
   onViewProfile?: () => void;
@@ -46,15 +50,22 @@ export function VendorCard({
   certifications = [],
   availability = 1,
   avatar,
+  userId,
+  description,
   skills,
   onContact,
   onViewProfile
 }: VendorCardProps) {
   const initials = name.split(' ').map(n => n[0]).join('');
   const isTopRated = rating >= 4.5 && reviewCount >= 10;
+  const { openConversation } = useMessages();
+  const [, setLocation] = useLocation();
 
   return (
-    <Card className={`p-6 hover-elevate active-elevate-2 transition-all ${isFeatured ? 'border-primary shadow-md' : ''}`}>
+    <Card className={`p-6 flex flex-col h-full hover-elevate active-elevate-2 transition-all ${
+        isFeatured ? 'border-primary shadow-md' : ''
+      }`}
+    >
       {isFeatured && (
         <div className="flex items-center gap-1 mb-3 -mt-2">
           <Badge variant="default" className="text-xs" data-testid="badge-featured">
@@ -66,35 +77,28 @@ export function VendorCard({
       <div className="flex items-start justify-between mb-4 h-100">
         <div className="flex items-center gap-3">
           <Avatar className="h-10 w-10 shrink-0">
-            {avatar ? (
-              <AvatarImage src={avatar} alt={name} />
-            ) : (
-              <AvatarFallback>
-                {getFirstLetter(name, "V")}
-              </AvatarFallback>
-            )}
+            <AvatarImage
+                src={avatar || ""}
+                alt={companyName}
+                className="object-cover"
+            />
+            <AvatarFallback className="bg-primary text-white text-lg font-semibold">
+                {companyName?.[0]?.toUpperCase() || "V"}
+            </AvatarFallback>
           </Avatar>
-          <div className="">
-              <div>
-                <h3 className="font-semibold" data-testid={`text-vendor-name-${name.toLowerCase().replace(/\s+/g, '-')}`}>
-                  {name}
+          <div >
+              <div className="flex">
+                <h3 className="font-semibold" data-testid={`text-vendor-name-${companyName.toLowerCase().replace(/\s+/g, '-')}`}>
+                  {companyName}
                 </h3>
-                {username && (
-                  <p className="text-xs text-muted-foreground">
-                    @{username}
-                  </p>
-                )}
+                 <div className="ml-1 mt-1.5">
+                  {isVerified && (
+                    <CheckCircle className="h-3 w-3 text-primary" data-testid="icon-verified" />
+                  )}
+                </div>
               </div>
-             
-            <div className="flex mt-1">
-              <Building className="h-4 w-4 text-muted-foreground"/>
-              <p className="text-sm text-muted-foreground">{truncateText(companyName, 15)}</p>
-              <div className="ml-1 mt-1">
-                {isVerified && (
-                  <CheckCircle className="h-3 w-3 text-primary" data-testid="icon-verified" />
-                )}
-              </div>              
-            </div>
+              <p className="text-sm text-muted-foreground">{truncateText(name, 15)}</p>
+
             <div>
                  {isTopRated && (
                 <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" data-testid="badge-top-rated">
@@ -105,61 +109,52 @@ export function VendorCard({
             </div>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <Badge variant="secondary" className="text-xs block leading-none">
-            {category}
-          </Badge>
-        </div>
       </div>
 
-      {certifications && certifications.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          {certifications.slice(0, 2).map((cert, index) => (
-            <Badge key={index} variant="outline" className="text-xs" data-testid={`badge-cert-${index}`}>
-              {cert === 'MBE Certified' && <Award className="w-3 h-3 mr-1" />}
-              {cert === 'PROOF Experienced' && <Shield className="w-3 h-3 mr-1" />}
-              {cert}
-            </Badge>
-          ))}
-        </div>
-      )}
     <hr />
      <div className="mb-4 text-sm text-muted-foreground space-y-3 mt-4">
 
   {/* Row 1 */}
-  <div className="grid grid-cols-2 gap-6">
-    <div className="flex items-start gap-2 min-w-0">
-      <CalendarFold className="h-4 w-4 shrink-0" />
+  <div className="min-h-[95px] max-h-[95px]">
+    <div className="flex items-start gap-2">
+      <User className="w-4 h-4 shrink-0" />
 
-      <div className="min-w-0">
-        <span className="text-xs block leading-none">
-          Availability
+      <div>
+        <span className="text-xs block">
+          Description
         </span>
 
-        {availability !== undefined && availability !== null && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-foreground" data-testid="text-availability" >
-              {availability === 0 ? "Unavailable" : "Available"}
-            </span>
-          </div>
-        )}
+        <p className="text-foreground">
+          {truncateText(description || "No description available", 130)}
+        </p>
       </div>
     </div>
+  </div>
+  {/* Row 2 */}
+  <div className="grid grid-cols-2 gap-6">
+    <div className="flex items-start gap-2 min-w-0">
+        {businessType && (
+          <div className="flex items-start gap-2">
+            <Building className="w-4 h-4 shrink-0" />
 
-    {/* Reviews */}
-    {/* <div className="flex items-start gap-2 min-w-0">
-      <Star className="h-4 w-4 shrink-0" />
+            <div>
+              <span className="text-xs block">
+                Market Served
+              </span>
 
-      <div className="min-w-0">
-        <span className="text-xs block leading-none">
-          Reviews
-        </span>
+              <p className="text-foreground">
+                {businessType === "both"
+                  ? "Gov&Commertial"
+                  : businessType
+                      ? businessType.charAt(0).toUpperCase() +
+                        businessType.slice(1)
+                      : "N/A"}
+              </p>
+            </div>
+          </div>
+        )}
+    </div>
 
-        <div className="font-medium text-foreground">
-          {rating || 0} ({reviewCount || 0} reviews)
-        </div>
-      </div>
-    </div> */}
     {/* Experience */}
     <div className="flex items-start justify-end gap-2 text-right min-w-0">
       <div className="min-w-0">
@@ -171,65 +166,9 @@ export function VendorCard({
         </div>
       </div>
 
-      <Award className="h-4 w-4 shrink-0" />
+      <CalendarClock className="h-4 w-4 shrink-0" />
     </div>
-    {/* Response Time */}
-    {/* <div className="flex items-start justify-end gap-2 text-right min-w-0">
-      <div className="min-w-0">
-        <span className="text-xs block leading-none">
-          Response Time
-        </span>
 
-        <div className="font-medium text-foreground">
-          {responseTime || "N/A"}
-        </div>
-      </div>
-
-      <Clock className="h-4 w-4 shrink-0" />
-    </div> */}
-  </div>
-
-  {/* Row 2 */}
-  <div className="grid grid-cols-1 gap-6">
-    {businessType && (
-      <div className="flex items-start gap-2">
-        <Building className="w-4 h-4 shrink-0 mt-1" />
-
-        <div>
-          <span className="text-xs block">
-            Market Served
-          </span>
-
-          <p className="text-foreground">
-            {businessType === "both"
-              ? "Gov & Commercial"
-              : businessType
-                  ? businessType.charAt(0).toUpperCase() +
-                    businessType.slice(1)
-                  : "N/A"}
-          </p>
-        </div>
-      </div>
-    )}
-
-    {/* Industries */}
-    {/* <div className="flex items-start gap-2 min-w-0">
-      <Briefcase className="h-4 w-4 shrink-0" />
-
-      <div className="min-w-0">
-        <span className="text-xs block leading-none ">
-          Serving Industries
-        </span>
-
-        <div className="font-medium text-foreground break-words">
-          {agenciesServed
-            ? truncateText(agenciesServed, 40)
-            : "N/A"}
-        </div>
-      </div>
-    </div> */}
-
-    
   </div>
 </div>
 
@@ -238,7 +177,7 @@ export function VendorCard({
       <div>
         <span className="text-xs block leading-none mb-2 text-muted-foreground">Skills</span>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 min-h-[60px] content-start">
           {skills.slice(0, 5).map((skill, index) => (
             <Badge key={index} variant="outline" className="text-xs" >
               {skill}
@@ -253,36 +192,24 @@ export function VendorCard({
         </div>
       </div>
     </div>
-
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="font-semibold">
-            {hourlyRate ? `$${hourlyRate}/hr` : "Not specified"}
-          </div>
-        </div>
-        <div className="flex gap-2">
+    <hr />
+      <div className="flex items-center justify-between mt-auto pt-4">
+          <Button 
+            size="sm"
+            onClick={() => openConversation(userId)}
+            data-testid={`button-contact-${name.toLowerCase().replace(/\s+/g, '-')}`}
+          >
+            <MessageCircle className="w-4 h-4" />
+            Contact
+          </Button>
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => {
-              console.log(`Viewing profile for: ${name}`);
-              onViewProfile?.();
-            }}
+            onClick={() => setLocation(`/vendor/${userId}`)}
             data-testid={`button-view-profile-${name.toLowerCase().replace(/\s+/g, '-')}`}
           >
             View Profile
           </Button>
-          <Button 
-            size="sm"
-            onClick={() => {
-              console.log(`Contacting vendor: ${name}`);
-              onContact?.();
-            }}
-            data-testid={`button-contact-${name.toLowerCase().replace(/\s+/g, '-')}`}
-          >
-            Contact
-          </Button>
-        </div>
       </div>
     </Card>
   );

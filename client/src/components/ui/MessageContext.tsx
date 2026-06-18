@@ -8,7 +8,7 @@ interface MessageContextType {
   toggleMessages: () => void;
 
   openConversation: (
-    vendorId?: string
+    userId?: string
   ) => Promise<void>;
 
   closeMessages: () => void;
@@ -41,13 +41,13 @@ export function MessageProvider({
   };
 
   const openConversation = async (
-    vendorId?: string
+    userId?: string
   ) => {
 
     try {
 
       // open inbox only
-      if (!vendorId) {
+      if (!userId) {
 
         setSelectedConversationId(null);
 
@@ -69,7 +69,7 @@ export function MessageProvider({
           credentials: "include",
 
           body: JSON.stringify({
-            vendorId,
+            userId,
           }),
         }
       );

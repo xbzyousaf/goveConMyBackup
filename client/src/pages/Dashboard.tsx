@@ -738,22 +738,14 @@ const { data: categories = [] } = useQuery<any[]>({
 
 
               <div className="grid grid-cols-1 md:grid-cols-1 gap-6 w-full">
-                {/* <div className="grid grid-cols-1 gap-6 w-full">
-                  {servicesData.map((service, index) => (
-                    <ServiceCardCompact
-                      key={index}
-                      service={service}
-                      detailsUrl={`/services/${service.id}/vendors`}
-                    />
-                  ))}
-                </div> */}
                 
                     <div className="grid grid-cols-1 gap-6 w-full">
                       {servicesData.map((service, index) => (
                         <ServiceCardCompact
                           key={index}
                           service={service}
-                          detailsUrl={`/services/${service.id}/vendors`}
+                          detailsUrl={`/categories/${service.categoryId}/vendors`}
+                          // detailsUrl={`/services/${service.id}/vendors`}
                         />
                       ))}
                     </div>

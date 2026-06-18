@@ -72,7 +72,6 @@ export default function CategoryVendors() {
         {vendors.map((vendor: any) => {
           const vendorUserId =
             vendor.vendorId || vendor.userId || vendor.id;
-          console.log("Vendor Object:", vendor);
       const displayName =
             vendor.firstName || vendor.lastName
                 ? `${vendor.firstName ?? ""} ${vendor.lastName ?? ""}`.trim()
@@ -98,7 +97,7 @@ export default function CategoryVendors() {
                     </Avatar>
                     <div>
                       <p className="text-sm font-medium text-center">{vendor?.companyName ? truncateText(vendor.companyName, 18) : "N/A"}</p>
-                      <p className="text-xs text-muted-foreground">{vendor?.title ? truncateText(vendor.title, 24) : "N/A"}</p>
+                      {/* <p className="text-xs text-muted-foreground">{vendor?.title ? truncateText(vendor.title, 24) : "N/A"}</p> */}
                     </div>
                 {/* <span className="bg-gold text-white px-2 py-1 text-xs rounded font-semibold">
                   {vendor.subscriptionTier?.toUpperCase()}

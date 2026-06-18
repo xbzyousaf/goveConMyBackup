@@ -239,16 +239,13 @@ useEffect(() => {
   const currentAgencies = form.watch("agenciesServed") || [];
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="ml-8">
-        <Button size="sm"  variant="outline" className="ml-12 mt-4 mb-2"
-          onClick={() => window.history.back()}
-          >
-        <ArrowLeft className="w-4 h-4" />
+  <div className="min-h-screen bg-background">
+   <main className="max-w-6xl mx-auto px-4 py-4 space-y-4">
+      {/* Back Button */}
+      <Button size="sm" variant="outline" onClick={() => window.history.back()} >
+        <ArrowLeft className="w-4 h-4 mr-2" />
         Back
       </Button>
-    </div>
-      <div className="max-w-6xl mx-auto pt-2 pl-6 pr-6">
     <Card className="space-y-4" data-testid="card-vendor-profile-form">
       <CardHeader className="mt-2">
         <CardTitle className="flex items-center gap-2" data-testid="text-form-title">
@@ -324,29 +321,29 @@ useEffect(() => {
                   )}
                 />
                 <FormField
-  control={form.control}
-  name="businessType"
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel>Market Served</FormLabel>
+                control={form.control}
+                name="businessType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Market Served</FormLabel>
 
-      <FormControl>
-  <select
-    {...field}
-    value={field.value ?? "commercial"}
-    onChange={(e) => field.onChange(e.target.value)}
-    className="w-full border rounded-md p-2"
-  >
-          <option value="commercial">Commercial</option>
-          <option value="government">Government</option>
-          <option value="both">Both</option>
-        </select>
-      </FormControl>
+                    <FormControl>
+                <select
+                  {...field}
+                  value={field.value ?? "commercial"}
+                  onChange={(e) => field.onChange(e.target.value)}
+                  className="w-full border rounded-md p-2"
+                >
+                        <option value="commercial">Commercial</option>
+                        <option value="government">Government</option>
+                        <option value="both">Both</option>
+                      </select>
+                    </FormControl>
 
-      <FormMessage />
-    </FormItem>
-  )}
-/>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
                 
                 {/* <FormField
                   control={form.control}
@@ -802,7 +799,7 @@ useEffect(() => {
         </Form>
       </CardContent>
     </Card>
-    </div>
-    </div>
+   </main>
+  </div>
   );
 }

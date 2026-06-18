@@ -341,6 +341,7 @@ async getVendorProfileById(
       whereConditions.push(eq(vendorProfiles.location, filters.location));
     }
     whereConditions.push(eq(vendorProfiles.isApproved, true));
+    whereConditions.push(eq(users.userType, 'vendor'));
     // ✅ NEW: multi-category match (IMPORTANT)
     if (filters?.categories && filters.categories.length > 0) {
       const categoryConditions = filters.categories.map(
@@ -1999,43 +2000,56 @@ async getRecommendedServices(gaps: Gap[], businessType?: BusinessType) {
 
   return results;
 }
-  async getWalletTransactions() {
-  return await db.query.walletTransactions.findMany({
+  async getWalletTransactions(page = 1, limit = 10) {
+  const offset = (page - 1) * limit;
+  const transactions = await db.query.escrows.findMany({
     columns: {
       id: true,
+      serviceRequestId: true,
+      contractorId: true,
+      vendorId: true,
       amount: true,
-      type: true,
-      referenceId: true,
+      platformFee: true,
+      vendorEarning: true,
+      status: true,
+      heldAt: true,
+      releasedAt: true,
+      refundedAt: true,
       createdAt: true,
     },
 
     with: {
-      wallet: {
-        columns: {
-          id: true,
-          balance: true,
-        },
-
-        // with: {
-        //   user: {
-        //     columns: {
-        //       firstName: true,
-        //       lastName: true,
-        //     },
-        //   },
-        // },
-      },
-
-      serviceRequests: {
+      serviceRequest: {
         columns: {
           title: true,
           description: true,
         },
       },
+      vendor: true,
+      contractor: true,
     },
 
-    orderBy: (wt, { desc }) => [desc(wt.createdAt)],
+    orderBy: (escrows, { desc }) => [
+      desc(escrows.heldAt),
+    ],
+
+    limit,
+    offset,
   });
+
+  const [{ total }] = await db
+    .select({
+      total: count(),
+    })
+    .from(escrows);
+
+  return {
+    data: transactions,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 }
 async getServiceVendors(categoryId: string) {
   return await db
@@ -2674,6 +2688,25 @@ async markSupportTicketRead(ticketId: string, userType: string ) {
           }
     )
     .where(eq(supportTickets.id, ticketId));
+}
+async getUsersByType(userType: string) {
+  return db.query.users.findMany({
+    where: (users, { eq }) =>
+      eq(users.userType, userType),
+
+    with: {
+      vendorProfile: {
+        where: (vendorProfile, { eq }) =>
+          eq(vendorProfile.isApproved, true),
+      },
+    },
+  });
+}
+async getAllCategories() {
+  return await db
+    .select()
+    .from(categories)
+    .orderBy(categories.name);
 }
 
 // end

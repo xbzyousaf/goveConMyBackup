@@ -14,7 +14,7 @@ export default function Profile() {
   });
 
   const { data: categories = [] } = useQuery({
-    queryKey: ["/api/categories"],
+    queryKey: ["/api/admin/categories"],
   });
 
   const { data: vendorProfile, isLoading: profileLoading } = useQuery({

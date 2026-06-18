@@ -108,10 +108,10 @@ const { data: categories = [] } = useQuery<any[]>({
   }
 
   // vendor must complete onboarding
-  // if (vendorProfile && vendorProfile.user.userType === "vendor" && !vendorProfile.user.hasCompletedOnboarding) {
-  //   setLocation("/vendor/onboarding");
-  //   return null;
-  // }
+  if (vendorProfile && vendorProfile.user.userType === "vendor" && !vendorProfile.user.hasCompletedOnboarding) {
+    setLocation("/vendor-onboarding");
+    return null;
+  }
   
   const earningsChange = calculateMonthlyMetric(serviceRequests, {
     dateKey: "createdAt",
@@ -181,7 +181,7 @@ const { data: categories = [] } = useQuery<any[]>({
               Welcome, {user?.firstName || "Vendor"}!
             </h1>
             <p className="text-muted-foreground" data-testid="text-welcome-description">
-              Manage your vendor profile and service requests
+              Manage your profile and service requests
             </p>
           </div>
           
@@ -191,7 +191,7 @@ const { data: categories = [] } = useQuery<any[]>({
               data-testid="button-create-profile"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Create Vendor Profile
+              Create Profile
             </Button>
           )}
         </div>
@@ -209,7 +209,7 @@ const { data: categories = [] } = useQuery<any[]>({
               <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto">
                 <Building className="w-8 h-8 text-muted-foreground" />
               </div>
-              <CardTitle>Create Your Vendor Profile</CardTitle>
+              <CardTitle>Create Your Profile</CardTitle>
               <CardDescription>
                 Set up your professional profile to start receiving service requests from government contractors.
               </CardDescription>

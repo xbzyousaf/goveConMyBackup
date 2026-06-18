@@ -287,7 +287,7 @@ function Router() {
             </ProtectedRoute>
           </Route>
 
-          <Route path="/vendor/onboarding">
+          <Route path="/vendor-onboarding">
             <ProtectedRoute allowedRoles={["vendor"]}>
               <VendorOnboarding />
             </ProtectedRoute>
