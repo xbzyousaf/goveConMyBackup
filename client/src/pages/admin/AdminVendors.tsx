@@ -14,6 +14,10 @@ export default function AdminVendors() {
   const [loadingVendorId, setLoadingVendorId] = useState<string | null>(null);
   const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ["/api/admin/categories"],
+  });
+
   // Fetch vendors
   const { data: vendors = [], isLoading } = useQuery<VendorProfile[]>({
     queryKey: ["/api/admin/vendors"],
@@ -115,7 +119,7 @@ export default function AdminVendors() {
               <tr className="bg-gray-50">
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Name</th>
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Company</th>
-                <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Category</th>
+                {/* <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Category</th> */}
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Status</th>
                 <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Actions</th>
               </tr>
@@ -125,7 +129,7 @@ export default function AdminVendors() {
                 <tr key={vendor.id}>
                   <td className="px-4 py-2">{vendor.userName}</td>
                   <td className="px-4 py-2">{vendor.companyName || "-"}</td>
-                  <td className="px-4 py-2">{vendor.categories?.[0] || "General"}</td>
+                  {/* <td className="px-4 py-2">{vendor.categories?.[0] || "General"}</td> */}
                   <td className="px-4 py-2">
                     {vendor.isApproved ? (
                       <span className="text-green-600 font-medium">Active</span>

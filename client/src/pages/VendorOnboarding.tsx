@@ -9,12 +9,13 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { useLocation } from "wouter";
 import { queryClient } from "@/lib/queryClient";
-import headerImg from "@/assets/onboarding/header.png";
+import vendorHeaderImg from "@/assets/onboarding/vendorHeader.png";
 import vendorProfileImg from "@/assets/onboarding/vendorProfile.png";
-import vendorOverviewImg from "@/assets/onboarding/vendorOverview.png";
-import vendorProfilesImg from "@/assets/onboarding/vendorProfiles.png";
-import servicesRequestsImg from "@/assets/onboarding/servicesRequests.png";
+import vendorPerformanceImg from "@/assets/onboarding/vendorPerformance.png";
+// import vendorProfilesImg from "@/assets/onboarding/vendorProfiles.png";
+import vendorServiceRequestsImg from "@/assets/onboarding/vendorServiceRequests.png";
 import vendorReviewsImg from "@/assets/onboarding/vendorReviews.png";
+import vendorPayoutsImg from "@/assets/onboarding/vendorPayouts.png";
 
 
 export default function VendorOnboarding() {
@@ -25,38 +26,38 @@ export default function VendorOnboarding() {
     {
       title: "Navigate Your Vendor Workspace",
       description:
-        "Access key areas of the platform from the header—Marketplace, Services, Vendor Listings, Search, Profile Settings, and Secure Logout. This is your command center for daily activity.",
-      image: headerImg,
+        "Access key areas of the platform from the header—Marketplace, Services, Notification, Messages, Profile Settings, and Secure Logout.",
+      image: vendorHeaderImg,
     },
     {
-      title: "Complete Your Profile",
+      title: "View & Edit Your Profile",
       description:
         "Complete your personalized profile to showcase your profession, skills, about and services to potential clients.",
       image: vendorProfileImg,
     },
     {
-      title: "Your Overview Stats",
-      description:
-        "View your overview stats, requests, completion rate, avg. rating, monthly earnings, track your services requests & status.",
-      image: vendorOverviewImg,
-    },
-    {
-      title: "View and edit your Vendor Profiles",
-      description:
-        "View and update your vendor profiles to keep your information current.",
-      image: vendorProfilesImg,
-    },
-    {
       title: "View Your Services Requests",
       description:
         "View and manage your services requests and their status.",
-      image: servicesRequestsImg,
+      image: vendorServiceRequestsImg,
     },
     {
       title: "View Vendor Reviews & Ratings",
       description:
         "View feedback from clients to improve your services and build credibility.",
       image: vendorReviewsImg,
+    },
+    {
+      title: "View Vendor Performance",
+      description:
+        "View Vendor Performance, Score, Completion Rate, On-Time Delivery, Total Requests, Completed Jobs.",
+      image: vendorPerformanceImg,
+    },
+    {
+      title: "View Earnings & Connect Payout Methods",
+      description:
+        "View connected payout methods and earnings",
+      image: vendorPayoutsImg,
     },
   ];
 
@@ -82,8 +83,31 @@ export default function VendorOnboarding() {
           <Progress value={((step + 1) / steps.length) * 100} />
           <CardTitle className="text-2xl">{current.title}</CardTitle>
         </CardHeader>
+        {/* NAVIGATION */}
+          {step >= 0 && (
+            <div className="flex justify-between ml-6 mr-6 mb-2">
+              <Button
+                variant="outline"
+                disabled={step === 0}
+                size="sm"
+                onClick={() => setStep(step - 1)}
+              >
+                Back
+              </Button>
 
-        <CardContent className="space-y-6">
+              {step === steps.length - 1 ? (
+                <Button onClick={completeOnboarding} size="sm">
+                  Go to Dashboard
+                </Button>
+              ) : (
+                <Button onClick={() => setStep(step + 1)} size="sm">
+                  Next
+                </Button>
+              )}
+            </div>
+          )}
+
+        <CardContent className="space-y-2">
           <img
             src={current.image}
             alt={current.title}
@@ -94,28 +118,6 @@ export default function VendorOnboarding() {
             {current.description}
           </p>
 
-          {/* NAVIGATION */}
-          {step >= 0 && (
-            <div className="flex justify-between">
-              <Button
-                variant="outline"
-                disabled={step === 0}
-                onClick={() => setStep(step - 1)}
-              >
-                Back
-              </Button>
-
-              {step === steps.length - 1 ? (
-                <Button onClick={completeOnboarding}>
-                  Go to Dashboard
-                </Button>
-              ) : (
-                <Button onClick={() => setStep(step + 1)}>
-                  Next
-                </Button>
-              )}
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
