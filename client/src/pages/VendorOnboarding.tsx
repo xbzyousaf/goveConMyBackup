@@ -67,8 +67,8 @@ export default function VendorOnboarding() {
       credentials: "include",
     });
 
-    await queryClient.invalidateQueries({
-      queryKey: ["/api/auth/current-user"],
+    queryClient.removeQueries({
+      queryKey: ["/api/vendor-profile"],
     });
 
     setLocation("/vendor-dashboard");

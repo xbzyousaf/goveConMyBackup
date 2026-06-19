@@ -102,16 +102,21 @@ const { data: categories = [] } = useQuery<any[]>({
       );
 
     // AUTH + ONBOARDING GUARD
-  if (!user) {
-    setLocation("/login");
-    return null;
-  }
+    useEffect(() => {
+    if (!user) {
+      setLocation("/login");
+    }
+  }, [user]);
 
-  // vendor must complete onboarding
-  if (vendorProfile && vendorProfile.user.userType === "vendor" && !vendorProfile.user.hasCompletedOnboarding) {
-    setLocation("/vendor-onboarding");
-    return null;
-  }
+  useEffect(() => {
+    if (
+      vendorProfile &&
+      vendorProfile.user.userType === "vendor" &&
+      !vendorProfile.user.hasCompletedOnboarding
+    ) {
+      setLocation("/vendor-onboarding");
+    }
+  }, [vendorProfile]);
   
   const earningsChange = calculateMonthlyMetric(serviceRequests, {
     dateKey: "createdAt",
